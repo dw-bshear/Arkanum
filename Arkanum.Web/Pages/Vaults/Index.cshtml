@@ -1,0 +1,43 @@
+@page
+@model Arkanum.Web.Pages.Vaults.IndexModel
+@{
+    ViewData["Title"] = Model.IsStandardUser ? "Your Vaults" : "Vaults";
+}
+<section class="section-heading vaults-heading">
+    <div>
+        <p class="eyebrow">@(Model.IsStandardUser ? "Your Vaults" : "Vaults")</p>
+        <h1>@(Model.IsStandardUser ? "Personal and shared vaults" : "Vault Access List")</h1>
+        <p>@(Model.IsStandardUser ? "Your personal vault is created automatically. Open a vault to add credentials or invite another user." : "Your available Vaults are listed below. If you need an additional vault, select 'Create Vault' to establish a new credential vault.")</p>
+    </div>
+    @if (Model.CanCreateVault)
+    {
+    <details class="create-vault-disclosure">
+        <summary class="secondary-action">Create vault</summary>
+        <form method="post" asp-page-handler="Create" class="card-form compact-create-vault">
+            <h2>New vault</h2>
+            <label asp-for="Name">Vault name</label>
+            <input asp-for="Name" placeholder="Operations" />
+            <span asp-validation-for="Name" class="text-danger"></span>
+            <label asp-for="Description">Description</label>
+            <input asp-for="Description" placeholder="Shared operational credentials" />
+            <button class="primary-action" type="submit">Create vault</button>
+        </form>
+    </details>
+    }
+</section>
+<div class="table-card mt-3">
+<table>
+<thead><tr><th>Name</th><th>Description</th><th>Folders</th><th>Items</th><th>Created</th></tr></thead>
+<tbody>
+@foreach (var vault in Model.Vaults)
+{
+    <tr><td><a asp-page="/Vaults/Details" asp-route-id="@vault.Id">@vault.Name</a></td><td>@vault.Description</td><td>@vault.FolderCount</td><td>@vault.ItemCount</td><td>@vault.CreatedAt.LocalDateTime</td></tr>
+}
+@if (!Model.Vaults.Any())
+{
+    <tr><td colspan="5">No vaults are available to your account yet.</td></tr>
+}
+</tbody>
+</table>
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

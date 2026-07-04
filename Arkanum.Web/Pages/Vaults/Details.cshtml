@@ -1,0 +1,224 @@
+@page "{id:guid}"
+@model Arkanum.Web.Pages.Vaults.DetailsModel
+@{
+    ViewData["Title"] = Model.Vault?.Name ?? "Vault";
+}
+
+@if (Model.Vault is not null)
+{
+<section class="section-heading vault-detail-heading">
+    <div>
+        <p class="eyebrow">Vault</p>
+        <h1>@Model.Vault.Name</h1>
+        <p>@Model.Vault.Description</p>
+    </div>
+    <div class="vault-heading-actions">
+        @if (Model.CanEditVaultMetadata)
+        {
+            <details class="edit-vault-disclosure">
+                <summary class="secondary-action">Edit vault</summary>
+                <form method="post" asp-page-handler="UpdateMetadata" asp-route-id="@Model.Vault.Id" class="card-form compact-create-vault">
+                    <label asp-for="VaultName">Vault name</label>
+                    <input asp-for="VaultName" />
+                    <span asp-validation-for="VaultName" class="text-danger"></span>
+                    <label asp-for="VaultDescription">Vault description</label>
+                    <input asp-for="VaultDescription" />
+                    <button class="primary-action" type="submit">Save vault details</button>
+                </form>
+            </details>
+        }
+        <a class="secondary-action" asp-page="/Vaults/Index">Back to vaults</a>
+    </div>
+</section>
+<nav class="vault-section-nav" aria-label="Vault sections">
+    <a href="#vault-access"><span>1</span> Access</a>
+    <a href="#vault-contents"><span>2</span> Contents</a>
+    @if (Model.CanAddOrChangeVaultContents)
+    {
+        <a href="#vault-add-entry"><span>3</span> Add entry</a>
+        <a href="#vault-add-note"><span>4</span> Add note</a>
+    }
+</nav>
+
+@if (Model.IsReadOnlyAuditorView)
+{
+    <div class="notice info">Auditor view is read-only. You can review vault inventory and access lists, but reveal/copy and change actions are hidden.</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.InviteStatus))
+{
+    <div class="notice success">@Model.InviteStatus</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.FolderStatus))
+{
+    <div class="notice success">@Model.FolderStatus</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.RevealedSecret))
+{
+    <div class="notice success secret-reveal-panel">
+        <strong>@(Model.CopyIntent ? "Copy value" : "Revealed value") for @Model.RevealedTitle</strong>
+        <code id="revealedSecret">@Model.RevealedSecret</code>
+        <button class="secondary-action" type="button" data-copy-revealed>Copy to clipboard</button>
+        <small>This reveal/copy action has been audited. Plaintext is not stored in audit logs.</small>
+    </div>
+}
+
+<div class="vault-workspace">
+    <article id="vault-access" class="feature-card access-card vault-section-card vault-section-access">
+        <div class="access-card-header">
+            <div>
+                <p class="eyebrow">Access</p>
+                <h2>Current access</h2>
+                <p>People who can open this vault.</p>
+            </div>
+            @if (Model.CanInviteUsers)
+            {
+                <details class="invite-user-disclosure">
+                    <summary class="secondary-action small">Invite user</summary>
+                    <form method="post" asp-page-handler="Invite" asp-route-id="@Model.Vault.Id" class="card-form compact-invite-form">
+                        <label asp-for="InviteUsername">Existing username</label>
+                        <input asp-for="InviteUsername" placeholder="name@email.com" />
+                        <span asp-validation-for="InviteUsername" class="text-danger"></span>
+                        <button class="primary-action" type="submit">Send invite</button>
+                    </form>
+                </details>
+            }
+        </div>
+        <ul class="access-list">
+            @foreach (var member in Model.Vault.Members)
+            {
+                <li><strong>@member.Username</strong><span>@(member.CanInvite ? "Can invite others" : "Vault member")</span></li>
+            }
+        </ul>
+    </article>
+
+    <section id="vault-contents" class="feature-card credential-tree-card vault-section-card vault-section-contents">
+        <div class="access-card-header">
+            <div>
+                <p class="eyebrow">Credentials</p>
+                <h2>Vault contents</h2>
+                <p>Folders expand like a directory tree so entries are available as soon as you open the vault.</p>
+            </div>
+            @if (Model.CanAddOrChangeVaultContents)
+            {
+            <details class="new-folder-disclosure">
+                <summary class="secondary-action small">New folder</summary>
+                <form method="post" asp-page-handler="CreateFolder" asp-route-id="@Model.Vault.Id" class="card-form compact-folder-form">
+                    <label asp-for="FolderName">Folder name</label>
+                    <input asp-for="FolderName" placeholder="Network devices" />
+                    <span asp-validation-for="FolderName" class="text-danger"></span>
+                    <button class="primary-action" type="submit">Create folder</button>
+                </form>
+            </details>
+            }
+        </div>
+        <div class="vault-tree" role="tree" aria-label="Vault folders and credential entries">
+        @foreach (var folder in Model.Vault.Folders)
+        {
+            <details class="tree-folder" open>
+                <summary><span class="tree-twist">▾</span><strong>@folder.Name</strong><span>@folder.Items.Count item@(folder.Items.Count == 1 ? string.Empty : "s")</span></summary>
+                @if (folder.Items.Any())
+                {
+                    <ul class="tree-items">
+                    @foreach (var item in folder.Items)
+                    {
+                        <li>
+                            <div class="tree-item-main">
+                                <strong>@item.Title</strong>
+                                <span>@item.Type</span>
+                                @if (!string.IsNullOrWhiteSpace(item.Username))
+                                {
+                                    <small>@item.Username</small>
+                                }
+                            </div>
+                            @if (Model.CanRevealSecrets)
+                            {
+                            <div class="inline-actions">
+                                <form method="post" asp-page-handler="Reveal" asp-route-id="@Model.Vault.Id">
+                                    <input type="hidden" name="ItemId" value="@item.Id" />
+                                    <input type="hidden" name="Title" value="@item.Title" />
+                                    <button class="secondary-action small" type="submit">Reveal</button>
+                                </form>
+                                <form method="post" asp-page-handler="Copy" asp-route-id="@Model.Vault.Id">
+                                    <input type="hidden" name="ItemId" value="@item.Id" />
+                                    <input type="hidden" name="Title" value="@item.Title" />
+                                    <button class="secondary-action small" type="submit">Copy</button>
+                                </form>
+                            </div>
+                            }
+                        </li>
+                    }
+                    </ul>
+                }
+                else
+                {
+                    <p class="tree-empty">No entries in this folder yet.</p>
+                }
+            </details>
+        }
+        </div>
+    </section>
+
+    @if (Model.CanAddOrChangeVaultContents)
+    {
+    <form id="vault-add-entry" method="post" asp-page-handler="CreateLogin" asp-route-id="@Model.Vault.Id" class="card-form add-credential-form vault-section-card vault-section-add-entry">
+        <div>
+            <p class="eyebrow">Add entry</p>
+            <h2>Add login credential</h2>
+            <p>Save a credential to this vault. Generate a strong password here if you are creating or rotating one.</p>
+        </div>
+        <div class="credential-form-grid">
+            <label>Folder
+                <select name="FolderId">
+                    @foreach (var folder in Model.Vault.Folders)
+                    {
+                        <option value="@folder.Id">@folder.Name</option>
+                    }
+                </select>
+            </label>
+            <label>Title
+                <input name="Title" placeholder="Firewall admin" />
+            </label>
+            <label>Username
+                <input name="Username" placeholder="admin@example.com" />
+            </label>
+            <label>Password
+                <input id="credentialPassword" name="SecretValue" type="password" autocomplete="new-password" />
+            </label>
+        </div>
+        <div class="password-tool-panel">
+            <div>
+                <strong>Need a strong password?</strong>
+                <p>Generate one here, then save it with this credential.</p>
+            </div>
+            <button class="secondary-action small" type="button" data-generate-password data-password-target="credentialPassword" data-password-output="generatedPassword">Generate password</button>
+            <code id="generatedPassword" class="password-output compact">masked until generated</code>
+        </div>
+        <button class="primary-action" type="submit">Save credential</button>
+    </form>
+
+    <form id="vault-add-note" method="post" asp-page-handler="CreateNote" asp-route-id="@Model.Vault.Id" class="card-form add-note-form vault-section-card vault-section-add-note">
+        <div>
+            <p class="eyebrow">Add note</p>
+            <h2>Add secure note</h2>
+            <p>Store recovery details, procedures, or other protected vault notes.</p>
+        </div>
+        <label>Folder</label>
+        <select name="FolderId">
+            @foreach (var folder in Model.Vault.Folders)
+            {
+                <option value="@folder.Id">@folder.Name</option>
+            }
+        </select>
+        <label>Title</label>
+        <input name="Title" placeholder="Recovery procedure" />
+        <label>Secure note</label>
+        <textarea name="SecretValue" rows="4"></textarea>
+        <button class="primary-action" type="submit">Save secure note</button>
+    </form>
+    }
+</div>
+}
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

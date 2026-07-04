@@ -1,0 +1,30 @@
+@page
+@model Arkanum.Web.Pages.ManualLoginModel
+@{
+    ViewData["Title"] = "Manual sign in";
+    ViewData["BodyClass"] = "brand-background-page login-background-page";
+}
+
+<section class="hero compact">
+    <div>
+        <p class="eyebrow">Emergency Access</p>
+        <h1>Manual sign in</h1>
+        <p>This page provides a manual login point when Single Sign-On is not functioning.</p>
+    </div>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="notice success">@Model.StatusMessage</div>
+}
+
+<form method="post" class="card-form setup-form">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <p class="eyebrow">Emergency Access</p>
+    <label asp-for="Username">Username</label>
+    <input asp-for="Username" autocomplete="username" />
+    <label asp-for="Password">Password</label>
+    <input asp-for="Password" type="password" autocomplete="current-password" />
+    <button class="primary-action" type="submit">Sign in manually</button>
+    <p class="form-help"><a asp-page="/Login">Back to federated sign in</a></p>
+</form>

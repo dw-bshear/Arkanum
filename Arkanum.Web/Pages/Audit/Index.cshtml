@@ -1,0 +1,29 @@
+@page
+@model Arkanum.Web.Pages.Audit.IndexModel
+@{
+    ViewData["Title"] = "Audit Logs";
+}
+<section class="section-heading">
+    <p class="eyebrow">Audit Logs</p>
+    <h1>Access History and Secret Access Events</h1>
+    <p>Review setup, sign-in, vault, reveal/copy, directory sync, and settings events. Plaintext secrets are never logged.</p>
+</section>
+<div class="grid two">
+    <article class="feature-card"><h2>Retention</h2><p>Server-side audit records are retained for 90 days by default.</p></article>
+    <article class="feature-card"><h2>Exports</h2><p>Auditor report export is planned without granting edit permissions.</p></article>
+</div>
+<div class="table-card mt-3">
+<table>
+<thead><tr><th>When</th><th>Type</th><th>Actor</th><th>Target</th><th>Message</th></tr></thead>
+<tbody>
+@foreach (var item in Model.Events)
+{
+    <tr><td>@item.OccurredAt.LocalDateTime</td><td>@item.Type</td><td>@item.ActorUserKey</td><td>@item.Target</td><td>@item.Message</td></tr>
+}
+@if (!Model.Events.Any())
+{
+    <tr><td colspan="5">No audit events have been recorded yet.</td></tr>
+}
+</tbody>
+</table>
+</div>

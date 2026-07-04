@@ -1,0 +1,65 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-theme="light" data-active-theme="light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Arkanum</title>
+    <script type="importmap"></script>
+    <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="~/favicon-32x32.png" />
+    <link rel="apple-touch-icon" href="~/images/apple-touch-icon.png" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="@ViewData["BodyClass"]">
+    <header class="app-header">
+        <nav class="navbar navbar-expand-lg app-nav">
+            <div class="container-fluid app-frame">
+                <a class="navbar-brand brand" asp-page="/Index"><img class="brand-mark brand-image" src="~/images/brand/header-mark.webp" asp-append-version="true" alt="" />Arkanum</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="mainNav">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item"><a class="nav-link" asp-page="/Index">Dashboard</a></li>
+                        @if (User?.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item"><a class="nav-link" asp-page="/Vaults/Index">Vaults</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-page="/Settings/Index">Settings</a></li>
+                        }
+                    </ul>
+                    <div class="header-actions">
+                        @if (User?.Identity?.IsAuthenticated == true)
+                        {
+                            <span class="identity-chip">@User.Identity.Name</span>
+                            <form method="post" asp-page="/Logout"><button class="link-button" type="submit">Sign out</button></form>
+                        }
+                        else
+                        {
+                            <a class="secondary-action small" asp-page="/Login">Sign in</a>
+                        }
+                        <div class="theme-switch" role="group" aria-label="Theme selection">
+                            <button class="theme-switch-option" type="button" data-theme-choice="light" aria-label="Use light theme" title="Light theme">☀</button>
+                            <button class="theme-switch-option" type="button" data-theme-choice="dark" aria-label="Use dark theme" title="Dark theme">☾</button>
+                            <button class="theme-switch-thumb" type="button" data-theme-toggle aria-label="Toggle light and dark theme"></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="app-frame page-shell">
+        <main role="main">
+            @RenderBody()
+        </main>
+    </div>
+    <footer class="app-footer app-frame">
+        <span>Arkanum credential vaults</span>
+        <span>Access History · Secure Notes · Safe Credentials</span>
+    </footer>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

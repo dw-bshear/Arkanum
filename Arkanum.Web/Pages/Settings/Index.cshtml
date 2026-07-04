@@ -1,0 +1,365 @@
+@page
+@model Arkanum.Web.Pages.Settings.IndexModel
+@{
+    ViewData["Title"] = "Settings";
+}
+<section class="section-heading">
+    <p class="eyebrow">Administrator settings</p>
+    <h1>Settings</h1>
+    <p>Administrator users can see all settings while we build the control surface. After the settings are in place, visibility can be tightened by role.</p>
+</section>
+
+@if (TempData["Status"] is string status)
+{
+    <div class="notice success">@status</div>
+}
+
+<section class="settings-overview">
+    <article class="feature-card settings-intro-card">
+        <h2>Your permission view</h2>
+        <p>Current access groups:</p>
+        <div class="badge-row">
+            @foreach (var role in Model.CurrentRoles)
+            {
+                <span class="badge-soft">@role</span>
+            }
+        </div>
+    </article>
+    <article class="feature-card settings-intro-card">
+        <h2>Settings layout</h2>
+        <p>Tabs separate dashboard copy, directory configuration, notifications, user administration, and logs for easier navigation.</p>
+    </article>
+</section>
+
+@if (Model.CanManageFeatureVisibility)
+{
+<div class="settings-tabs mt-3">
+    <div class="settings-tab-list" role="tablist" aria-label="Administrator settings sections">
+        <button class="settings-tab-button active" type="button" role="tab" aria-selected="true" aria-controls="settings-dashboard" data-settings-tab="settings-dashboard">Dashboard</button>
+        <button class="settings-tab-button" type="button" role="tab" aria-selected="false" aria-controls="settings-directory" data-settings-tab="settings-directory">Directory / LDAP</button>
+        <button class="settings-tab-button" type="button" role="tab" aria-selected="false" aria-controls="settings-database" data-settings-tab="settings-database">Database</button>
+        <button class="settings-tab-button" type="button" role="tab" aria-selected="false" aria-controls="settings-federation" data-settings-tab="settings-federation">SAML / OIDC</button>
+        <button class="settings-tab-button" type="button" role="tab" aria-selected="false" aria-controls="settings-notifications" data-settings-tab="settings-notifications">Notifications</button>
+        <button class="settings-tab-button" type="button" role="tab" aria-selected="false" aria-controls="settings-users" data-settings-tab="settings-users">User Management</button>
+        <button class="settings-tab-button" type="button" role="tab" aria-selected="false" aria-controls="settings-logs" data-settings-tab="settings-logs">Logs</button>
+    </div>
+
+    <section id="settings-dashboard" class="settings-tab-panel is-active" role="tabpanel">
+        <div class="settings-panel-heading">
+            <p class="eyebrow">Dashboard</p>
+            <h2>Landing page text</h2>
+            <p>Edit the headline and supporting text shown on the dashboard/landing page.</p>
+        </div>
+        <form method="post" asp-page-handler="DashboardText" class="card-form settings-wide-form">
+            <label asp-for="DashboardHeroTitle">Dashboard headline</label>
+            <input asp-for="DashboardHeroTitle" />
+            <span asp-validation-for="DashboardHeroTitle" class="text-danger"></span>
+            <label asp-for="DashboardHeroDescription">Dashboard comments</label>
+            <textarea asp-for="DashboardHeroDescription" rows="4"></textarea>
+            <span asp-validation-for="DashboardHeroDescription" class="text-danger"></span>
+            <button class="primary-action" type="submit">Save dashboard text</button>
+        </form>
+    </section>
+
+    <section id="settings-directory" class="settings-tab-panel" role="tabpanel" hidden>
+        <div class="settings-panel-heading">
+            <p class="eyebrow">Directory / LDAP</p>
+            <h2>LDAP connector settings</h2>
+            <p>Store the server, bind, search, and attribute mapping values needed for LDAP or lightweight directory testing.</p>
+        </div>
+        <form method="post" asp-page-handler="Ldap" class="card-form settings-wide-form">
+            <div class="settings-form-grid">
+                <label>LDAP host or domain controller<input name="LdapHost" value="@Model.Ldap.Host" placeholder="ldap.example.local" /></label>
+                <label>Port<input name="LdapPort" value="@Model.Ldap.Port" placeholder="389" /></label>
+                <label>Search base DN<input name="LdapBaseDn" value="@Model.Ldap.BaseDn" placeholder="dc=example,dc=local" /></label>
+                <label>Bind DN / read account<input name="LdapBindDn" value="@Model.Ldap.BindDn" placeholder="uid=reader,ou=people,dc=example,dc=local" /></label>
+                <label>Bind DN password<input name="LdapBindPassword" type="password" value="@Model.Ldap.BindPassword" autocomplete="new-password" placeholder="Password for the read account" /></label>
+                <label>User search filter<input name="LdapUserFilter" value="@Model.Ldap.UserFilter" placeholder="(objectClass=person)" /></label>
+                <label>Login attribute<input name="LdapLoginAttribute" value="@Model.Ldap.LoginAttribute" placeholder="uid" /></label>
+                <label>Display-name attribute<input name="LdapDisplayNameAttribute" value="@Model.Ldap.DisplayNameAttribute" placeholder="displayName" /></label>
+                <label>Email attribute<input name="LdapEmailAttribute" value="@Model.Ldap.EmailAttribute" placeholder="mail" /></label>
+            </div>
+            <button class="primary-action" type="submit">Save LDAP settings</button>
+        </form>
+        <div class="settings-overview mt-3">
+            <form method="post" asp-page-handler="RunDirectorySync" class="card-form settings-intro-card">
+                <h3>Manual directory sync</h3>
+                <p class="form-help">Import matching LDAP users now. New directory users are created disabled until an administrator enables access.</p>
+                <button class="primary-action" type="submit">Sync directory now</button>
+            </form>
+            <form method="post" asp-page-handler="LdapSyncSchedule" class="card-form settings-intro-card">
+                <h3>Directory sync schedule</h3>
+                <label>Sync interval
+                    <select name="LdapSyncInterval">
+                        <option value="30m" selected="@(Model.LdapSync.Interval == "30m")">Every 30 minutes</option>
+                        <option value="12h" selected="@(Model.LdapSync.Interval == "12h")">Every 12 hours</option>
+                        <option value="1d" selected="@(Model.LdapSync.Interval == "1d")">Every 1 day</option>
+                    </select>
+                </label>
+                <button class="secondary-action" type="submit">Save sync schedule</button>
+            </form>
+        </div>
+    </section>
+
+    <section id="settings-database" class="settings-tab-panel" role="tabpanel" hidden>
+        <div class="settings-panel-heading">
+            <p class="eyebrow">Database</p>
+            <h2>SQL Server connection settings</h2>
+            <p>Store the SQL Server values that will be used by the installation or restart workflow. Changing these values does not move the currently running app to a new database until the application is restarted with a matching connection string.</p>
+        </div>
+        <article class="feature-card settings-intro-card">
+            <h3>Current database provider</h3>
+            <p>@Model.ActiveDatabaseProvider</p>
+            <p class="form-help">For production, Arkanum should run on SQL Server. SQLite is acceptable only for local review or temporary testing.</p>
+        </article>
+        <form method="post" asp-page-handler="SqlServer" class="card-form settings-wide-form mt-3">
+            <div class="settings-form-grid">
+                <label>SQL Server host<input name="SqlServerHost" value="@Model.SqlServer.Host" placeholder="sql.example.local" /></label>
+                <label>Port<input name="SqlServerPort" value="@Model.SqlServer.Port" placeholder="1433" /></label>
+                <label>Database name<input name="SqlServerDatabase" value="@Model.SqlServer.Database" placeholder="Arkanum" /></label>
+                <label>SQL login<input name="SqlServerUser" value="@Model.SqlServer.User" placeholder="arkanum_app" autocomplete="username" /></label>
+                <label>Password<input name="SqlServerPassword" type="password" autocomplete="new-password" placeholder="@(Model.SqlServer.HasPassword ? "Password already saved; leave blank to keep it" : "SQL login password")" /></label>
+            </div>
+            <label class="check-row"><input name="SqlServerEncrypt" type="checkbox" value="true" checked="@Model.SqlServer.Encrypt" /> Encrypt SQL connection</label>
+            <input name="SqlServerEncrypt" type="hidden" value="false" />
+            <label class="check-row"><input name="SqlServerTrustServerCertificate" type="checkbox" value="true" checked="@Model.SqlServer.TrustServerCertificate" /> Trust server certificate</label>
+            <input name="SqlServerTrustServerCertificate" type="hidden" value="false" />
+            <p class="form-help">Initial installation still needs a separate setup workflow: create the database, apply schema, create/verify least-privilege runtime credentials, then restart Arkanum with the active connection string.</p>
+            <button class="primary-action" type="submit">Save SQL Server settings</button>
+        </form>
+    </section>
+
+    <section id="settings-federation" class="settings-tab-panel" role="tabpanel" hidden>
+        <div class="settings-panel-heading">
+            <p class="eyebrow">SAML / OIDC</p>
+            <h2>Federated identity readiness</h2>
+            <p>Plan enterprise sign-in through an identity provider. Smart card/PIV can be satisfied upstream by the IdP and is not required as direct app integration for this phase.</p>
+        </div>
+        <article class="feature-card settings-intro-card">
+            <h3>Feasibility</h3>
+            <p>OIDC is the preferred first implementation path for Entra ID, ADFS 2019+, Keycloak, Okta, and similar providers. SAML remains feasible for ADFS and older enterprise IdPs, usually through a SAML middleware package or reverse proxy integration.</p>
+            <p class="form-help">Current saved mode: <strong>@Model.Federation.Mode</strong>. OIDC configured: <strong>@Model.Federation.OidcConfigured</strong>. SAML configured: <strong>@Model.Federation.SamlConfigured</strong>.</p>
+        </article>
+        <form method="post" asp-page-handler="Federation" class="card-form settings-wide-form mt-3">
+            <div class="settings-form-grid">
+                <label>Federation mode
+                    <select name="FederationMode">
+                        <option value="Local" selected="@(Model.Federation.Mode == "Local")">Local / emergency login only</option>
+                        <option value="OIDC" selected="@(Model.Federation.Mode == "OIDC")">OIDC</option>
+                        <option value="SAML" selected="@(Model.Federation.Mode == "SAML")">SAML</option>
+                    </select>
+                </label>
+                <label>OIDC authority<input name="OidcAuthority" value="@Model.Federation.OidcAuthority" placeholder="https://login.example.local/realms/arkanum" /></label>
+                <label>OIDC client ID<input name="OidcClientId" value="@Model.Federation.OidcClientId" placeholder="arkanum-web" /></label>
+                <label>OIDC client secret<input name="OidcClientSecret" type="password" autocomplete="new-password" placeholder="@(Model.Federation.HasOidcClientSecret ? "Secret already saved; leave blank to keep it" : "Client secret")" /></label>
+                <label>OIDC scopes<input name="OidcScopes" value="@Model.Federation.OidcScopes" placeholder="openid profile email groups" /></label>
+                <label>SAML metadata URL<input name="SamlMetadataUrl" value="@Model.Federation.SamlMetadataUrl" placeholder="https://idp.example.local/FederationMetadata/2007-06/FederationMetadata.xml" /></label>
+                <label>SAML entity ID<input name="SamlEntityId" value="@Model.Federation.SamlEntityId" placeholder="https://arkanum.example.local/saml" /></label>
+            </div>
+            <label class="check-row"><input name="RequireExternalMfa" type="checkbox" value="true" checked="@Model.Federation.RequireExternalMfa" /> Require MFA/smart-card policy at the identity provider</label>
+            <input name="RequireExternalMfa" type="hidden" value="false" />
+            <p class="form-help">These values control the OIDC runtime sign-in path and document SAML readiness. Local emergency admin login remains available.</p>
+            <button class="primary-action" type="submit">Save federation readiness</button>
+        </form>
+    </section>
+
+    <section id="settings-notifications" class="settings-tab-panel" role="tabpanel" hidden>
+        <div class="settings-panel-heading">
+            <p class="eyebrow">Notifications</p>
+            <h2>Email notification settings</h2>
+            <p>Configure SMTP delivery and edit reusable message templates for application notices.</p>
+        </div>
+        <form method="post" asp-page-handler="Mail" class="card-form settings-wide-form">
+            <h3>Mail server</h3>
+            <div class="settings-form-grid">
+                <label>SMTP host<input name="MailSmtpHost" value="@Model.Mail.SmtpHost" placeholder="smtp.example.local" /></label>
+                <label>SMTP port<input name="MailSmtpPort" value="@Model.Mail.SmtpPort" placeholder="587" /></label>
+                <label>From address<input name="MailFromAddress" value="@Model.Mail.FromAddress" placeholder="arkanum@email.com" /></label>
+                <label>From name<input name="MailFromName" value="@Model.Mail.FromName" placeholder="Arkanum" /></label>
+            </div>
+            <label class="check-row"><input name="MailUseTls" type="checkbox" value="true" checked="@Model.Mail.UseTls" /> Use TLS</label>
+            <input name="MailUseTls" type="hidden" value="false" />
+            <button class="primary-action" type="submit">Save notification server</button>
+        </form>
+        <form method="post" asp-page-handler="NotificationTemplates" class="card-form settings-wide-form mt-3">
+            <h3>Email templates</h3>
+            <p class="form-help">Available variables: <code>{{displayName}}</code>, <code>{{email}}</code>, and for vault-access notices <code>{{vaultName}}</code>.</p>
+            <div class="settings-form-grid">
+                <label>All active users subject<input name="NotificationAllUsersSubject" value="@Model.NotificationTemplates.AllUsersSubject" /></label>
+                <label>Vault access granted subject<input name="NotificationVaultAccessSubject" value="@Model.NotificationTemplates.VaultAccessSubject" /></label>
+            </div>
+            <label>All active users message<textarea name="NotificationAllUsersBody" rows="6">@Model.NotificationTemplates.AllUsersBody</textarea></label>
+            <label>Vault access granted message<textarea name="NotificationVaultAccessBody" rows="6">@Model.NotificationTemplates.VaultAccessBody</textarea></label>
+            <button class="primary-action" type="submit">Save email templates</button>
+        </form>
+        <form method="post" asp-page-handler="SendAllUsersNotification" class="card-form settings-wide-form mt-3">
+            <h3>Send notification to all active users</h3>
+            <p class="form-help">After editing and saving the all-active-users template, use this action to queue that message for every currently enabled user.</p>
+            <button class="primary-action" type="submit">Send notification to all active users</button>
+        </form>
+    </section>
+
+    <section id="settings-users" class="settings-tab-panel" role="tabpanel" hidden>
+        <div class="settings-panel-heading">
+            <p class="eyebrow">User Management</p>
+            <h2>Users, roles, and groups</h2>
+            <p>Manage synchronized directory users and local users in one place. Users can be enabled or disabled, assigned multiple roles, and placed into groups for shared vault access.</p>
+        </div>
+        <section class="role-description-grid" aria-label="Role descriptions">
+            @foreach (var roleDescription in Model.RoleDescriptions)
+            {
+                <article class="feature-card settings-intro-card">
+                    <h3>@roleDescription.DisplayName</h3>
+                    <p>@roleDescription.Summary</p>
+                </article>
+            }
+        </section>
+        <div class="notice info mt-3"><strong>Multiple roles are supported.</strong> Arkanum stores roles as a comma-separated role set today and the UI already saves checkbox selections. Effective access is additive, with read-only auditor-only accounts restricted from reveal/copy and change actions.</div>
+        <div class="settings-overview">
+            <article class="feature-card settings-intro-card"><h3>Directory users</h3><p>@Model.DirectoryUserCount synchronized users</p></article>
+            <article class="feature-card settings-intro-card"><h3>Local users</h3><p>@Model.LocalUserCount local users · @Model.ActiveUserCount active users</p></article>
+        </div>
+        <details class="compact-disclosure mt-3">
+            <summary class="primary-action">Create local user</summary>
+            <form method="post" asp-page-handler="CreateLocalUser" class="card-form settings-wide-form mt-3">
+                <div class="settings-form-grid">
+                    <label>Username<input name="CreateUsername" placeholder="vault-manager" /></label>
+                    <label>Display name<input name="CreateDisplayName" placeholder="Vault Manager" /></label>
+                    <label>Email<input name="CreateEmail" placeholder="name@email.com" /></label>
+                    <label>Initial password<input name="CreatePassword" type="password" autocomplete="new-password" /></label>
+                </div>
+                <fieldset class="role-grid"><legend>Roles</legend>
+                @foreach (var role in Enum.GetValues<ArkanumRole>())
+                {
+                    <label><input type="checkbox" name="CreateRoles" value="@role" checked="@(role == ArkanumRole.User)" /> @role</label>
+                }
+                </fieldset>
+                <button class="primary-action" type="submit">Create local user</button>
+            </form>
+        </details>
+        <form method="get" class="card-form settings-wide-form mt-3" action="/Settings#users">
+            <label>Search users<input id="settings-user-search" name="userSearch" value="@Model.UserSearch" placeholder="Search username, display name, or email" autocomplete="off" /></label>
+            <button class="secondary-action" type="submit">Search users</button>
+        </form>
+        <div class="table-card mt-3">
+            <table id="settings-users-table">
+                <thead><tr><th>User</th><th>Source</th><th>Status</th><th>Enable / disable</th><th>Roles</th></tr></thead>
+                <tbody>
+                @foreach (var user in Model.ManagedUsers)
+                {
+                    <tr data-user-row data-search="@($"{user.Username} {user.DisplayName} {user.Email} {user.Source} {user.RolesCsv}".ToLowerInvariant())">
+                        <td><strong>@user.DisplayName</strong><br /><span class="muted">@user.Username · @user.Email</span></td>
+                        <td><span class="badge-soft">@(user.Source == UserSource.Local ? "Local" : "Directory")</span></td>
+                        <td><span class="@(user.AppAccessEnabled ? "badge-ok" : "badge-warn")">@(user.AppAccessEnabled ? "Enabled" : "Disabled")</span></td>
+                        <td>
+                            <form method="post" asp-page-handler="ToggleUserAccess" class="inline-form">
+                                <input type="hidden" name="UserKey" value="@user.UserKey" />
+                                <input type="hidden" name="UserAccessEnabled" value="@(!user.AppAccessEnabled)" />
+                                <button class="secondary-action small" type="submit">@(user.AppAccessEnabled ? "Disable" : "Enable")</button>
+                            </form>
+                        </td>
+                        <td>
+                            <form method="post" asp-page-handler="UpdateUserRoles" class="role-inline-form">
+                                <input type="hidden" name="UserKey" value="@user.UserKey" />
+                                @foreach (var role in Enum.GetValues<ArkanumRole>())
+                                {
+                                    <label><input type="checkbox" name="UserRoles" value="@role" checked="@user.RolesCsv.Split(',', StringSplitOptions.RemoveEmptyEntries).Contains(role.ToString())" /> @role</label>
+                                }
+                                <button class="secondary-action small" type="submit">Save roles</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <section class="settings-groups mt-3">
+            <div class="settings-panel-heading">
+                <p class="eyebrow">Groups</p>
+                <h3>Shared vault access groups</h3>
+                <p>Create groups for shared vault scenarios and assign a Delegated manager so business owners can maintain membership without contacting IT or system administrators.</p>
+            </div>
+            <form method="post" asp-page-handler="CreateGroup" class="card-form settings-wide-form">
+                <div class="settings-form-grid">
+                    <label>Group name<input name="GroupName" placeholder="Finance vault users" /></label>
+                    <label>Description<input name="GroupDescription" placeholder="Users approved for shared finance vault access" /></label>
+                </div>
+                <button class="primary-action" type="submit">Create group</button>
+            </form>
+            <div class="settings-feature-list mt-3">
+            @foreach (var group in Model.Groups)
+            {
+                <article class="feature-card settings-intro-card">
+                    <h4>@group.Name</h4>
+                    <p>@group.Description</p>
+                    <p><strong>Members:</strong> @(Model.GroupMemberNames.GetValueOrDefault(group.Id, "None yet"))</p>
+                    <p><strong>Delegated manager:</strong> @(Model.GroupManagerNames.GetValueOrDefault(group.Id, "None assigned"))</p>
+                    <form method="post" asp-page-handler="AssignGroupUser" class="settings-form-grid">
+                        <input type="hidden" name="GroupId" value="@group.Id" />
+                        <label>Add user<select name="GroupUserKey">
+                            @foreach (var user in Model.ManagedUsers)
+                            {
+                                <option value="@user.UserKey">@user.DisplayName (@user.Username)</option>
+                            }
+                        </select></label>
+                        <label class="check-row"><input name="GroupDelegatedManager" type="checkbox" value="true" /> Delegated manager</label>
+                        <input name="GroupDelegatedManager" type="hidden" value="false" />
+                        <button class="secondary-action" type="submit">Add to group</button>
+                    </form>
+                </article>
+            }
+            </div>
+        </section>
+    </section>
+
+    <section id="settings-logs" class="settings-tab-panel" role="tabpanel" hidden>
+        <div class="settings-panel-heading">
+            <p class="eyebrow">Logs</p>
+            <h2>Audit logs and syslog forwarding</h2>
+            <p>Track security-relevant activity and optionally forward important audit events to a syslog server.</p>
+        </div>
+        <article class="feature-card settings-intro-card">
+            <h3>Audit log focus</h3>
+            <ul class="settings-check-list">
+                <li>Login</li>
+                <li>Vault object read</li>
+                <li>Vault object write</li>
+                <li>Vault object delete</li>
+                <li>User permissions changes</li>
+            </ul>
+            <a class="secondary-action" asp-page="/Audit/Index">Open Audit Logs</a>
+        </article>
+        <form method="post" asp-page-handler="Syslog" class="card-form settings-wide-form mt-3">
+            <h3>Syslog server</h3>
+            <div class="settings-form-grid">
+                <label>Syslog server<input name="SyslogHost" value="@Model.Syslog.Host" placeholder="syslog.example.local" /></label>
+                <label>Port<input name="SyslogPort" value="@Model.Syslog.Port" placeholder="514" /></label>
+                <label>Protocol<input name="SyslogProtocol" value="@Model.Syslog.Protocol" placeholder="UDP" /></label>
+            </div>
+            <label class="check-row"><input name="SyslogEnabled" type="checkbox" value="true" checked="@Model.Syslog.Enabled" /> Enable syslog forwarding</label>
+            <input name="SyslogEnabled" type="hidden" value="false" />
+            <button class="primary-action" type="submit">Save syslog settings</button>
+        </form>
+    </section>
+
+</div>
+}
+else
+{
+    <section class="grid three landing-actions mt-3" aria-label="Available settings">
+    @foreach (var feature in Model.AvailableFeatures)
+    {
+        <article class="feature-card feature-link-card">
+            <span class="badge-soft">@feature.Badge</span>
+            <h2>@feature.Title</h2>
+            <p>@feature.Description</p>
+            <a class="secondary-action" asp-page="@feature.Page">Open</a>
+        </article>
+    }
+    </section>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/settings-tabs.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,61 @@
+@page
+@model Arkanum.Web.Pages.SetupModel
+@{
+    ViewData["Title"] = "First-run setup";
+}
+
+<section class="hero compact">
+    <div>
+        <p class="eyebrow">First-run setup</p>
+        <h1>Create the first administrator</h1>
+        <p>Use this one-time setup screen to create the initial local emergency administrator. The route locks after an administrator exists.</p>
+    </div>
+</section>
+
+<section class="info-card recovery-key-card">
+    <p class="eyebrow">Arkanum Recovery Key</p>
+    <h2>Site-wide recovery for all vaults</h2>
+    <p>The Arkanum Recovery Key protects all vault credentials and secure notes for this site. Recovery is all vaults or nothing: restoring encrypted content requires both the SQL Server backup and this site-wide recovery key.</p>
+    <p>Store the recovery key offline with the database backup materials. If it is lost, Arkanum cannot decrypt existing credentials or notes after a restore.</p>
+</section>
+
+@if (Model.SetupCompleted)
+{
+    <section class="info-card recovery-key-card success-panel">
+        <p class="eyebrow">Setup complete</p>
+        <h2>Save the Arkanum Recovery Key before signing in</h2>
+        @if (!string.IsNullOrWhiteSpace(Model.GeneratedRecoveryKey))
+        {
+            <p>This randomly generated site-wide key was created during first-time installation. Copy it now and store it offline.</p>
+            <textarea class="recovery-key-output" readonly rows="3">@Model.GeneratedRecoveryKey</textarea>
+        }
+        else
+        {
+            <p>Arkanum is using the configured site-wide master key from server configuration. Confirm that key is stored with your restore materials before signing in.</p>
+        }
+        <a class="primary-action" asp-page="/Login">Continue to sign in</a>
+    </section>
+}
+else
+{
+    <form method="post" class="card-form setup-form">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <label asp-for="Username">Administrator username</label>
+        <input asp-for="Username" autocomplete="username" placeholder="admin" />
+        <span asp-validation-for="Username" class="text-danger"></span>
+
+        <label asp-for="Password">Password</label>
+        <input asp-for="Password" type="password" autocomplete="new-password" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+
+        <label asp-for="ConfirmPassword">Confirm password</label>
+        <input asp-for="ConfirmPassword" type="password" autocomplete="new-password" />
+        <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+
+        <button class="primary-action" type="submit">Create administrator</button>
+    </form>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

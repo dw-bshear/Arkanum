@@ -1,0 +1,38 @@
+@page
+@model Arkanum.Web.Pages.LoginModel
+@{
+    ViewData["Title"] = "Sign in";
+    ViewData["BodyClass"] = "brand-background-page login-background-page";
+}
+
+<section class="hero compact">
+    <div>
+        <p class="eyebrow">Federated access</p>
+        <h1>Sign in to Arkanum</h1>
+    </div>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="notice success">@Model.StatusMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(Model.FederationErrorMessage))
+{
+    <div class="notice warning">@Model.FederationErrorMessage</div>
+}
+
+@if (Model.OidcSignInAvailable)
+{
+    <form method="post" asp-page-handler="Oidc" class="card-form setup-form">
+        <p class="eyebrow">Federated sign-in</p>
+        <p>If you were not automatically logged into Arkanum, use the link below to sign in manually with your username and password.</p>
+        <button class="primary-action" type="submit">Sign in with OIDC</button>
+        <p class="form-help"><a asp-page="/ManualLogin">Use manual sign in</a>.</p>
+    </form>
+}
+else
+{
+    <div class="notice subtle">
+        OIDC sign-in is not configured. <a asp-page="/ManualLogin">Use manual sign in</a> or have an administrator finish the SAML/OIDC settings.
+    </div>
+}

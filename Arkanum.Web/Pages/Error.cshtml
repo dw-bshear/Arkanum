@@ -1,0 +1,22 @@
+﻿@page
+@model ErrorModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<section class="hero compact">
+    <div>
+        <p class="eyebrow">Request error</p>
+        <h1>Something went wrong</h1>
+        <p>The request could not be completed. The application recorded a reference ID your administrator can use to find the matching server-side log entry.</p>
+    </div>
+</section>
+
+@if (Model.ShowRequestId)
+{
+    <div class="notice warning">
+        <strong>Reference ID:</strong> <code>@Model.RequestId</code>
+    </div>
+}
+
+<p class="muted-text">No secret values, connection strings, or detailed exception information are shown on this page.</p>

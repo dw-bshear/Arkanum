@@ -1,0 +1,43 @@
+@page
+@model Arkanum.Web.Pages.Users.IndexModel
+@{
+    ViewData["Title"] = "User Management";
+}
+<section class="section-heading">
+    <p class="eyebrow">User Management</p>
+    <h1>Directory-safe activation</h1>
+    <p>Create local emergency/admin users now. Imported directory users will appear here disabled until an administrator activates application access.</p>
+</section>
+<div class="grid two">
+<form method="post" asp-page-handler="CreateLocal" class="card-form">
+    <h2>Create local user</h2>
+    <label asp-for="Username">Username</label>
+    <input asp-for="Username" placeholder="vault-manager" />
+    <label asp-for="Password">Initial password</label>
+    <input asp-for="Password" type="password" autocomplete="new-password" />
+    <fieldset class="role-grid">
+        <legend>Roles</legend>
+        @foreach (var role in Enum.GetValues<ArkanumRole>())
+        {
+            <label><input type="checkbox" name="SelectedRoles" value="@role" checked="@(role == ArkanumRole.User)" /> @role</label>
+        }
+    </fieldset>
+    <button class="primary-action" type="submit">Create local user</button>
+</form>
+<div class="table-card">
+<table>
+<thead><tr><th>User</th><th>Source</th><th>Directory</th><th>App Access</th><th>Roles</th></tr></thead>
+<tbody>
+@foreach (var user in Model.Users)
+{
+<tr><td>@user.Username</td><td>@user.Source</td><td><span class="badge-soft">@(user.Source == UserSource.Local ? "N/A" : user.DirectoryPresent ? "Present" : "Missing")</span></td><td><span class="@(user.AppAccessEnabled ? "badge-ok" : "badge-warn")">@(user.AppAccessEnabled ? "Enabled" : "Disabled")</span></td><td>@user.RolesCsv</td></tr>
+}
+@if (!Model.Users.Any())
+{
+<tr><td colspan="5">No users exist yet. Use first-run setup to create the first administrator.</td></tr>
+}
+</tbody>
+</table>
+</div>
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

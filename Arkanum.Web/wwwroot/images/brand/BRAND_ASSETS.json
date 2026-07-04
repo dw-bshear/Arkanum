@@ -1,0 +1,47 @@
+{
+  "source_files": {
+    "favicon.png": {
+      "size": [
+        32,
+        32
+      ],
+      "mode": "RGBA"
+    },
+    "Banner.png": {
+      "size": [
+        479,
+        506
+      ],
+      "mode": "RGBA"
+    },
+    "Vaults.png": {
+      "size": [
+        2752,
+        1536
+      ],
+      "mode": "RGBA"
+    }
+  },
+  "roles": {
+    "favicon.png": "browser favicon source; generated favicon.ico, favicon-32x32.png, apple-touch-icon, 192/512 icons",
+    "Banner.png": "square shield/key mark used as header brand mark in place of the letter A",
+    "Vaults.png": "wide vault artwork used as login/landing background with dark overlay for readability"
+  },
+  "generated": [
+    "favicon-192.png",
+    "favicon-32.png",
+    "favicon-512.png",
+    "header-mark-160.png",
+    "header-mark-48.png",
+    "header-mark-64.png",
+    "header-mark-96.png",
+    "header-mark.webp",
+    "login-background-mobile.jpg",
+    "login-background-mobile.webp",
+    "login-background.jpg",
+    "login-background.webp",
+    "../favicon.ico",
+    "../favicon-32x32.png",
+    "apple-touch-icon.png"
+  ]
+}
