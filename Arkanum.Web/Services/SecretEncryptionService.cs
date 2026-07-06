@@ -70,6 +70,21 @@ public sealed class EnvironmentMasterKeyProvider(IConfiguration configuration) :
         return recoveryKey;
     }
 
+    public static string? TryReadConfiguredRecoveryKey(IConfiguration configuration)
+    {
+        var envValue = GetEnvironmentKey(configuration);
+        if (SiteRecoveryKeyService.TryValidateRecoveryKeyFormat(envValue ?? string.Empty, out _))
+        {
+            return envValue!.Trim();
+        }
+
+        var keyFile = ResolveMasterKeyFilePath(configuration);
+        if (!File.Exists(keyFile)) return null;
+
+        var fileValue = File.ReadAllText(keyFile).Trim();
+        return SiteRecoveryKeyService.TryValidateRecoveryKeyFormat(fileValue, out _) ? fileValue : null;
+    }
+
     public static string ResolveMasterKeyFilePath(IConfiguration configuration)
     {
         var configured = configuration["Arkanum:MasterKeyFile"];

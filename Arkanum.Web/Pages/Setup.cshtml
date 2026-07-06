@@ -23,16 +23,8 @@
 {
     <section class="info-card recovery-key-card success-panel">
         <p class="eyebrow">Setup complete</p>
-        <h2>Save the Arkanum Recovery Key before signing in</h2>
-        @if (!string.IsNullOrWhiteSpace(Model.GeneratedRecoveryKey))
-        {
-            <p>This randomly generated site-wide key was created during first-time installation. Copy it now and store it offline.</p>
-            <textarea class="recovery-key-output" readonly rows="3">@Model.GeneratedRecoveryKey</textarea>
-        }
-        else
-        {
-            <p>Arkanum is using the configured site-wide master key from server configuration. Confirm that key is stored with your restore materials before signing in.</p>
-        }
+        <h2>Recovery key acknowledgment recorded</h2>
+        <p>The first administrator was created and setup is now locked. Keep the Arkanum Recovery Key with approved backup materials.</p>
         <a class="primary-action" asp-page="/Login">Continue to sign in</a>
     </section>
 }
@@ -40,22 +32,67 @@ else
 {
     <form method="post" class="card-form setup-form">
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-        <label asp-for="Username">Administrator username</label>
-        <input asp-for="Username" autocomplete="username" placeholder="admin" />
-        <span asp-validation-for="Username" class="text-danger"></span>
 
-        <label asp-for="Password">Password</label>
-        <input asp-for="Password" type="password" autocomplete="new-password" />
-        <span asp-validation-for="Password" class="text-danger"></span>
+        <section class="info-card recovery-key-card setup-recovery-key-step">
+            <p class="eyebrow">Step 1 — Save recovery material</p>
+            <h2>Save this recovery key before creating the administrator</h2>
+            <p>This key is shown during first-run setup so it does not get missed in terminal output. It is required with the SQL Server backup to recover encrypted vault contents.</p>
+            @if (!string.IsNullOrWhiteSpace(Model.DisplayRecoveryKey))
+            {
+                <label for="recoveryKeyOutput">Recovery key</label>
+                <textarea id="recoveryKeyOutput" class="recovery-key-output" readonly rows="3">@Model.DisplayRecoveryKey</textarea>
+                <div class="action-row">
+                    <button class="secondary-action" type="button" data-copy-recovery-key>Copy recovery key</button>
+                    <button class="secondary-action" type="button" data-download-recovery-key>Download recovery key file</button>
+                </div>
+            }
+            else
+            {
+                <p class="warning-text">Arkanum is using a configured server key that is not in recovery-key display format. Confirm the configured key is stored with restore materials before continuing.</p>
+            }
+            <label class="checkbox-row recovery-key-acknowledgment">
+                <input asp-for="RecoveryKeySavedAcknowledged" />
+                <span>I have saved this recovery key in an approved offline or backup-safe location. I understand that losing it makes existing encrypted credentials and secure notes unrecoverable from backup.</span>
+            </label>
+            <span asp-validation-for="RecoveryKeySavedAcknowledged" class="text-danger"></span>
+        </section>
 
-        <label asp-for="ConfirmPassword">Confirm password</label>
-        <input asp-for="ConfirmPassword" type="password" autocomplete="new-password" />
-        <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+        <section class="info-card first-admin-step">
+            <p class="eyebrow">Step 2 — Create first administrator</p>
+            <label asp-for="Username">Administrator username</label>
+            <input asp-for="Username" autocomplete="username" placeholder="admin" />
+            <span asp-validation-for="Username" class="text-danger"></span>
 
-        <button class="primary-action" type="submit">Create administrator</button>
+            <label asp-for="Password">Password</label>
+            <input asp-for="Password" type="password" autocomplete="new-password" />
+            <span asp-validation-for="Password" class="text-danger"></span>
+
+            <label asp-for="ConfirmPassword">Confirm password</label>
+            <input asp-for="ConfirmPassword" type="password" autocomplete="new-password" />
+            <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+
+            <button class="primary-action" type="submit">Create administrator</button>
+        </section>
     </form>
 }
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const output = document.querySelector('#recoveryKeyOutput');
+            if (!output) return;
+            document.querySelector('[data-copy-recovery-key]')?.addEventListener('click', async () => {
+                await navigator.clipboard.writeText(output.value.trim());
+            });
+            document.querySelector('[data-download-recovery-key]')?.addEventListener('click', () => {
+                const blob = new Blob([output.value.trim() + '\n'], { type: 'text/plain' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'arkanum-recovery-key.txt';
+                link.click();
+                URL.revokeObjectURL(link.href);
+            });
+        })();
+    </script>
 }

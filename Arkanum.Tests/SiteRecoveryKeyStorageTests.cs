@@ -70,4 +70,20 @@ public class SiteRecoveryKeyStorageTests
         Assert.Contains("all vault credentials and secure notes", markup);
         Assert.Contains("SQL Server backup", markup);
     }
+
+    [Fact]
+    public void Setup_page_requires_recovery_key_save_acknowledgment_before_admin_creation()
+    {
+        var markupPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Arkanum.Web", "Pages", "Setup.cshtml"));
+        var pageModelPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Arkanum.Web", "Pages", "Setup.cshtml.cs"));
+        var markup = File.ReadAllText(markupPath);
+        var pageModel = File.ReadAllText(pageModelPath);
+
+        Assert.Contains("asp-for=\"RecoveryKeySavedAcknowledged\"", markup);
+        Assert.Contains("I have saved this recovery key", markup);
+        Assert.Contains("Copy recovery key", markup);
+        Assert.Contains("Download recovery key file", markup);
+        Assert.Contains("RecoveryKeySavedAcknowledged", pageModel);
+        Assert.Contains("You must acknowledge that the Arkanum Recovery Key has been saved", pageModel);
+    }
 }
