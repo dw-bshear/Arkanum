@@ -51,6 +51,7 @@ class Wizard(tk.Tk):
         self.geometry("760x640")
         self.resizable(True, True)
         self.vars = {
+            "install_action": tk.StringVar(value="auto"),
             "install_dir": tk.StringVar(value="/opt/arkanum"),
             "config_dir": tk.StringVar(value="/etc/arkanum"),
             "data_dir": tk.StringVar(value="/var/lib/arkanum"),
@@ -89,6 +90,21 @@ class Wizard(tk.Tk):
 
     def _paths_page(self, parent: ttk.Notebook) -> ttk.Frame:
         frame = ttk.Frame(parent, padding=12)
+        ttk.Label(frame, text="Install action").pack(anchor="w", pady=(8, 0))
+        action = ttk.Combobox(
+            frame,
+            textvariable=self.vars["install_action"],
+            values=[
+                "auto",
+                "install",
+                "upgrade existing installation",
+                "repair current installation",
+                "install side-by-side",
+            ],
+            state="readonly",
+        )
+        action.pack(fill="x")
+        ttk.Label(frame, text="Auto detects an existing install-state.json and selects upgrade. Use side-by-side for isolated test installs.", wraplength=680).pack(anchor="w", pady=(4, 8))
         for label, key in [
             ("Install directory", "install_dir"),
             ("Configuration directory", "config_dir"),
@@ -154,7 +170,17 @@ class Wizard(tk.Tk):
         except ValueError as exc:
             messagebox.showerror(APP_TITLE, str(exc))
             raise
+        action_map = {
+            "auto": "auto",
+            "install": "install",
+            "upgrade existing installation": "upgrade",
+            "repair current installation": "repair",
+            "install side-by-side": "side-by-side",
+        }
+        selected_action = action_map.get(self.vars["install_action"].get(), "auto")
         env = {
+            "ACTION": selected_action,
+            "ARKANUM_PACKAGE_VERSION": "2026.0.3",
             "INSTALL_DIR": self.vars["install_dir"].get().strip(),
             "CONFIG_DIR": self.vars["config_dir"].get().strip(),
             "DATA_DIR": self.vars["data_dir"].get().strip(),

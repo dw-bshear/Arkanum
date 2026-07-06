@@ -78,24 +78,31 @@ $form.Controls.Add($tabs)
 $installTab = New-Object System.Windows.Forms.TabPage
 $installTab.Text = 'Install and IIS'
 $tabs.Controls.Add($installTab)
-$installPath = New-TextBox 'C:\Program Files\Arkanum\Web' 220 24 470
-$programData = New-TextBox 'C:\ProgramData\Arkanum' 220 64 470
-$siteName = New-TextBox 'Arkanum' 220 104 250
-$appPool = New-TextBox 'ArkanumAppPool' 220 144 250
-$port = New-TextBox '5068' 220 184 120
+$action = New-Object System.Windows.Forms.ComboBox
+$action.DropDownStyle = 'DropDownList'
+[void]$action.Items.AddRange(@('Auto detect', 'Install new instance', 'Upgrade existing installation', 'Repair current installation', 'Install side-by-side'))
+$action.SelectedIndex = 0
+$action.Location = New-Object System.Drawing.Point(220, 24)
+$action.Size = New-Object System.Drawing.Size(300, 24)
+$installPath = New-TextBox 'C:\Program Files\Arkanum\Web' 220 64 470
+$programData = New-TextBox 'C:\ProgramData\Arkanum' 220 104 470
+$siteName = New-TextBox 'Arkanum' 220 144 250
+$appPool = New-TextBox 'ArkanumAppPool' 220 184 250
+$port = New-TextBox '5068' 220 224 120
 foreach ($pair in @(
-    @('Install path', $installPath, 24),
-    @('ProgramData path', $programData, 64),
-    @('IIS site name', $siteName, 104),
-    @('IIS app pool', $appPool, 144),
-    @('HTTP port', $port, 184)
+    @('Install action', $action, 24),
+    @('Install path', $installPath, 64),
+    @('ProgramData path', $programData, 104),
+    @('IIS site name', $siteName, 144),
+    @('IIS app pool', $appPool, 184),
+    @('HTTP port', $port, 224)
 )) {
     $installTab.Controls.Add((New-Label $pair[0] 24 $pair[2])); $installTab.Controls.Add($pair[1])
 }
 $installHelp = New-Object System.Windows.Forms.Label
-$installHelp.Text = 'The installer configures IIS, the application pool, ProgramData folders, runtime configuration, and site permissions.'
-$installHelp.Location = New-Object System.Drawing.Point(24, 230)
-$installHelp.Size = New-Object System.Drawing.Size(700, 60)
+$installHelp.Text = 'The installer configures IIS, the application pool, ProgramData folders, runtime configuration, site permissions, upgrade backups, and install-state.json.'
+$installHelp.Location = New-Object System.Drawing.Point(24, 270)
+$installHelp.Size = New-Object System.Drawing.Size(700, 70)
 $installTab.Controls.Add($installHelp)
 
 $sqlTab = New-Object System.Windows.Forms.TabPage
@@ -157,8 +164,19 @@ $status.Size = New-Object System.Drawing.Size(760, 32)
 $status.Text = 'Complete the installer pages, then generate or run setup.'
 $form.Controls.Add($status)
 
+function Get-InstallerAction {
+    switch ($action.SelectedItem) {
+        'Install new instance' { return 'install' }
+        'Upgrade existing installation' { return 'upgrade' }
+        'Repair current installation' { return 'repair' }
+        'Install side-by-side' { return 'side-by-side' }
+        default { return 'auto' }
+    }
+}
+
 function Build-CommandPreview {
     $conn = Build-ConnectionString $sqlHost.Text $sqlPort.Text $sqlDb.Text $sqlUser.Text $sqlPassword.Text $encrypt.Checked $trust.Checked
+    $selectedAction = Get-InstallerAction
     $args = @(
         '-ExecutionPolicy', 'Bypass',
         '-File', "`"$script:CliInstaller`"",
@@ -168,7 +186,9 @@ function Build-CommandPreview {
         '-SiteName', "`"$($siteName.Text)`"",
         '-Port', $port.Text,
         '-SqlConnectionString', "`"$conn`"",
-        '-AppPoolName', "`"$($appPool.Text)`""
+        '-AppPoolName', "`"$($appPool.Text)`"",
+        '-PackageVersion', '2026.0.3',
+        '-Action', $selectedAction
     )
     $commandPreview.Text = 'powershell.exe ' + ($args -join ' ')
     return $conn
@@ -203,6 +223,8 @@ $run.Add_Click({
             Port = [int]$port.Text
             SqlConnectionString = $conn
             AppPoolName = $appPool.Text
+            PackageVersion = '2026.0.3'
+            Action = Get-InstallerAction
         }
         & $script:CliInstaller @params
         [System.Windows.Forms.MessageBox]::Show('Arkanum installation completed. Open the WebUI first-run setup to save the Recovery Key and create the first administrator.', 'Arkanum Setup', 'OK', 'Information') | Out-Null
