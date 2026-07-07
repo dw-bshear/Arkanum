@@ -6,7 +6,7 @@ using System.Security.Claims;
 
 namespace Arkanum.Web.Pages.Vaults;
 
-public class DetailsModel(VaultRepository repository, VaultItemService itemService, Arkanum.Web.Data.ArkanumDbContext db) : PageModel
+public class DetailsModel(VaultRepository repository, VaultItemService itemService, VaultExportService exportService, Arkanum.Web.Data.ArkanumDbContext db) : PageModel
 {
     public VaultDetails? Vault { get; private set; }
     public string? RevealedSecret { get; private set; }
@@ -25,6 +25,8 @@ public class DetailsModel(VaultRepository repository, VaultItemService itemServi
     [BindProperty] public string? Username { get; set; }
     [BindProperty] public string? SecretValue { get; set; }
     [BindProperty] public Guid ItemId { get; set; }
+    [BindProperty] public DateOnly? ResetNotificationDate { get; set; }
+    [BindProperty] public string? ExportPassphrase { get; set; }
     [BindProperty] public string? InviteUsername { get; set; }
     [BindProperty] public string? FolderName { get; set; }
     [BindProperty] public string? VaultName { get; set; }
@@ -111,6 +113,22 @@ public class DetailsModel(VaultRepository repository, VaultItemService itemServi
         RevealedTitle = Title;
         CopyIntent = true;
         return await LoadPageAsync(id);
+    }
+
+    public async Task<IActionResult> OnPostUpdateResetNotificationAsync(Guid id)
+    {
+        if (!await repository.CanAddOrChangeVaultContentsAsync(db, id, ActorKey(), CurrentRoles())) return Forbid();
+        await itemService.UpdateResetNotificationAsync(db, ItemId, ResetNotificationDate, ActorKey(), DateTimeOffset.UtcNow);
+        return RedirectToPage(new { id });
+    }
+
+    public async Task<IActionResult> OnPostExportVaultCsvAsync(Guid id)
+    {
+        if (!await repository.CanRevealSecretAsync(db, id, ActorKey(), CurrentRoles())) return Forbid();
+        if (string.IsNullOrWhiteSpace(ExportPassphrase)) ModelState.AddModelError(nameof(ExportPassphrase), "Export passphrase is required.");
+        if (!ModelState.IsValid) return await LoadPageAsync(id);
+        var export = await exportService.ExportVaultCsvZipAsync(db, id, ActorKey(), ExportPassphrase ?? string.Empty, DateTimeOffset.UtcNow);
+        return File(export.Content, export.ContentType, export.FileName);
     }
 
     private async Task<IActionResult> LoadPageAsync(Guid id)

@@ -27,6 +27,19 @@
                 </form>
             </details>
         }
+        @if (Model.CanRevealSecrets)
+        {
+            <details class="export-vault-disclosure">
+                <summary class="secondary-action">Export vault CSV</summary>
+                <form method="post" asp-page-handler="ExportVaultCsv" asp-route-id="@Model.Vault.Id" class="card-form compact-create-vault">
+                    <p class="form-help">Creates a ZIP containing CSV export files. This export may contain plaintext credentials and must be stored in an approved protected location.</p>
+                    <label asp-for="ExportPassphrase">Export passphrase</label>
+                    <input asp-for="ExportPassphrase" type="password" autocomplete="new-password" />
+                    <span asp-validation-for="ExportPassphrase" class="text-danger"></span>
+                    <button class="primary-action" type="submit">Download vault CSV ZIP</button>
+                </form>
+            </details>
+        }
         <a class="secondary-action" asp-page="/Vaults/Index">Back to vaults</a>
     </div>
 </section>
@@ -131,6 +144,21 @@
                                 @if (!string.IsNullOrWhiteSpace(item.Username))
                                 {
                                     <small>@item.Username</small>
+                                }
+                            </div>
+                            <div class="reset-notification-cell">
+                                <span class="muted">Reset notification</span>
+                                @if (Model.CanAddOrChangeVaultContents)
+                                {
+                                    <form method="post" asp-page-handler="UpdateResetNotification" asp-route-id="@Model.Vault.Id" class="inline-form">
+                                        <input type="hidden" name="ItemId" value="@item.Id" />
+                                        <input type="date" name="ResetNotificationDate" value="@(item.ResetNotificationDate?.ToString("yyyy-MM-dd"))" aria-label="Reset notification date for @item.Title" />
+                                        <button class="secondary-action small" type="submit">Save</button>
+                                    </form>
+                                }
+                                else if (item.ResetNotificationDate is not null)
+                                {
+                                    <small>@item.ResetNotificationDate.Value.ToString("yyyy-MM-dd")</small>
                                 }
                             </div>
                             @if (Model.CanRevealSecrets)

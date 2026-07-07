@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ARKANUM_PACKAGE_VERSION=${ARKANUM_PACKAGE_VERSION:-2026.0.3}
+ARKANUM_PACKAGE_VERSION=${ARKANUM_PACKAGE_VERSION:-2026.0.4}
 ACTION=${ACTION:-auto}
 INSTALL_DIR=${INSTALL_DIR:-/opt/arkanum}
 CONFIG_DIR=${CONFIG_DIR:-/etc/arkanum}
@@ -48,11 +48,12 @@ if [ "${EUID}" -ne 0 ]; then
   fail "Run as root or with sudo."
 fi
 
-# Supported direct operator actions include ACTION=upgrade and ACTION=repair.
+# Supported direct operator actions include ACTION=upgrade, ACTION=repair, and ACTION=restore.
 case "${ACTION}" in
-  auto|install|upgrade|repair|side-by-side) ;;
-  *) fail "ACTION must be one of auto, install, upgrade, repair, side-by-side." ;;
+  auto|install|upgrade|repair|side-by-side|restore) ;;
+  *) fail "ACTION must be one of auto, install, upgrade, repair, side-by-side, restore." ;;
 esac
+# Restore from database backup example: ACTION=restore ARKANUM_RESTORE_KEY_FILE=/path/to/master-key.txt or ARKANUM_RESTORE_KEY=ark-recovery-v1....
 
 if [ -z "${PACKAGE_DIR}" ]; then
   if [ -f "${PACKAGE_ROOT}/app/Arkanum.Web.dll" ]; then
@@ -80,7 +81,8 @@ if [ -z "${ARKANUM_SQL_CONNECTION:-}" ]; then
 Example:
   sudo env \
     ARKANUM_SQL_CONNECTION='Server=tcp:sql01,1433;Database=Arkanum;User Id=arkanum_app;Password=...;Encrypt=True;TrustServerCertificate=True;' \
-    ACTION=upgrade \
+    ACTION=restore \
+    ARKANUM_RESTORE_KEY_FILE=/path/to/master-key.txt \
     installers/linux/install-arkanum.sh
 EOF
   exit 4
@@ -111,6 +113,10 @@ fi
 
 if [ "${EXISTING_INSTALL}" = false ] && [ "${ACTION}" = "upgrade" ]; then
   fail "ACTION=upgrade requested but no existing Arkanum installation was detected. Use ACTION=install or ACTION=auto."
+fi
+
+if [ "${ACTION}" = "restore" ] && [ -z "${ARKANUM_RESTORE_KEY_FILE:-}" ] && [ -z "${ARKANUM_RESTORE_KEY:-}" ]; then
+  fail "ACTION=restore requires ARKANUM_RESTORE_KEY_FILE or ARKANUM_RESTORE_KEY. Select Restore from database backup and provide the existing Arkanum Recovery Key."
 fi
 
 if ! id "${SERVICE_USER}" >/dev/null 2>&1; then
@@ -153,7 +159,19 @@ chown -R root:root "${INSTALL_DIR}"
 chmod -R go-w "${INSTALL_DIR}"
 
 MASTER_KEY_FILE="${CONFIG_DIR}/master-key"
-if [ ! -s "${MASTER_KEY_FILE}" ]; then
+if [ "${ACTION}" = "restore" ]; then
+  info "Restore from database backup selected. Installing provided Arkanum Recovery Key at ${MASTER_KEY_FILE}."
+  umask 077
+  if [ -n "${ARKANUM_RESTORE_KEY_FILE:-}" ]; then
+    [ -s "${ARKANUM_RESTORE_KEY_FILE}" ] || fail "ARKANUM_RESTORE_KEY_FILE does not exist or is empty."
+    cp "${ARKANUM_RESTORE_KEY_FILE}" "${MASTER_KEY_FILE}"
+  else
+    printf '%s\n' "${ARKANUM_RESTORE_KEY}" > "${MASTER_KEY_FILE}"
+  fi
+  if ! grep -q '^ark-recovery-v1\.' "${MASTER_KEY_FILE}"; then
+    fail "Provided Recovery Key must start with ark-recovery-v1."
+  fi
+elif [ ! -s "${MASTER_KEY_FILE}" ]; then
   info "Generating site-wide Arkanum recovery/master key at ${MASTER_KEY_FILE}."
   umask 077
   python3 - <<'PY' > "${MASTER_KEY_FILE}"
@@ -253,6 +271,10 @@ set -e
 } >> "${REPORT_FILE}"
 
 if [ "${HEALTH_STATUS}" -ne 0 ]; then
+  if [ "${ACTION}" = "restore" ]; then
+    echo "[FAIL] The provided Recovery Key does not match this database. Report: ${REPORT_FILE}" >&2
+    exit 7
+  fi
   cat >&2 <<EOF
 [WARN] Arkanum installed but health validation did not pass.
 Report: ${REPORT_FILE}

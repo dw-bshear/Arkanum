@@ -82,4 +82,22 @@ public sealed class VaultItemService(SecretEncryptionService encryptionService)
         await db.SaveChangesAsync();
         return plaintext;
     }
+
+    public async Task UpdateResetNotificationAsync(ArkanumDbContext db, Guid itemId, DateOnly? resetDate, string actorUserKey, DateTimeOffset now)
+    {
+        var item = await db.VaultItems.SingleAsync(i => i.Id == itemId);
+        item.ResetNotificationDate = resetDate;
+        item.ResetNotificationSentAt = null;
+        db.AuditEvents.Add(new AuditEventEntity
+        {
+            Type = AuditEventType.SecretUpdated,
+            ActorUserKey = actorUserKey,
+            Target = item.Title,
+            OccurredAt = now,
+            Message = resetDate is null
+                ? "Credential reset notification date cleared. Secret value was not logged."
+                : $"Credential reset notification date set to {resetDate:yyyy-MM-dd}. Secret value was not logged."
+        });
+        await db.SaveChangesAsync();
+    }
 }

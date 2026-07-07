@@ -97,7 +97,7 @@ public sealed class VaultRepository
             folders.Select(f => new VaultFolderDetails(
                 f.Id,
                 f.Name,
-                items.Where(i => i.FolderId == f.Id).Select(i => new VaultItemSummary(i.Id, i.Title, i.Type, i.Username)).ToArray())).ToArray());
+                items.Where(i => i.FolderId == f.Id).Select(i => new VaultItemSummary(i.Id, i.Title, i.Type, i.Username, i.ResetNotificationDate)).ToArray())).ToArray());
     }
 
     public async Task<bool> CanAccessVaultAsync(ArkanumDbContext db, Guid vaultId, string userKey, IReadOnlyCollection<ArkanumRole> roles)
@@ -227,4 +227,4 @@ public sealed record VaultSummary(Guid Id, string Name, string Description, int 
 public sealed record VaultDetails(Guid Id, string Name, string Description, IReadOnlyList<VaultMemberSummary> Members, IReadOnlyList<VaultFolderDetails> Folders);
 public sealed record VaultMemberSummary(string UserKey, string Username, string DisplayName, bool CanInvite);
 public sealed record VaultFolderDetails(Guid Id, string Name, IReadOnlyList<VaultItemSummary> Items);
-public sealed record VaultItemSummary(Guid Id, string Title, VaultItemType Type, string? Username);
+public sealed record VaultItemSummary(Guid Id, string Title, VaultItemType Type, string? Username, DateOnly? ResetNotificationDate);

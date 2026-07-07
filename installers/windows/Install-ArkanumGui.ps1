@@ -80,7 +80,7 @@ $installTab.Text = 'Install and IIS'
 $tabs.Controls.Add($installTab)
 $action = New-Object System.Windows.Forms.ComboBox
 $action.DropDownStyle = 'DropDownList'
-[void]$action.Items.AddRange(@('Auto detect', 'Install new instance', 'Upgrade existing installation', 'Repair current installation', 'Install side-by-side'))
+[void]$action.Items.AddRange(@('Auto detect', 'Install new instance', 'Upgrade existing installation', 'Restore from database backup', 'Repair current installation', 'Install side-by-side'))
 $action.SelectedIndex = 0
 $action.Location = New-Object System.Drawing.Point(220, 24)
 $action.Size = New-Object System.Drawing.Size(300, 24)
@@ -89,13 +89,17 @@ $programData = New-TextBox 'C:\ProgramData\Arkanum' 220 104 470
 $siteName = New-TextBox 'Arkanum' 220 144 250
 $appPool = New-TextBox 'ArkanumAppPool' 220 184 250
 $port = New-TextBox '5068' 220 224 120
+$restoreKeyFile = New-TextBox '' 220 264 470
+$restoreKey = New-TextBox '' 220 304 470 $true
 foreach ($pair in @(
     @('Install action', $action, 24),
     @('Install path', $installPath, 64),
     @('ProgramData path', $programData, 104),
     @('IIS site name', $siteName, 144),
     @('IIS app pool', $appPool, 184),
-    @('HTTP port', $port, 224)
+    @('HTTP port', $port, 224),
+    @('Recovery Key file', $restoreKeyFile, 264),
+    @('Paste Recovery Key', $restoreKey, 304)
 )) {
     $installTab.Controls.Add((New-Label $pair[0] 24 $pair[2])); $installTab.Controls.Add($pair[1])
 }
@@ -168,6 +172,7 @@ function Get-InstallerAction {
     switch ($action.SelectedItem) {
         'Install new instance' { return 'install' }
         'Upgrade existing installation' { return 'upgrade' }
+        'Restore from database backup' { return 'restore' }
         'Repair current installation' { return 'repair' }
         'Install side-by-side' { return 'side-by-side' }
         default { return 'auto' }
@@ -187,8 +192,10 @@ function Build-CommandPreview {
         '-Port', $port.Text,
         '-SqlConnectionString', "`"$conn`"",
         '-AppPoolName', "`"$($appPool.Text)`"",
-        '-PackageVersion', '2026.0.3',
-        '-Action', $selectedAction
+        '-PackageVersion', '2026.0.4',
+        '-Action', $selectedAction,
+        '-RestoreKeyFile', "`"$($restoreKeyFile.Text)`"",
+        '-RestoreKey', "`"$($restoreKey.Text)`""
     )
     $commandPreview.Text = 'powershell.exe ' + ($args -join ' ')
     return $conn
@@ -223,8 +230,10 @@ $run.Add_Click({
             Port = [int]$port.Text
             SqlConnectionString = $conn
             AppPoolName = $appPool.Text
-            PackageVersion = '2026.0.3'
+            PackageVersion = '2026.0.4'
             Action = Get-InstallerAction
+            RestoreKeyFile = $restoreKeyFile.Text
+            RestoreKey = $restoreKey.Text
         }
         & $script:CliInstaller @params
         [System.Windows.Forms.MessageBox]::Show('Arkanum installation completed. Open the WebUI first-run setup to save the Recovery Key and create the first administrator.', 'Arkanum Setup', 'OK', 'Information') | Out-Null

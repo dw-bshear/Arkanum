@@ -8,7 +8,7 @@ using System.Security.Claims;
 
 namespace Arkanum.Web.Pages.Settings;
 
-public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, PortalSettingsService portalSettings, AdminUserService adminUserService, DirectoryLdapImportService directoryImportService) : PageModel
+public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, PortalSettingsService portalSettings, AdminUserService adminUserService, DirectoryLdapImportService directoryImportService, VaultExportService exportService) : PageModel
 {
     public IReadOnlyList<DashboardWidgetEntity> Widgets { get; private set; } = [];
     public IReadOnlyList<SettingsFeatureLink> AvailableFeatures { get; private set; } = [];
@@ -98,6 +98,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
     [BindProperty] public Guid GroupId { get; set; }
     [BindProperty] public string? GroupUserKey { get; set; }
     [BindProperty] public bool GroupDelegatedManager { get; set; }
+    [BindProperty] public string? ExportAllVaultsPassphrase { get; set; }
 
     public async Task OnGetAsync(string? userSearch = null) => await LoadAsync(userSearch);
 
@@ -216,6 +217,16 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         var activeUsers = await db.Users.CountAsync(u => u.AppAccessEnabled);
         TempData["Status"] = $"Notification queued for {activeUsers} active users.";
         return RedirectToPage(null, null, "notifications");
+    }
+
+    public async Task<IActionResult> OnPostExportAllVaultsCsvAsync()
+    {
+        await LoadRolesAsync();
+        if (!CanManageFeatureVisibility) return Forbid();
+        if (string.IsNullOrWhiteSpace(ExportAllVaultsPassphrase)) ModelState.AddModelError(nameof(ExportAllVaultsPassphrase), "Export passphrase is required.");
+        if (!ModelState.IsValid) { await LoadAsync(); return Page(); }
+        var export = await exportService.ExportAllVaultsCsvZipAsync(db, ActorKey(), ExportAllVaultsPassphrase ?? string.Empty, DateTimeOffset.UtcNow);
+        return File(export.Content, export.ContentType, export.FileName);
     }
 
     public async Task<IActionResult> OnPostCreateLocalUserAsync()

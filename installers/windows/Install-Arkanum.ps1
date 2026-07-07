@@ -6,9 +6,11 @@ param(
     [int]$Port = 5068,
     [Parameter(Mandatory=$true)][string]$SqlConnectionString,
     [string]$AppPoolName = 'ArkanumAppPool',
-    [string]$PackageVersion = '2026.0.3',
-    # ValidateSet('install','upgrade','repair','side-by-side') plus auto detection for GUI defaults.
-    [ValidateSet('install','upgrade','repair','side-by-side','auto')][string]$Action = 'auto'
+    [string]$PackageVersion = '2026.0.4',
+    # ValidateSet('install','upgrade','repair','side-by-side','restore') plus auto detection for GUI defaults.
+    [ValidateSet('install','upgrade','repair','side-by-side','restore','auto')][string]$Action = 'auto',
+    [string]$RestoreKeyFile = '',
+    [string]$RestoreKey = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -75,6 +77,10 @@ if ($Action -eq 'upgrade' -and -not $existingInstall) {
     throw 'ACTION=upgrade requested but no existing Arkanum installation was detected. Use -Action install or -Action auto.'
 }
 
+if ($Action -eq 'restore' -and [string]::IsNullOrWhiteSpace($RestoreKeyFile) -and [string]::IsNullOrWhiteSpace($RestoreKey)) {
+    throw 'Restore from database backup requires -RestoreKeyFile or -RestoreKey.'
+}
+
 New-Item -ItemType Directory -Force -Path $InstallPath, $secretDir, $configDir, $logDir, $backupRoot | Out-Null
 
 $backupPath = ''
@@ -97,7 +103,16 @@ if (Test-Path "IIS:\AppPools\$AppPoolName") {
 Copy-Item -Path (Join-Path $PackagePath '*') -Destination $InstallPath -Recurse -Force
 
 $keyPath = Join-Path $secretDir 'master-key.txt'
-if (!(Test-Path $keyPath) -or [string]::IsNullOrWhiteSpace((Get-Content $keyPath -Raw))) {
+if ($Action -eq 'restore') {
+    Write-Host 'Restore from database backup selected. Installing provided Recovery Key.'
+    if (![string]::IsNullOrWhiteSpace($RestoreKeyFile)) {
+        if (!(Test-Path $RestoreKeyFile)) { throw 'RestoreKeyFile does not exist.' }
+        Copy-Item -Path $RestoreKeyFile -Destination $keyPath -Force
+    } else {
+        Set-Content -Path $keyPath -Value $RestoreKey.Trim() -NoNewline
+    }
+    if (!((Get-Content $keyPath -Raw).Trim().StartsWith('ark-recovery-v1.'))) { throw 'Provided Recovery Key must start with ark-recovery-v1.' }
+} elseif (!(Test-Path $keyPath) -or [string]::IsNullOrWhiteSpace((Get-Content $keyPath -Raw))) {
     $bytes = New-Object byte[] 48
     [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
     'ark-recovery-v1.' + [Convert]::ToBase64String($bytes).TrimEnd('=') | Set-Content -Path $keyPath -NoNewline
@@ -189,6 +204,7 @@ try {
 Write-ArkanumReport -ReportPath $reportPath -HealthStatus $healthStatus -HealthBody $healthBody -BackupPath $backupPath
 
 if ($healthStatus -ne 'Healthy') {
+    if ($Action -eq 'restore') { throw "The provided Recovery Key does not match this database. Report: $reportPath" }
     Write-Warning "Arkanum installed but health validation did not pass. Report: $reportPath"
     Write-Warning "Rollback app files from backup if needed: $backupPath"
     Write-Warning "Rollback app files example: Copy-Item -Path '$backupPath\app\*' -Destination '$InstallPath' -Recurse -Force; Restart-WebAppPool -Name '$AppPoolName'"

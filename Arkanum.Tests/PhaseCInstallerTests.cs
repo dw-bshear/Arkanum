@@ -66,7 +66,7 @@ public class PhaseCInstallerTests
 
         Assert.Contains("PackageVersion", script);
         Assert.Contains("install-state.json", script);
-        Assert.Contains("ValidateSet('install','upgrade','repair','side-by-side')", script);
+        Assert.Contains("ValidateSet('install','upgrade','repair','side-by-side','restore','auto')", script);
         Assert.Contains("before-$PackageVersion", script);
         Assert.Contains("upgrade-report-$PackageVersion.txt", script);
         Assert.Contains("/health", script);
@@ -96,8 +96,8 @@ public class PhaseCInstallerTests
         var propsText = File.ReadAllText(props);
         var guideText = File.ReadAllText(releaseGuide);
 
-        Assert.Contains("<Version>2026.0.3</Version>", propsText);
-        Assert.Contains("2026.0.3", guideText);
+        Assert.Contains("<Version>2026.0.4</Version>", propsText);
+        Assert.Contains("2026.0.4", guideText);
     }
 
     private static string ProjectRoot()

@@ -63,6 +63,8 @@ class Wizard(tk.Tk):
             "sql_database": tk.StringVar(value="Arkanum"),
             "sql_user": tk.StringVar(value="arkanum_app"),
             "sql_password": tk.StringVar(value=""),
+            "restore_key_file": tk.StringVar(value=""),
+            "restore_key": tk.StringVar(value=""),
         }
         self.encrypt = tk.BooleanVar(value=True)
         self.trust = tk.BooleanVar(value=True)
@@ -98,6 +100,7 @@ class Wizard(tk.Tk):
                 "auto",
                 "install",
                 "upgrade existing installation",
+                "Restore from database backup",
                 "repair current installation",
                 "install side-by-side",
             ],
@@ -115,6 +118,11 @@ class Wizard(tk.Tk):
         ]:
             self._entry(frame, label, key)
         ttk.Label(frame, text="Use http://0.0.0.0:5068 if the site should be reachable from other LAN clients.", wraplength=680).pack(anchor="w", pady=10)
+        ttk.Label(frame, text="Recovery Key file").pack(anchor="w", pady=(8, 0))
+        ttk.Entry(frame, textvariable=self.vars["restore_key_file"]).pack(fill="x")
+        ttk.Label(frame, text="Paste Recovery Key").pack(anchor="w", pady=(8, 0))
+        ttk.Entry(frame, textvariable=self.vars["restore_key"], show="*").pack(fill="x")
+        ttk.Label(frame, text="Restore from database backup requires either a Recovery Key file or pasted Recovery Key.", wraplength=680).pack(anchor="w", pady=10)
         return frame
 
     def _sql_page(self, parent: ttk.Notebook) -> ttk.Frame:
@@ -174,13 +182,14 @@ class Wizard(tk.Tk):
             "auto": "auto",
             "install": "install",
             "upgrade existing installation": "upgrade",
+            "Restore from database backup": "restore",
             "repair current installation": "repair",
             "install side-by-side": "side-by-side",
         }
         selected_action = action_map.get(self.vars["install_action"].get(), "auto")
         env = {
             "ACTION": selected_action,
-            "ARKANUM_PACKAGE_VERSION": "2026.0.3",
+            "ARKANUM_PACKAGE_VERSION": "2026.0.4",
             "INSTALL_DIR": self.vars["install_dir"].get().strip(),
             "CONFIG_DIR": self.vars["config_dir"].get().strip(),
             "DATA_DIR": self.vars["data_dir"].get().strip(),
@@ -188,6 +197,8 @@ class Wizard(tk.Tk):
             "SERVICE_USER": self.vars["service_user"].get().strip(),
             "APP_URLS": self.vars["app_urls"].get().strip(),
             "ARKANUM_SQL_CONNECTION": conn,
+            "ARKANUM_RESTORE_KEY_FILE": self.vars["restore_key_file"].get().strip(),
+            "ARKANUM_RESTORE_KEY": self.vars["restore_key"].get().strip(),
         }
         assignments = " ".join(f"{k}={shell_quote(v)}" for k, v in env.items())
         cmd = f"env {assignments} {shell_quote(str(CLI_INSTALLER))}"

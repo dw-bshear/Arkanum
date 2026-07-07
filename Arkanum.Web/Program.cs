@@ -28,6 +28,9 @@ builder.Services.AddSingleton<IMasterKeyProvider, EnvironmentMasterKeyProvider>(
 builder.Services.AddScoped<SiteRecoveryKeyService>();
 builder.Services.AddScoped<SecretEncryptionService>();
 builder.Services.AddScoped<VaultItemService>();
+builder.Services.AddScoped<VaultExportService>();
+builder.Services.AddScoped<CredentialResetReminderService>();
+builder.Services.AddSingleton<IEmailSender, NoOpEmailSender>();
 builder.Services.AddSingleton<StrongPasswordGenerator>();
 builder.Services.AddSingleton(new AuditRetentionPolicy(TimeSpan.FromDays(90)));
 builder.Services.AddScoped<SyslogAuditForwardingInterceptor>();
@@ -75,6 +78,8 @@ using (var scope = app.Services.CreateScope())
         db.Database.ExecuteSqlRaw("IF COL_LENGTH('Users', 'FailedLoginCount') IS NULL ALTER TABLE [Users] ADD [FailedLoginCount] int NOT NULL CONSTRAINT DF_Users_FailedLoginCount DEFAULT 0");
         db.Database.ExecuteSqlRaw("IF COL_LENGTH('Users', 'LockoutEndAt') IS NULL ALTER TABLE [Users] ADD [LockoutEndAt] datetimeoffset NULL");
         db.Database.ExecuteSqlRaw("IF OBJECT_ID('RecoveryStates', 'U') IS NULL CREATE TABLE [RecoveryStates] ([Id] nvarchar(64) NOT NULL CONSTRAINT PK_RecoveryStates PRIMARY KEY, [RecoveryKeyId] nvarchar(128) NOT NULL, [EncryptedSentinel] nvarchar(max) NOT NULL, [EncryptionAlgorithm] nvarchar(64) NOT NULL, [CreatedAt] datetimeoffset NOT NULL)");
+        db.Database.ExecuteSqlRaw("IF COL_LENGTH('VaultItems', 'ResetNotificationDate') IS NULL ALTER TABLE [VaultItems] ADD [ResetNotificationDate] date NULL");
+        db.Database.ExecuteSqlRaw("IF COL_LENGTH('VaultItems', 'ResetNotificationSentAt') IS NULL ALTER TABLE [VaultItems] ADD [ResetNotificationSentAt] datetimeoffset NULL");
     }
     if (string.IsNullOrWhiteSpace(connectionString))
     {
@@ -88,6 +93,8 @@ using (var scope = app.Services.CreateScope())
         db.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS UserGroupManagers (GroupId TEXT NOT NULL, UserKey TEXT NOT NULL, AddedByUserKey TEXT NOT NULL, AddedAt TEXT NOT NULL, CONSTRAINT PK_UserGroupManagers PRIMARY KEY (GroupId, UserKey))");
         TrySqlitePatch(db, "ALTER TABLE Users ADD COLUMN FailedLoginCount INTEGER NOT NULL DEFAULT 0");
         TrySqlitePatch(db, "ALTER TABLE Users ADD COLUMN LockoutEndAt TEXT NULL");
+        TrySqlitePatch(db, "ALTER TABLE VaultItems ADD COLUMN ResetNotificationDate TEXT NULL");
+        TrySqlitePatch(db, "ALTER TABLE VaultItems ADD COLUMN ResetNotificationSentAt TEXT NULL");
     }
     scope.ServiceProvider.GetRequiredService<DashboardService>().EnsureDefaultWidgetsAsync(db).GetAwaiter().GetResult();
     scope.ServiceProvider.GetRequiredService<PortalSettingsService>().EnsureDefaultsAsync(db).GetAwaiter().GetResult();

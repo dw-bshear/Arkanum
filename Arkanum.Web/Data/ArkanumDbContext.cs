@@ -97,6 +97,8 @@ public sealed class VaultItemEntity
     public string EncryptionKeyId { get; set; } = "env:v1";
     public string EncryptionAlgorithm { get; set; } = "AES-256-GCM";
     public DateTimeOffset EncryptedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateOnly? ResetNotificationDate { get; set; }
+    public DateTimeOffset? ResetNotificationSentAt { get; set; }
 }
 
 public sealed class VaultMemberEntity

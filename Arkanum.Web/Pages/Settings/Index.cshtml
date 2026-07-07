@@ -197,6 +197,13 @@
             <p class="form-help">After editing and saving the all-active-users template, use this action to queue that message for every currently enabled user.</p>
             <button class="primary-action" type="submit">Send notification to all active users</button>
         </form>
+        <form method="post" asp-page-handler="ExportAllVaultsCsv" class="card-form settings-wide-form mt-3">
+            <h3>Export all vaults</h3>
+            <p class="form-help">Creates an encrypted ZIP workflow package containing CSV exports for all vaults. This export may contain plaintext credentials and secure notes. Store it only in an approved protected location.</p>
+            <label>Export passphrase<input name="ExportAllVaultsPassphrase" type="password" autocomplete="new-password" /></label>
+            <label class="check-row"><input type="checkbox" required /> I understand this all-vault export may contain plaintext secrets.</label>
+            <button class="primary-action" type="submit">Download all-vault CSV ZIP</button>
+        </form>
     </section>
 
     <section id="settings-users" class="settings-tab-panel" role="tabpanel" hidden>

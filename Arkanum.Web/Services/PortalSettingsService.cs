@@ -27,6 +27,9 @@ public static class PortalSettingKeys
     public const string NotificationAllUsersBody = "notifications.allUsers.body";
     public const string NotificationVaultAccessSubject = "notifications.vaultAccess.subject";
     public const string NotificationVaultAccessBody = "notifications.vaultAccess.body";
+    public const string CredentialResetReminderEnabled = "notifications.credentialReset.enabled";
+    public const string CredentialResetReminderSubject = "notifications.credentialReset.subject";
+    public const string CredentialResetReminderBody = "notifications.credentialReset.body";
     public const string SyslogHost = "syslog.host";
     public const string SyslogPort = "syslog.port";
     public const string SyslogProtocol = "syslog.protocol";
@@ -89,6 +92,9 @@ public sealed class PortalSettingsService
         [PortalSettingKeys.NotificationAllUsersBody] = "Hello {{displayName}},\n\nThis is an application notice from Arkanum.",
         [PortalSettingKeys.NotificationVaultAccessSubject] = "Vault access granted: {{vaultName}}",
         [PortalSettingKeys.NotificationVaultAccessBody] = "Hello {{displayName}},\n\nYou have been granted access to the {{vaultName}} vault.",
+        [PortalSettingKeys.CredentialResetReminderEnabled] = "true",
+        [PortalSettingKeys.CredentialResetReminderSubject] = "Arkanum credential reset reminder",
+        [PortalSettingKeys.CredentialResetReminderBody] = "Hello {{displayName}},\n\nThe following credentials are due for review or password reset:\n\n{{CredentialList}}\n\nSign in to Arkanum to review the credential. This email does not contain secret values.",
         [PortalSettingKeys.SyslogHost] = string.Empty,
         [PortalSettingKeys.SyslogPort] = "514",
         [PortalSettingKeys.SyslogProtocol] = "UDP",
