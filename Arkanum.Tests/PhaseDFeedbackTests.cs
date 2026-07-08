@@ -19,8 +19,8 @@ public class PhaseDFeedbackTests
         var windowsGui = File.ReadAllText(Path.Combine(root, "installers", "windows", "Install-ArkanumGui.ps1"));
 
         Assert.Contains("ACTION=restore", linux);
-        Assert.Contains("ARKANUM_RESTORE_KEY_FILE", linux);
-        Assert.Contains("ARKANUM_RESTORE_KEY", linux);
+        Assert.Contains("CONCLAVE_RESTORE_KEY_FILE", linux);
+        Assert.Contains("CONCLAVE_RESTORE_KEY", linux);
         Assert.Contains("The provided Recovery Key does not match this database", linux);
         Assert.Contains("Restore from database backup", linuxGui);
         Assert.Contains("Recovery Key file", linuxGui);

@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ARKANUM_PACKAGE_VERSION=${ARKANUM_PACKAGE_VERSION:-2026.0.6}
+CONCLAVE_PACKAGE_VERSION=${CONCLAVE_PACKAGE_VERSION:-2026.0.1}
 ACTION=${ACTION:-auto}
-INSTALL_DIR=${INSTALL_DIR:-/opt/arkanum}
-CONFIG_DIR=${CONFIG_DIR:-/etc/arkanum}
-DATA_DIR=${DATA_DIR:-/var/lib/arkanum}
-LOG_DIR=${LOG_DIR:-/var/log/arkanum}
-BACKUP_ROOT=${BACKUP_ROOT:-/var/backups/arkanum}
-SERVICE_USER=${SERVICE_USER:-arkanum}
+INSTALL_DIR=${INSTALL_DIR:-/opt/conclave}
+CONFIG_DIR=${CONFIG_DIR:-/etc/conclave}
+DATA_DIR=${DATA_DIR:-/var/lib/conclave}
+LOG_DIR=${LOG_DIR:-/var/log/conclave}
+BACKUP_ROOT=${BACKUP_ROOT:-/var/backups/conclave}
+SERVICE_USER=${SERVICE_USER:-conclave}
 APP_URLS=${APP_URLS:-http://127.0.0.1:5068}
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PACKAGE_ROOT=$(cd "${SCRIPT_DIR}/../.." && pwd)
 PACKAGE_DIR=${PACKAGE_DIR:-}
 STATE_FILE="${CONFIG_DIR}/install-state.json"
-REPORT_FILE="${LOG_DIR}/upgrade-report-${ARKANUM_PACKAGE_VERSION}.txt"
+REPORT_FILE="${LOG_DIR}/upgrade-report-${CONCLAVE_PACKAGE_VERSION}.txt"
 
 fail() {
   echo "[FAIL] $*" >&2
@@ -28,9 +28,9 @@ info() {
 write_report() {
   install -d -o "${SERVICE_USER}" -g "${SERVICE_USER}" -m 750 "${LOG_DIR}" 2>/dev/null || install -d -m 750 "${LOG_DIR}"
   {
-    echo "Arkanum installer report"
-    echo "Product: Arkanum"
-    echo "Package version: ${ARKANUM_PACKAGE_VERSION}"
+    echo "Conclave installer report"
+    echo "Product: Conclave"
+    echo "Package version: ${CONCLAVE_PACKAGE_VERSION}"
     echo "Install action: ${ACTION}"
     echo "Install directory: ${INSTALL_DIR}"
     echo "Config directory: ${CONFIG_DIR}"
@@ -53,12 +53,12 @@ case "${ACTION}" in
   auto|install|upgrade|repair|side-by-side|restore) ;;
   *) fail "ACTION must be one of auto, install, upgrade, repair, side-by-side, restore." ;;
 esac
-# Restore from database backup example: ACTION=restore ARKANUM_RESTORE_KEY_FILE=/path/to/master-key.txt or ARKANUM_RESTORE_KEY=ark-recovery-v1....
+# Restore from database backup example: ACTION=restore CONCLAVE_RESTORE_KEY_FILE=/path/to/master-key.txt or CONCLAVE_RESTORE_KEY=ark-recovery-v1....
 
 if [ -z "${PACKAGE_DIR}" ]; then
-  if [ -f "${PACKAGE_ROOT}/app/Arkanum.Web.dll" ]; then
+  if [ -f "${PACKAGE_ROOT}/app/Conclave.Web.dll" ]; then
     PACKAGE_DIR="${PACKAGE_ROOT}/app"
-  elif [ -f "${PACKAGE_ROOT}/Arkanum.Web.dll" ]; then
+  elif [ -f "${PACKAGE_ROOT}/Conclave.Web.dll" ]; then
     PACKAGE_DIR="${PACKAGE_ROOT}"
   else
     PACKAGE_DIR="${PACKAGE_ROOT}/app"
@@ -70,26 +70,26 @@ command -v rsync >/dev/null 2>&1 || fail "rsync was not found. Install rsync bef
 command -v python3 >/dev/null 2>&1 || fail "python3 was not found. Install python3 before running this installer."
 command -v systemctl >/dev/null 2>&1 || fail "systemctl was not found. This installer expects a systemd-based Linux host."
 
-if [ ! -f "${PACKAGE_DIR}/Arkanum.Web.dll" ]; then
-  fail "Published Arkanum.Web.dll was not found in PACKAGE_DIR=${PACKAGE_DIR}. Run from an Arkanum Linux package or set PACKAGE_DIR to the published app folder."
+if [ ! -f "${PACKAGE_DIR}/Conclave.Web.dll" ]; then
+  fail "Published Conclave.Web.dll was not found in PACKAGE_DIR=${PACKAGE_DIR}. Run from an Conclave Linux package or set PACKAGE_DIR to the published app folder."
 fi
 
-if [ -z "${ARKANUM_SQL_CONNECTION:-}" ]; then
+if [ -z "${CONCLAVE_SQL_CONNECTION:-}" ]; then
   cat >&2 <<'EOF'
-[FAIL] ARKANUM_SQL_CONNECTION is required for Phase C installs and upgrades.
+[FAIL] CONCLAVE_SQL_CONNECTION is required for Phase C installs and upgrades.
 
 Example:
   sudo env \
-    ARKANUM_SQL_CONNECTION='Server=tcp:sql01,1433;Database=Arkanum;User Id=arkanum_app;Password=...;Encrypt=True;TrustServerCertificate=True;' \
+    CONCLAVE_SQL_CONNECTION='Server=tcp:sql01,1433;Database=Conclave;User Id=conclave_app;Password=...;Encrypt=True;TrustServerCertificate=True;' \
     ACTION=restore \
-    ARKANUM_RESTORE_KEY_FILE=/path/to/master-key.txt \
-    installers/linux/install-arkanum.sh
+    CONCLAVE_RESTORE_KEY_FILE=/path/to/master-key.txt \
+    installers/linux/install-conclave.sh
 EOF
   exit 4
 fi
 
 EXISTING_INSTALL=false
-if [ -s "${STATE_FILE}" ] || [ -f "${INSTALL_DIR}/Arkanum.Web.dll" ]; then
+if [ -s "${STATE_FILE}" ] || [ -f "${INSTALL_DIR}/Conclave.Web.dll" ]; then
   EXISTING_INSTALL=true
 fi
 
@@ -102,21 +102,21 @@ if [ "${ACTION}" = "auto" ]; then
 fi
 
 if [ "${ACTION}" = "side-by-side" ]; then
-  INSTALL_DIR="${INSTALL_DIR}-${ARKANUM_PACKAGE_VERSION}"
-  CONFIG_DIR="${CONFIG_DIR}-${ARKANUM_PACKAGE_VERSION}"
-  DATA_DIR="${DATA_DIR}-${ARKANUM_PACKAGE_VERSION}"
-  LOG_DIR="${LOG_DIR}-${ARKANUM_PACKAGE_VERSION}"
+  INSTALL_DIR="${INSTALL_DIR}-${CONCLAVE_PACKAGE_VERSION}"
+  CONFIG_DIR="${CONFIG_DIR}-${CONCLAVE_PACKAGE_VERSION}"
+  DATA_DIR="${DATA_DIR}-${CONCLAVE_PACKAGE_VERSION}"
+  LOG_DIR="${LOG_DIR}-${CONCLAVE_PACKAGE_VERSION}"
   STATE_FILE="${CONFIG_DIR}/install-state.json"
-  REPORT_FILE="${LOG_DIR}/upgrade-report-${ARKANUM_PACKAGE_VERSION}.txt"
+  REPORT_FILE="${LOG_DIR}/upgrade-report-${CONCLAVE_PACKAGE_VERSION}.txt"
   ACTION=install
 fi
 
 if [ "${EXISTING_INSTALL}" = false ] && [ "${ACTION}" = "upgrade" ]; then
-  fail "ACTION=upgrade requested but no existing Arkanum installation was detected. Use ACTION=install or ACTION=auto."
+  fail "ACTION=upgrade requested but no existing Conclave installation was detected. Use ACTION=install or ACTION=auto."
 fi
 
-if [ "${ACTION}" = "restore" ] && [ -z "${ARKANUM_RESTORE_KEY_FILE:-}" ] && [ -z "${ARKANUM_RESTORE_KEY:-}" ]; then
-  fail "ACTION=restore requires ARKANUM_RESTORE_KEY_FILE or ARKANUM_RESTORE_KEY. Select Restore from database backup and provide the existing Arkanum Recovery Key."
+if [ "${ACTION}" = "restore" ] && [ -z "${CONCLAVE_RESTORE_KEY_FILE:-}" ] && [ -z "${CONCLAVE_RESTORE_KEY:-}" ]; then
+  fail "ACTION=restore requires CONCLAVE_RESTORE_KEY_FILE or CONCLAVE_RESTORE_KEY. Select Restore from database backup and provide the existing Conclave Recovery Key."
 fi
 
 if ! id "${SERVICE_USER}" >/dev/null 2>&1; then
@@ -143,62 +143,62 @@ except Exception:
 PY
 )
   fi
-  BACKUP_DIR="${BACKUP_ROOT}/${INSTALLED_VERSION}-before-${ARKANUM_PACKAGE_VERSION}-$(date -u +%Y%m%d%H%M%S)"
+  BACKUP_DIR="${BACKUP_ROOT}/${INSTALLED_VERSION}-before-${CONCLAVE_PACKAGE_VERSION}-$(date -u +%Y%m%d%H%M%S)"
   info "Existing installation detected. Backing up app/config to ${BACKUP_DIR}."
   install -d -o root -g root -m 750 "${BACKUP_DIR}"
   [ -d "${INSTALL_DIR}" ] && rsync -a "${INSTALL_DIR}/" "${BACKUP_DIR}/app/" || true
   [ -d "${CONFIG_DIR}" ] && rsync -a --exclude 'master-key' "${CONFIG_DIR}/" "${BACKUP_DIR}/config/" || true
 fi
 
-info "Stopping arkanum.service if it exists."
-systemctl stop arkanum.service >/dev/null 2>&1 || true
+info "Stopping conclave.service if it exists."
+systemctl stop conclave.service >/dev/null 2>&1 || true
 
-info "Copying published Arkanum application from ${PACKAGE_DIR} to ${INSTALL_DIR}."
+info "Copying published Conclave application from ${PACKAGE_DIR} to ${INSTALL_DIR}."
 rsync -a --delete "${PACKAGE_DIR}/" "${INSTALL_DIR}/"
 chown -R root:root "${INSTALL_DIR}"
 chmod -R go-w "${INSTALL_DIR}"
 
 MASTER_KEY_FILE="${CONFIG_DIR}/master-key"
 if [ "${ACTION}" = "restore" ]; then
-  info "Restore from database backup selected. Installing provided Arkanum Recovery Key at ${MASTER_KEY_FILE}."
+  info "Restore from database backup selected. Installing provided Conclave Recovery Key at ${MASTER_KEY_FILE}."
   umask 077
-  if [ -n "${ARKANUM_RESTORE_KEY_FILE:-}" ]; then
-    [ -s "${ARKANUM_RESTORE_KEY_FILE}" ] || fail "ARKANUM_RESTORE_KEY_FILE does not exist or is empty."
-    cp "${ARKANUM_RESTORE_KEY_FILE}" "${MASTER_KEY_FILE}"
+  if [ -n "${CONCLAVE_RESTORE_KEY_FILE:-}" ]; then
+    [ -s "${CONCLAVE_RESTORE_KEY_FILE}" ] || fail "CONCLAVE_RESTORE_KEY_FILE does not exist or is empty."
+    cp "${CONCLAVE_RESTORE_KEY_FILE}" "${MASTER_KEY_FILE}"
   else
-    printf '%s\n' "${ARKANUM_RESTORE_KEY}" > "${MASTER_KEY_FILE}"
+    printf '%s\n' "${CONCLAVE_RESTORE_KEY}" > "${MASTER_KEY_FILE}"
   fi
   if ! grep -q '^ark-recovery-v1\.' "${MASTER_KEY_FILE}"; then
     fail "Provided Recovery Key must start with ark-recovery-v1."
   fi
 elif [ ! -s "${MASTER_KEY_FILE}" ]; then
-  info "Generating site-wide Arkanum recovery/master key at ${MASTER_KEY_FILE}."
+  info "Generating site-wide Conclave recovery/master key at ${MASTER_KEY_FILE}."
   umask 077
   python3 - <<'PY' > "${MASTER_KEY_FILE}"
 import secrets
 print('ark-recovery-v1.' + secrets.token_urlsafe(32))
 PY
 else
-  info "Using existing site-wide Arkanum recovery/master key at ${MASTER_KEY_FILE}."
+  info "Using existing site-wide Conclave recovery/master key at ${MASTER_KEY_FILE}."
 fi
 chown root:"${SERVICE_USER}" "${MASTER_KEY_FILE}"
 chmod 640 "${MASTER_KEY_FILE}"
 
-ENV_FILE="${CONFIG_DIR}/arkanum.env"
+ENV_FILE="${CONFIG_DIR}/conclave.env"
 info "Writing systemd environment file at ${ENV_FILE}."
 cat > "${ENV_FILE}" <<EOF_ENV
 ASPNETCORE_ENVIRONMENT=Production
-ARKANUM_MASTER_KEY=$(cat "${MASTER_KEY_FILE}")
-ConnectionStrings__DefaultConnection=${ARKANUM_SQL_CONNECTION}
+CONCLAVE_MASTER_KEY=$(cat "${MASTER_KEY_FILE}")
+ConnectionStrings__DefaultConnection=${CONCLAVE_SQL_CONNECTION}
 EOF_ENV
 chown root:"${SERVICE_USER}" "${ENV_FILE}"
 chmod 640 "${ENV_FILE}"
 
 DOTNET_BIN=$(command -v dotnet)
-info "Writing systemd unit /etc/systemd/system/arkanum.service."
-cat > /etc/systemd/system/arkanum.service <<EOF_SERVICE
+info "Writing systemd unit /etc/systemd/system/conclave.service."
+cat > /etc/systemd/system/conclave.service <<EOF_SERVICE
 [Unit]
-Description=Arkanum internal credential vault
+Description=Conclave internal credential vault
 After=network-online.target
 Wants=network-online.target
 
@@ -207,7 +207,7 @@ User=${SERVICE_USER}
 Group=${SERVICE_USER}
 WorkingDirectory=${INSTALL_DIR}
 EnvironmentFile=${ENV_FILE}
-ExecStart=${DOTNET_BIN} ${INSTALL_DIR}/Arkanum.Web.dll --urls ${APP_URLS}
+ExecStart=${DOTNET_BIN} ${INSTALL_DIR}/Conclave.Web.dll --urls ${APP_URLS}
 Restart=always
 RestartSec=5
 NoNewPrivileges=true
@@ -221,15 +221,15 @@ info "Writing install state manifest at ${STATE_FILE}."
 python3 - <<PY > "${STATE_FILE}"
 import json, datetime
 state = {
-  "product": "Arkanum",
-  "installedVersion": "${ARKANUM_PACKAGE_VERSION}",
+  "product": "Conclave",
+  "installedVersion": "${CONCLAVE_PACKAGE_VERSION}",
   "installedAtUtc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
   "installAction": "${ACTION}",
   "installPath": "${INSTALL_DIR}",
   "configPath": "${CONFIG_DIR}",
   "dataPath": "${DATA_DIR}",
   "logPath": "${LOG_DIR}",
-  "serviceName": "arkanum.service",
+  "serviceName": "conclave.service",
   "databaseProvider": "SqlServer",
   "packageChannel": "prerelease",
   "backupPath": "${BACKUP_DIR}"
@@ -241,10 +241,10 @@ chmod 640 "${STATE_FILE}"
 
 write_report
 
-info "Enabling and restarting arkanum.service."
+info "Enabling and restarting conclave.service."
 systemctl daemon-reload
-systemctl enable arkanum.service
-systemctl restart arkanum.service
+systemctl enable conclave.service
+systemctl restart conclave.service
 
 HEALTH_URL="${APP_URLS/0.0.0.0/127.0.0.1}/health"
 info "Running post-install health check at ${HEALTH_URL}."
@@ -276,19 +276,19 @@ if [ "${HEALTH_STATUS}" -ne 0 ]; then
     exit 7
   fi
   cat >&2 <<EOF
-[WARN] Arkanum installed but health validation did not pass.
+[WARN] Conclave installed but health validation did not pass.
 Report: ${REPORT_FILE}
 Rollback app files from backup if needed:
   ${BACKUP_DIR}
 Rollback app files command example:
-  sudo rsync -a ${BACKUP_DIR}/app/ ${INSTALL_DIR}/ && sudo systemctl restart arkanum.service
+  sudo rsync -a ${BACKUP_DIR}/app/ ${INSTALL_DIR}/ && sudo systemctl restart conclave.service
 EOF
 else
   info "Health validation passed."
 fi
 
 cat <<EOF
-[OK] Arkanum ${ACTION} completed for version ${ARKANUM_PACKAGE_VERSION}.
+[OK] Conclave ${ACTION} completed for version ${CONCLAVE_PACKAGE_VERSION}.
 
 Report:
   ${REPORT_FILE}
@@ -297,8 +297,8 @@ State manifest:
   ${STATE_FILE}
 
 Next checks:
-  sudo systemctl status arkanum.service --no-pager
-  APP_URL=${APP_URLS/http:\/\/0.0.0.0/http:\/\/127.0.0.1} installers/linux/verify-arkanum.sh
+  sudo systemctl status conclave.service --no-pager
+  APP_URL=${APP_URLS/http:\/\/0.0.0.0/http:\/\/127.0.0.1} installers/linux/verify-conclave.sh
 
 Important recovery material:
   ${MASTER_KEY_FILE}

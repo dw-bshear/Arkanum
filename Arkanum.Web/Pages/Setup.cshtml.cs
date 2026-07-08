@@ -33,14 +33,14 @@ public class SetupModel(ArkanumDbContext db, FirstRunSetupService setupService, 
         if (string.IsNullOrWhiteSpace(Username)) ModelState.AddModelError(nameof(Username), "Username is required.");
         if (Password != ConfirmPassword) ModelState.AddModelError(nameof(ConfirmPassword), "Passwords must match.");
         if (Password.Length < 12) ModelState.AddModelError(nameof(Password), "Password must be at least 12 characters long.");
-        if (!RecoveryKeySavedAcknowledged) ModelState.AddModelError(nameof(RecoveryKeySavedAcknowledged), "You must acknowledge that the Arkanum Recovery Key has been saved before setup can continue.");
+        if (!RecoveryKeySavedAcknowledged) ModelState.AddModelError(nameof(RecoveryKeySavedAcknowledged), "You must acknowledge that the Conclave Recovery Key has been saved before setup can continue.");
         if (!ModelState.IsValid) return Page();
 
         await setupService.CreateInitialAdministratorAsync(db, passwordHasher, Username, Password, DateTimeOffset.UtcNow);
         await recoveryKeys.EnsureRecoverySentinelAsync(db, DateTimeOffset.UtcNow);
         SetupCompleted = true;
         SetupRequired = false;
-        TempData["Status"] = "Initial administrator created. The Arkanum Recovery Key acknowledgment was recorded for setup.";
+        TempData["Status"] = "Initial administrator created. The Conclave Recovery Key acknowledgment was recorded for setup.";
         return Page();
     }
 

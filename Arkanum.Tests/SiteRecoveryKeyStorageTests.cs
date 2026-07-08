@@ -1,7 +1,7 @@
 using Arkanum.Web.Services;
 using Microsoft.Extensions.Configuration;
 
-namespace Arkanum.Tests;
+namespace Conclave.Tests;
 
 public class SiteRecoveryKeyStorageTests
 {
@@ -15,8 +15,8 @@ public class SiteRecoveryKeyStorageTests
             var configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["Arkanum:EncryptionKeyEnvironmentVariable"] = "ARKANUM_TEST_MISSING_KEY",
-                    ["Arkanum:MasterKeyFile"] = keyFile
+                    ["Conclave:EncryptionKeyEnvironmentVariable"] = "ARKANUM_TEST_MISSING_KEY",
+                    ["Conclave:MasterKeyFile"] = keyFile
                 })
                 .Build();
 
@@ -40,8 +40,8 @@ public class SiteRecoveryKeyStorageTests
             var configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["Arkanum:EncryptionKeyEnvironmentVariable"] = "ARKANUM_TEST_MISSING_KEY",
-                    ["Arkanum:MasterKeyFile"] = keyFile
+                    ["Conclave:EncryptionKeyEnvironmentVariable"] = "ARKANUM_TEST_MISSING_KEY",
+                    ["Conclave:MasterKeyFile"] = keyFile
                 })
                 .Build();
 
@@ -65,7 +65,7 @@ public class SiteRecoveryKeyStorageTests
         var markupPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Arkanum.Web", "Pages", "Setup.cshtml"));
         var markup = File.ReadAllText(markupPath);
 
-        Assert.Contains("Arkanum Recovery Key", markup);
+        Assert.Contains("Conclave Recovery Key", markup);
         Assert.Contains("site-wide", markup);
         Assert.Contains("all vault credentials and secure notes", markup);
         Assert.Contains("SQL Server backup", markup);
@@ -84,6 +84,6 @@ public class SiteRecoveryKeyStorageTests
         Assert.Contains("Copy recovery key", markup);
         Assert.Contains("Download recovery key file", markup);
         Assert.Contains("RecoveryKeySavedAcknowledged", pageModel);
-        Assert.Contains("You must acknowledge that the Arkanum Recovery Key has been saved", pageModel);
+        Assert.Contains("You must acknowledge that the Conclave Recovery Key has been saved", pageModel);
     }
 }

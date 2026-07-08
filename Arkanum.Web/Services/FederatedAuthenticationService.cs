@@ -63,7 +63,7 @@ public sealed class FederatedAuthenticationService(PortalSettingsService setting
                 ActorUserKey = "federated",
                 Target = lookupUsername == string.Empty ? lookupEmail : lookupUsername,
                 OccurredAt = now,
-                Message = "Federated login failed because the external identity is not an active Arkanum user. Import or create the user before granting application access."
+                Message = "Federated login failed because the external identity is not an active Conclave user. Import or create the user before granting application access."
             });
             await db.SaveChangesAsync();
             return null;
@@ -78,7 +78,7 @@ public sealed class FederatedAuthenticationService(PortalSettingsService setting
                 ActorUserKey = user.UserKey,
                 Target = user.Username,
                 OccurredAt = now,
-                Message = "Federated login failed because the mapped Arkanum user is disabled or not present in the directory."
+                Message = "Federated login failed because the mapped Conclave user is disabled or not present in the directory."
             });
             await db.SaveChangesAsync();
             return null;
@@ -175,7 +175,7 @@ public sealed class ArkanumOidcOptionsConfigurator(IServiceScopeFactory scopeFac
             var user = await federatedAuth.ResolveFederatedPrincipalAsync(eventDb, context.Principal ?? new ClaimsPrincipal(), DateTimeOffset.UtcNow);
             if (user is null)
             {
-                context.Fail("Federated identity is not mapped to an active Arkanum user.");
+                context.Fail("Federated identity is not mapped to an active Conclave user.");
                 return;
             }
 
@@ -183,7 +183,7 @@ public sealed class ArkanumOidcOptionsConfigurator(IServiceScopeFactory scopeFac
         };
         options.Events.OnRemoteFailure = context =>
         {
-            Console.Error.WriteLine($"Arkanum OIDC remote failure: {context.Failure?.GetType().Name}: {context.Failure?.Message}");
+            Console.Error.WriteLine($"Conclave OIDC remote failure: {context.Failure?.GetType().Name}: {context.Failure?.Message}");
             context.HandleResponse();
             context.Response.Redirect("/Login?federationError=1");
             return Task.CompletedTask;

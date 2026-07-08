@@ -1,4 +1,4 @@
-namespace Arkanum.Tests;
+namespace Conclave.Tests;
 
 public class PhaseCInstallerTests
 {
@@ -21,12 +21,12 @@ public class PhaseCInstallerTests
         var nativeText = File.ReadAllText(native);
         var guideText = File.ReadAllText(guide);
 
-        Assert.Contains("ARKANUM_PACKAGE_VERSION", script);
+        Assert.Contains("CONCLAVE_PACKAGE_VERSION", script);
         Assert.Contains("install-state.json", script);
         Assert.Contains("ACTION=upgrade", script);
         Assert.Contains("ACTION=repair", script);
-        Assert.Contains("before-${ARKANUM_PACKAGE_VERSION}", script);
-        Assert.Contains("upgrade-report-${ARKANUM_PACKAGE_VERSION}.txt", script);
+        Assert.Contains("before-${CONCLAVE_PACKAGE_VERSION}", script);
+        Assert.Contains("upgrade-report-${CONCLAVE_PACKAGE_VERSION}.txt", script);
         Assert.Contains("/health", script);
         Assert.Contains("Rollback app files", script);
 
@@ -36,7 +36,7 @@ public class PhaseCInstallerTests
         Assert.Contains("install side-by-side", guiText, StringComparison.OrdinalIgnoreCase);
 
         Assert.Contains("dpkg-deb", nativeText);
-        Assert.Contains("Arkanum-", nativeText);
+        Assert.Contains("Conclave-", nativeText);
         Assert.Contains(".deb", nativeText);
 
         Assert.Contains("Phase C.1", guideText);
@@ -78,7 +78,7 @@ public class PhaseCInstallerTests
         Assert.Contains("Install side-by-side", guiText);
 
         Assert.Contains("WiX", nativeText);
-        Assert.Contains("Arkanum-", nativeText);
+        Assert.Contains("Conclave-", nativeText);
         Assert.Contains(".msi", nativeText);
 
         Assert.Contains("MSI", guideText);
@@ -96,8 +96,8 @@ public class PhaseCInstallerTests
         var propsText = File.ReadAllText(props);
         var guideText = File.ReadAllText(releaseGuide);
 
-        Assert.Contains("<Version>2026.0.6</Version>", propsText);
-        Assert.Contains("2026.0.6", guideText);
+        Assert.Contains("<Version>2026.0.1</Version>", propsText);
+        Assert.Contains("2026.0.1", guideText);
     }
 
     private static string ProjectRoot()

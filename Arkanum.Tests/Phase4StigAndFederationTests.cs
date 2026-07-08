@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 
-namespace Arkanum.Tests;
+namespace Conclave.Tests;
 
 public class Phase4StigAndFederationTests
 {
@@ -155,7 +155,7 @@ public class Phase4StigAndFederationTests
         var user = await service.ResolveFederatedPrincipalAsync(db, principal, DateTimeOffset.Parse("2026-06-28T12:05:00Z"));
 
         Assert.Null(user);
-        Assert.Contains(await db.AuditEvents.ToListAsync(), e => e.Type == AuditEventType.LoginFailed && e.Message.Contains("not an active Arkanum user"));
+        Assert.Contains(await db.AuditEvents.ToListAsync(), e => e.Type == AuditEventType.LoginFailed && e.Message.Contains("not an active Conclave user"));
     }
 
     [Fact]
@@ -168,7 +168,7 @@ public class Phase4StigAndFederationTests
 
         Assert.Contains("asp-page-handler=\"Oidc\"", loginMarkup);
         Assert.Contains("Sign in with OIDC", loginMarkup);
-        Assert.Contains("If you were not automatically logged into Arkanum, use the link below to sign in manually with your username and password.", loginMarkup);
+        Assert.Contains("If you were not automatically logged into Conclave, use the link below to sign in manually with your username and password.", loginMarkup);
         Assert.Contains("asp-page=\"/ManualLogin\"", loginMarkup);
         Assert.DoesNotContain("Use OIDC federation when enabled by an administrator", loginMarkup);
         Assert.DoesNotContain("Local emergency access is available on a separate manual sign-in page", loginMarkup);
@@ -212,7 +212,7 @@ public class Phase4StigAndFederationTests
     private sealed class FakeEnvironment : IWebHostEnvironment
     {
         public string EnvironmentName { get; set; } = "Testing";
-        public string ApplicationName { get; set; } = "Arkanum.Tests";
+        public string ApplicationName { get; set; } = "Conclave.Tests";
         public string WebRootPath { get; set; } = Directory.GetCurrentDirectory();
         public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
         public string ContentRootPath { get; set; } = Directory.GetCurrentDirectory();

@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
+    <AssemblyName>Conclave.Web</AssemblyName>
+    <RootNamespace>Arkanum.Web</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>

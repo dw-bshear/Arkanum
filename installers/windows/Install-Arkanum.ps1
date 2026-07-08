@@ -1,12 +1,12 @@
 param(
     [string]$PackagePath = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path,
-    [string]$InstallPath = 'C:\Program Files\Arkanum\Web',
-    [string]$ProgramDataPath = 'C:\ProgramData\Arkanum',
-    [string]$SiteName = 'Arkanum',
+    [string]$InstallPath = 'C:\Program Files\Conclave\Web',
+    [string]$ProgramDataPath = 'C:\ProgramData\Conclave',
+    [string]$SiteName = 'Conclave',
     [int]$Port = 5068,
     [Parameter(Mandatory=$true)][string]$SqlConnectionString,
-    [string]$AppPoolName = 'ArkanumAppPool',
-    [string]$PackageVersion = '2026.0.6',
+    [string]$AppPoolName = 'ConclaveAppPool',
+    [string]$PackageVersion = '2026.0.1',
     # ValidateSet('install','upgrade','repair','side-by-side','restore') plus auto detection for GUI defaults.
     [ValidateSet('install','upgrade','repair','side-by-side','restore','auto')][string]$Action = 'auto',
     [string]$RestoreKeyFile = '',
@@ -15,7 +15,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-function Write-ArkanumReport {
+function Write-ConclaveReport {
     param(
         [string]$ReportPath,
         [string]$HealthStatus,
@@ -24,8 +24,8 @@ function Write-ArkanumReport {
     )
 
     $lines = @(
-        'Arkanum installer report',
-        'Product: Arkanum',
+        'Conclave installer report',
+        'Product: Conclave',
         "Package version: $PackageVersion",
         "Install action: $Action",
         "Install path: $InstallPath",
@@ -44,9 +44,9 @@ function Write-ArkanumReport {
 
 Import-Module WebAdministration
 
-$appDll = Join-Path $PackagePath 'Arkanum.Web.dll'
+$appDll = Join-Path $PackagePath 'Conclave.Web.dll'
 if (!(Test-Path $appDll)) {
-    throw "Published Arkanum.Web.dll was not found in PackagePath=$PackagePath. Run this from a published release package or pass -PackagePath."
+    throw "Published Conclave.Web.dll was not found in PackagePath=$PackagePath. Run this from a published release package or pass -PackagePath."
 }
 
 $secretDir = Join-Path $ProgramDataPath 'secrets'
@@ -56,7 +56,7 @@ $backupRoot = Join-Path $ProgramDataPath 'backups'
 $script:StatePath = Join-Path $configDir 'install-state.json'
 $reportPath = Join-Path $logDir "upgrade-report-$PackageVersion.txt"
 
-$existingInstall = (Test-Path $script:StatePath) -or (Test-Path (Join-Path $InstallPath 'Arkanum.Web.dll'))
+$existingInstall = (Test-Path $script:StatePath) -or (Test-Path (Join-Path $InstallPath 'Conclave.Web.dll'))
 if ($Action -eq 'auto') {
     if ($existingInstall) { $Action = 'upgrade' } else { $Action = 'install' }
 }
@@ -74,7 +74,7 @@ if ($Action -eq 'side-by-side') {
 }
 
 if ($Action -eq 'upgrade' -and -not $existingInstall) {
-    throw 'ACTION=upgrade requested but no existing Arkanum installation was detected. Use -Action install or -Action auto.'
+    throw 'ACTION=upgrade requested but no existing Conclave installation was detected. Use -Action install or -Action auto.'
 }
 
 if ($Action -eq 'restore' -and [string]::IsNullOrWhiteSpace($RestoreKeyFile) -and [string]::IsNullOrWhiteSpace($RestoreKey)) {
@@ -133,7 +133,7 @@ foreach ($target in $aclTargets) {
     Set-Acl -Path $target -AclObject $acl
 }
 
-$configPath = Join-Path $configDir 'arkanum.runtime.json'
+$configPath = Join-Path $configDir 'conclave.runtime.json'
 $runtimeJson = @{
     ASPNETCORE_ENVIRONMENT = 'Production'
     ConnectionStrings__DefaultConnection = $SqlConnectionString
@@ -152,10 +152,10 @@ $webConfig = @"
     <handlers>
       <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified" />
     </handlers>
-    <aspNetCore processPath="dotnet" arguments=".\Arkanum.Web.dll" stdoutLogEnabled="false" stdoutLogFile=".\logs\stdout" hostingModel="inprocess">
+    <aspNetCore processPath="dotnet" arguments=".\Conclave.Web.dll" stdoutLogEnabled="false" stdoutLogFile=".\logs\stdout" hostingModel="inprocess">
       <environmentVariables>
         <environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Production" />
-        <environmentVariable name="ARKANUM_MASTER_KEY" value="$escapedMasterKey" />
+        <environmentVariable name="CONCLAVE_MASTER_KEY" value="$escapedMasterKey" />
         <environmentVariable name="ConnectionStrings__DefaultConnection" value="$escapedSqlConnectionString" />
       </environmentVariables>
     </aspNetCore>
@@ -172,7 +172,7 @@ if (!(Test-Path "IIS:\Sites\$SiteName")) {
 }
 
 $state = [ordered]@{
-    product = 'Arkanum'
+    product = 'Conclave'
     installedVersion = $PackageVersion
     installedAtUtc = (Get-Date).ToUniversalTime().ToString('s') + 'Z'
     installAction = $Action
@@ -201,18 +201,18 @@ try {
     $healthStatus = 'Failed'
     $healthBody = $_.Exception.Message
 }
-Write-ArkanumReport -ReportPath $reportPath -HealthStatus $healthStatus -HealthBody $healthBody -BackupPath $backupPath
+Write-ConclaveReport -ReportPath $reportPath -HealthStatus $healthStatus -HealthBody $healthBody -BackupPath $backupPath
 
 if ($healthStatus -ne 'Healthy') {
     if ($Action -eq 'restore') { throw "The provided Recovery Key does not match this database. Report: $reportPath" }
-    Write-Warning "Arkanum installed but health validation did not pass. Report: $reportPath"
+    Write-Warning "Conclave installed but health validation did not pass. Report: $reportPath"
     Write-Warning "Rollback app files from backup if needed: $backupPath"
     Write-Warning "Rollback app files example: Copy-Item -Path '$backupPath\app\*' -Destination '$InstallPath' -Recurse -Force; Restart-WebAppPool -Name '$AppPoolName'"
     # Rollback app files is intentionally operator-controlled because database rollback requires a matching SQL backup restore.
 }
 
-Write-Host "Arkanum $Action completed for version $PackageVersion."
+Write-Host "Conclave $Action completed for version $PackageVersion."
 Write-Host "State manifest: $script:StatePath"
 Write-Host "Install report: $reportPath"
-Write-Host "Run installers\windows\Test-ArkanumInstall.ps1 -Url http://localhost:$Port/health"
+Write-Host "Run installers\windows\Test-ConclaveInstall.ps1 -Url http://localhost:$Port/health"
 Write-Host "Back up the SQL database and the site-wide recovery/master key together: $keyPath"

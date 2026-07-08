@@ -1,10 +1,10 @@
 # Offline package checklist
 
-Use this checklist before moving an Arkanum release package into a disconnected or controlled network.
+Use this checklist before moving an Conclave release package into a disconnected or controlled network.
 
 ## Release package contents
 
-- Published Arkanum web application files.
+- Published Conclave web application files.
 - Windows installer scripts under `installers/windows/`.
 - Linux installer scripts under `installers/linux/`.
 - SQL setup/migration scripts, when available.
@@ -29,7 +29,7 @@ Use this checklist before moving an Arkanum release package into a disconnected 
 Generate checksums before transfer:
 
 ```bash
-sha256sum Arkanum-*.zip Arkanum-*.tar.gz > SHA256SUMS.txt
+sha256sum Conclave-*.zip Conclave-*.tar.gz > SHA256SUMS.txt
 ```
 
 Verify checksums after transfer using the receiving network's approved tool.
@@ -40,7 +40,7 @@ Do not include these values in the release package:
 
 - SQL passwords.
 - LDAP bind passwords.
-- Arkanum master encryption key.
+- Conclave master encryption key.
 - Initial administrator password.
 - Site-specific TLS private keys.
 
@@ -59,7 +59,7 @@ Create or import secrets during installation on the target network.
 
 ## Language guidance
 
-Until formal evidence exists, describe Arkanum as:
+Until formal evidence exists, describe Conclave as:
 
 > Designed for controlled and disconnected networks.
 

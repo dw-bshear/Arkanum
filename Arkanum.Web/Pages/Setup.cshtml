@@ -13,10 +13,10 @@
 </section>
 
 <section class="info-card recovery-key-card">
-    <p class="eyebrow">Arkanum Recovery Key</p>
+    <p class="eyebrow">Conclave Recovery Key</p>
     <h2>Site-wide recovery for all vaults</h2>
-    <p>The Arkanum Recovery Key protects all vault credentials and secure notes for this site. Recovery is all vaults or nothing: restoring encrypted content requires both the SQL Server backup and this site-wide recovery key.</p>
-    <p>Store the recovery key offline with the database backup materials. If it is lost, Arkanum cannot decrypt existing credentials or notes after a restore.</p>
+    <p>The Conclave Recovery Key protects all vault credentials and secure notes for this site. Recovery is all vaults or nothing: restoring encrypted content requires both the SQL Server backup and this site-wide recovery key.</p>
+    <p>Store the recovery key offline with the database backup materials. If it is lost, Conclave cannot decrypt existing credentials or notes after a restore.</p>
 </section>
 
 @if (Model.SetupCompleted)
@@ -24,7 +24,7 @@
     <section class="info-card recovery-key-card success-panel">
         <p class="eyebrow">Setup complete</p>
         <h2>Recovery key acknowledgment recorded</h2>
-        <p>The first administrator was created and setup is now locked. Keep the Arkanum Recovery Key with approved backup materials.</p>
+        <p>The first administrator was created and setup is now locked. Keep the Conclave Recovery Key with approved backup materials.</p>
         <a class="primary-action" asp-page="/Login">Continue to sign in</a>
     </section>
 }
@@ -48,7 +48,7 @@ else
             }
             else
             {
-                <p class="warning-text">Arkanum is using a configured server key that is not in recovery-key display format. Confirm the configured key is stored with restore materials before continuing.</p>
+                <p class="warning-text">Conclave is using a configured server key that is not in recovery-key display format. Confirm the configured key is stored with restore materials before continuing.</p>
             }
             <label class="checkbox-row recovery-key-acknowledgment">
                 <input asp-for="RecoveryKeySavedAcknowledged" />

@@ -57,11 +57,11 @@ public sealed class InstallReportService(
     {
         var health = await healthCheckService.CheckAsync(db, cancellationToken);
         var settings = await db.PortalSettings.AsNoTracking().ToDictionaryAsync(s => s.SettingKey, s => s.Value, cancellationToken);
-        var cookieSecurePolicy = ArkanumCookiePolicy.ResolveSecurePolicy(configuration["Arkanum:CookieSecurePolicy"]);
+        var cookieSecurePolicy = ArkanumCookiePolicy.ResolveSecurePolicy(configuration["Conclave:CookieSecurePolicy"]);
         var federation = PortalSettingsService.ToFederation(settings);
 
         return new InstallReport(
-            Product: "Arkanum",
+            Product: "Conclave",
             Version: ArkanumHealthCheckService.CurrentSchemaVersion,
             GeneratedAt: DateTimeOffset.UtcNow,
             EnvironmentName: environment.EnvironmentName,

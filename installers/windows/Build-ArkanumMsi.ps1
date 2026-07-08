@@ -1,18 +1,18 @@
 #requires -Version 5.1
 param(
-    [string]$Version = '2026.0.6',
-    [string]$AppDir = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path 'publish\arkanum-windows-x64'),
+    [string]$Version = '2026.0.1',
+    [string]$AppDir = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path 'publish\conclave-windows-x64'),
     [string]$OutDir = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path 'artifacts\native\windows')
 )
 
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $stage = Join-Path $OutDir 'wix-staging'
-$wxs = Join-Path $stage 'Arkanum.wxs'
-$msi = Join-Path $OutDir "Arkanum-$Version-windows-x64.msi"
+$wxs = Join-Path $stage 'Conclave.wxs'
+$msi = Join-Path $OutDir "Conclave-$Version-windows-x64.msi"
 
-if (!(Test-Path (Join-Path $AppDir 'Arkanum.Web.dll'))) {
-    throw "AppDir must contain published Arkanum.Web.dll: $AppDir"
+if (!(Test-Path (Join-Path $AppDir 'Conclave.Web.dll'))) {
+    throw "AppDir must contain published Conclave.Web.dll: $AppDir"
 }
 
 New-Item -ItemType Directory -Force -Path $stage, $OutDir | Out-Null
@@ -25,12 +25,12 @@ $wixAvailable = [bool](Get-Command wix.exe -ErrorAction SilentlyContinue) -or [b
 $wxsTemplate = @"
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="Arkanum" Manufacturer="Arkanum" Version="$Version" UpgradeCode="11111111-2222-4333-8444-555555555555">
-    <SummaryInformation Description="Arkanum Windows x64 MSI staging package" />
-    <MajorUpgrade DowngradeErrorMessage="A newer version of Arkanum is already installed." />
+  <Package Name="Conclave" Manufacturer="Conclave" Version="$Version" UpgradeCode="11111111-2222-4333-8444-555555555555">
+    <SummaryInformation Description="Conclave Windows x64 MSI staging package" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Conclave is already installed." />
     <MediaTemplate />
-    <Feature Id="Main" Title="Arkanum" Level="1">
-      <ComponentGroupRef Id="ArkanumFiles" />
+    <Feature Id="Main" Title="Conclave" Level="1">
+      <ComponentGroupRef Id="ConclaveFiles" />
     </Feature>
   </Package>
 </Wix>
@@ -40,18 +40,18 @@ $wxsTemplate | Set-Content -Path $wxs -Encoding UTF8
 if ($wixAvailable -and (Get-Command wix.exe -ErrorAction SilentlyContinue)) {
     wix.exe build $wxs -out $msi
 } elseif ($wixAvailable) {
-    $wixobj = Join-Path $stage 'Arkanum.wixobj'
+    $wixobj = Join-Path $stage 'Conclave.wixobj'
     candle.exe -out $wixobj $wxs
     light.exe -out $msi $wixobj
 } else {
-    $placeholder = Join-Path $OutDir "Arkanum-$Version-windows-x64-msi-staging.txt"
+    $placeholder = Join-Path $OutDir "Conclave-$Version-windows-x64-msi-staging.txt"
     @"
-Arkanum-$Version-windows-x64.msi was not built on this workstation because WiX is not installed.
+Conclave-$Version-windows-x64.msi was not built on this workstation because WiX is not installed.
 
 This script stages the WiX/MSI path for Phase C.3 and should be run on a Windows build host with WiX Toolset installed.
 For tomorrow's Windows x64 VMware test, use the ZIP package and run:
   Set-ExecutionPolicy -Scope Process Bypass
-  .\installers\windows\Install-ArkanumGui.ps1
+  .\installers\windows\Install-ConclaveGui.ps1
 
 Expected MSI output when WiX is available:
   $msi

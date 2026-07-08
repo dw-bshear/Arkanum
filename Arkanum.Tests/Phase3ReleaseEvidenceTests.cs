@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 
-namespace Arkanum.Tests;
+namespace Conclave.Tests;
 
 public class Phase3ReleaseEvidenceTests
 {
@@ -28,7 +28,7 @@ public class Phase3ReleaseEvidenceTests
 
         var report = await service.BuildAsync(db);
 
-        Assert.Equal("Arkanum", report.Product);
+        Assert.Equal("Conclave", report.Product);
         Assert.Equal("phase4-preview", report.Version);
         Assert.Equal("Healthy", report.HealthStatus);
         Assert.Equal(1, report.Counts.Users);
@@ -54,7 +54,7 @@ public class Phase3ReleaseEvidenceTests
     private sealed class FakeEnvironment : IWebHostEnvironment
     {
         public string EnvironmentName { get; set; } = "Testing";
-        public string ApplicationName { get; set; } = "Arkanum.Tests";
+        public string ApplicationName { get; set; } = "Conclave.Tests";
         public string WebRootPath { get; set; } = Directory.GetCurrentDirectory();
         public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
         public string ContentRootPath { get; set; } = Directory.GetCurrentDirectory();

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Arkanum Linux GUI installer wrapper.
+"""Conclave Linux GUI installer wrapper.
 
 This Tkinter wizard collects install paths, SQL Server settings, and the listen URL,
 then runs the packaged non-interactive Linux installer with those values. It is meant
 for Ubuntu desktop-style administrator workstations. Headless servers can continue to
-use installers/linux/install-arkanum.sh directly.
+use installers/linux/install-conclave.sh directly.
 """
 from __future__ import annotations
 
@@ -16,10 +16,10 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
-APP_TITLE = "Arkanum Linux Setup"
+APP_TITLE = "Conclave Linux Setup"
 SCRIPT_DIR = Path(__file__).resolve().parent
 PACKAGE_ROOT = SCRIPT_DIR.parent.parent
-CLI_INSTALLER = SCRIPT_DIR / "install-arkanum.sh"
+CLI_INSTALLER = SCRIPT_DIR / "install-conclave.sh"
 
 
 def shell_quote(value: str) -> str:
@@ -52,16 +52,16 @@ class Wizard(tk.Tk):
         self.resizable(True, True)
         self.vars = {
             "install_action": tk.StringVar(value="auto"),
-            "install_dir": tk.StringVar(value="/opt/arkanum"),
-            "config_dir": tk.StringVar(value="/etc/arkanum"),
-            "data_dir": tk.StringVar(value="/var/lib/arkanum"),
-            "log_dir": tk.StringVar(value="/var/log/arkanum"),
-            "service_user": tk.StringVar(value="arkanum"),
+            "install_dir": tk.StringVar(value="/opt/conclave"),
+            "config_dir": tk.StringVar(value="/etc/conclave"),
+            "data_dir": tk.StringVar(value="/var/lib/conclave"),
+            "log_dir": tk.StringVar(value="/var/log/conclave"),
+            "service_user": tk.StringVar(value="conclave"),
             "app_urls": tk.StringVar(value="http://127.0.0.1:5068"),
             "sql_host": tk.StringVar(value=""),
             "sql_port": tk.StringVar(value="1433"),
-            "sql_database": tk.StringVar(value="Arkanum"),
-            "sql_user": tk.StringVar(value="arkanum_app"),
+            "sql_database": tk.StringVar(value="Conclave"),
+            "sql_user": tk.StringVar(value="conclave_app"),
             "sql_password": tk.StringVar(value=""),
             "restore_key_file": tk.StringVar(value=""),
             "restore_key": tk.StringVar(value=""),
@@ -76,8 +76,8 @@ class Wizard(tk.Tk):
     def _build(self) -> None:
         root = ttk.Frame(self, padding=16)
         root.pack(fill="both", expand=True)
-        ttk.Label(root, text="Arkanum Setup", font=("TkDefaultFont", 18, "bold")).pack(anchor="w")
-        ttk.Label(root, text="Guided Linux installer for the packaged Arkanum release.").pack(anchor="w", pady=(0, 12))
+        ttk.Label(root, text="Conclave Setup", font=("TkDefaultFont", 18, "bold")).pack(anchor="w")
+        ttk.Label(root, text="Guided Linux installer for the packaged Conclave release.").pack(anchor="w", pady=(0, 12))
         notebook = ttk.Notebook(root)
         notebook.pack(fill="both", expand=True)
         notebook.add(self._paths_page(notebook), text="Install paths")
@@ -146,13 +146,13 @@ class Wizard(tk.Tk):
         ttk.Label(
             frame,
             text=(
-                "The installer creates /etc/arkanum/master-key if one does not already exist. "
-                "The WebUI first-run setup will display the Arkanum Recovery Key again and require "
+                "The installer creates /etc/conclave/master-key if one does not already exist. "
+                "The WebUI first-run setup will display the Conclave Recovery Key again and require "
                 "an acknowledgment before the first administrator can be created."
             ),
             wraplength=680,
         ).pack(anchor="w", pady=10)
-        ttk.Label(frame, text="Recoverable = SQL database backup + matching Arkanum Recovery Key", wraplength=680).pack(anchor="w")
+        ttk.Label(frame, text="Recoverable = SQL database backup + matching Conclave Recovery Key", wraplength=680).pack(anchor="w")
         ttk.Label(frame, text="Not recoverable = SQL database backup alone", wraplength=680).pack(anchor="w")
         ttk.Checkbutton(
             frame,
@@ -189,16 +189,16 @@ class Wizard(tk.Tk):
         selected_action = action_map.get(self.vars["install_action"].get(), "auto")
         env = {
             "ACTION": selected_action,
-            "ARKANUM_PACKAGE_VERSION": "2026.0.6",
+            "CONCLAVE_PACKAGE_VERSION": "2026.0.1",
             "INSTALL_DIR": self.vars["install_dir"].get().strip(),
             "CONFIG_DIR": self.vars["config_dir"].get().strip(),
             "DATA_DIR": self.vars["data_dir"].get().strip(),
             "LOG_DIR": self.vars["log_dir"].get().strip(),
             "SERVICE_USER": self.vars["service_user"].get().strip(),
             "APP_URLS": self.vars["app_urls"].get().strip(),
-            "ARKANUM_SQL_CONNECTION": conn,
-            "ARKANUM_RESTORE_KEY_FILE": self.vars["restore_key_file"].get().strip(),
-            "ARKANUM_RESTORE_KEY": self.vars["restore_key"].get().strip(),
+            "CONCLAVE_SQL_CONNECTION": conn,
+            "CONCLAVE_RESTORE_KEY_FILE": self.vars["restore_key_file"].get().strip(),
+            "CONCLAVE_RESTORE_KEY": self.vars["restore_key"].get().strip(),
         }
         assignments = " ".join(f"{k}={shell_quote(v)}" for k, v in env.items())
         cmd = f"env {assignments} {shell_quote(str(CLI_INSTALLER))}"
@@ -213,11 +213,11 @@ class Wizard(tk.Tk):
         cmd = self.generate_command()
         escalator = "pkexec" if shutil_which("pkexec") else "sudo"
         full = [escalator, "/bin/bash", "-lc", cmd]
-        if not messagebox.askyesno(APP_TITLE, "Run the Arkanum installer now? You may be prompted for administrator credentials."):
+        if not messagebox.askyesno(APP_TITLE, "Run the Conclave installer now? You may be prompted for administrator credentials."):
             return
         result = subprocess.run(full, text=True, capture_output=True)
         if result.returncode == 0:
-            messagebox.showinfo(APP_TITLE, "Arkanum installer completed. Open the WebUI first-run setup to save the Recovery Key and create the first administrator.")
+            messagebox.showinfo(APP_TITLE, "Conclave installer completed. Open the WebUI first-run setup to save the Recovery Key and create the first administrator.")
         else:
             messagebox.showerror(APP_TITLE, f"Installer failed.\n\nSTDOUT:\n{result.stdout[-2000:]}\n\nSTDERR:\n{result.stderr[-2000:]}")
 

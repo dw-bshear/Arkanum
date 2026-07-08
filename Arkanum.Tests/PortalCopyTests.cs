@@ -1,7 +1,7 @@
 using System.IO;
 using Xunit;
 
-namespace Arkanum.Tests;
+namespace Conclave.Tests;
 
 public class PortalCopyTests
 {
@@ -12,9 +12,9 @@ public class PortalCopyTests
         var layout = File.ReadAllText(Path.Combine(root, "Arkanum.Web", "Pages", "Shared", "_Layout.cshtml"));
         var dashboard = File.ReadAllText(Path.Combine(root, "Arkanum.Web", "Pages", "Index.cshtml"));
 
-        Assert.Contains("Arkanum credential vaults", layout);
+        Assert.Contains("Conclave credential vaults", layout);
         Assert.Contains("Access History · Secure Notes · Safe Credentials", layout);
-        Assert.DoesNotContain("Arkanum internal credential vault", layout);
+        Assert.DoesNotContain("Conclave internal credential vault", layout);
         Assert.DoesNotContain("Access History · Secret Access Events · Security Review", layout);
 
         Assert.Contains("Administrative and role-specific tools are grouped under Settings.", dashboard);

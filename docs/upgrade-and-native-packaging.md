@@ -1,6 +1,6 @@
-# Arkanum Phase C installer, upgrade, and native packaging guide
+# Conclave Phase C installer, upgrade, and native packaging guide
 
-Version: `2026.0.6`
+Version: `2026.0.1`
 
 This release addresses the urgent Phase C path for a Windows x64 VMware Workstation test machine while preserving Linux parity.
 
@@ -9,8 +9,8 @@ This release addresses the urgent Phase C path for a Windows x64 VMware Workstat
 Both platform packages include GUI installer entry points:
 
 ```text
-installers/windows/Install-ArkanumGui.ps1
-installers/linux/arkanum-gui-install.py
+installers/windows/Install-ConclaveGui.ps1
+installers/linux/conclave-gui-install.py
 ```
 
 The GUI installers collect:
@@ -26,7 +26,7 @@ For the Windows x64 VMware test, extract the Windows package, open PowerShell as
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
-.\installers\windows\Install-ArkanumGui.ps1
+.\installers\windows\Install-ConclaveGui.ps1
 ```
 
 ## Phase C.2 — upgrade and patch mode
@@ -46,22 +46,22 @@ side-by-side
 State manifests are written here:
 
 ```text
-Windows: C:\ProgramData\Arkanum\config\install-state.json
-Linux:   /etc/arkanum/install-state.json
+Windows: C:\ProgramData\Conclave\config\install-state.json
+Linux:   /etc/conclave/install-state.json
 ```
 
 Upgrade and repair actions create pre-change backups:
 
 ```text
-Windows: C:\ProgramData\Arkanum\backups\<old>-before-2026.0.6-<timestamp>
-Linux:   /var/backups/arkanum/<old>-before-2026.0.6-<timestamp>
+Windows: C:\ProgramData\Conclave\backups\<old>-before-2026.0.1-<timestamp>
+Linux:   /var/backups/conclave/<old>-before-2026.0.1-<timestamp>
 ```
 
 Upgrade reports are written here:
 
 ```text
-Windows: C:\ProgramData\Arkanum\logs\upgrade-report-2026.0.6.txt
-Linux:   /var/log/arkanum/upgrade-report-2026.0.6.txt
+Windows: C:\ProgramData\Conclave\logs\upgrade-report-2026.0.1.txt
+Linux:   /var/log/conclave/upgrade-report-2026.0.1.txt
 ```
 
 Each installer attempts a post-install `/health` check and records the result. If health validation fails, the report includes the backup path. Rollback app files are operator-controlled because database rollback must be paired with the correct SQL Server backup restore.
@@ -73,22 +73,22 @@ Phase C.3 starts the native packaging path without blocking tomorrow's Windows V
 Current release assets remain ZIP/TAR for immediate testability:
 
 ```text
-Arkanum-2026.0.6-windows-x64.zip
-Arkanum-2026.0.6-linux-x64.tar.gz
+Conclave-2026.0.1-windows-x64.zip
+Conclave-2026.0.1-linux-x64.tar.gz
 ```
 
 Native package staging scripts are included:
 
 ```text
-installers/windows/Build-ArkanumMsi.ps1
+installers/windows/Build-ConclaveMsi.ps1
 installers/linux/build-native-package.sh
 ```
 
 Expected future native assets:
 
 ```text
-Arkanum-2026.0.6-windows-x64.msi
-Arkanum-2026.0.6-linux-x64.deb
+Conclave-2026.0.1-windows-x64.msi
+Conclave-2026.0.1-linux-x64.deb
 ```
 
 The Windows MSI script uses WiX when available. If WiX is not installed, it writes staging instructions and leaves the ZIP package as the supported test package.
@@ -100,7 +100,7 @@ The Linux DEB script uses `dpkg-deb` and expects a published Linux app directory
 Use one source tag and one GitHub release per product version:
 
 ```text
-source commit -> v2026.0.6 -> GitHub prerelease -> platform assets
+source commit -> v2026.0.1 -> GitHub prerelease -> platform assets
 ```
 
 Attach Windows and Linux packages to the same release. During testing, mark `2026.0.x` as prerelease.
@@ -112,7 +112,7 @@ Attach Windows and Linux packages to the same release. During testing, mark `202
    - ASP.NET Core Runtime 9;
    - SQL Server reachable from the VM;
    - PowerShell 5.1+.
-2. Download `Arkanum-2026.0.6-windows-x64.zip` and matching `.sha256`.
+2. Download `Conclave-2026.0.1-windows-x64.zip` and matching `.sha256`.
 3. Verify checksum.
 4. Extract the ZIP.
 5. Run PowerShell as Administrator.
@@ -120,7 +120,7 @@ Attach Windows and Linux packages to the same release. During testing, mark `202
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
-.\installers\windows\Install-ArkanumGui.ps1
+.\installers\windows\Install-ConclaveGui.ps1
 ```
 
 7. Choose `Auto detect` for first install or `Upgrade existing installation` if rerunning over `2026.0.2`.
@@ -137,6 +137,6 @@ http://localhost:5068/setup
 12. Save these files from the VM for evidence:
 
 ```text
-C:\ProgramData\Arkanum\config\install-state.json
-C:\ProgramData\Arkanum\logs\upgrade-report-2026.0.6.txt
+C:\ProgramData\Conclave\config\install-state.json
+C:\ProgramData\Conclave\logs\upgrade-report-2026.0.1.txt
 ```

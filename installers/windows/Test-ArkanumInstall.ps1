@@ -10,5 +10,5 @@ foreach ($check in $response.checks) {
     Write-Host "[$($check.status)] $($check.name): $($check.message)"
 }
 if ($response.status -ne 'Healthy') {
-    throw "Arkanum health check failed."
+    throw "Conclave health check failed."
 }

@@ -1,10 +1,10 @@
 #requires -Version 5.1
 <#
-Arkanum Windows GUI installer wrapper.
+Conclave Windows GUI installer wrapper.
 
 This WinForms wizard collects installation path, IIS/site settings, SQL Server
 connection information, and recovery-key acknowledgment, then invokes the
-packaged Install-Arkanum.ps1 script. Run from the extracted Windows package as
+packaged Install-Conclave.ps1 script. Run from the extracted Windows package as
 Administrator.
 #>
 
@@ -13,7 +13,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 $script:PackageRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$script:CliInstaller = Join-Path $PSScriptRoot 'Install-Arkanum.ps1'
+$script:CliInstaller = Join-Path $PSScriptRoot 'Install-Conclave.ps1'
 
 function New-Label($text, $x, $y, $w = 180) {
     $label = New-Object System.Windows.Forms.Label
@@ -36,7 +36,7 @@ function Require-Admin {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($identity)
     if (-not $principal.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)) {
-        [System.Windows.Forms.MessageBox]::Show('Run Arkanum Setup as Administrator.', 'Arkanum Setup', 'OK', 'Error') | Out-Null
+        [System.Windows.Forms.MessageBox]::Show('Run Conclave Setup as Administrator.', 'Conclave Setup', 'OK', 'Error') | Out-Null
         exit 5
     }
 }
@@ -54,17 +54,17 @@ function Build-ConnectionString {
 
 Require-Admin
 if (!(Test-Path $script:CliInstaller)) {
-    [System.Windows.Forms.MessageBox]::Show("Missing CLI installer: $script:CliInstaller", 'Arkanum Setup', 'OK', 'Error') | Out-Null
+    [System.Windows.Forms.MessageBox]::Show("Missing CLI installer: $script:CliInstaller", 'Conclave Setup', 'OK', 'Error') | Out-Null
     exit 2
 }
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Arkanum Windows Setup'
+$form.Text = 'Conclave Windows Setup'
 $form.Size = New-Object System.Drawing.Size(820, 690)
 $form.StartPosition = 'CenterScreen'
 
 $title = New-Object System.Windows.Forms.Label
-$title.Text = 'Arkanum Windows installation package'
+$title.Text = 'Conclave Windows installation package'
 $title.Font = New-Object System.Drawing.Font('Segoe UI', 15, [System.Drawing.FontStyle]::Bold)
 $title.Location = New-Object System.Drawing.Point(16, 12)
 $title.Size = New-Object System.Drawing.Size(760, 34)
@@ -84,10 +84,10 @@ $action.DropDownStyle = 'DropDownList'
 $action.SelectedIndex = 0
 $action.Location = New-Object System.Drawing.Point(220, 24)
 $action.Size = New-Object System.Drawing.Size(300, 24)
-$installPath = New-TextBox 'C:\Program Files\Arkanum\Web' 220 64 470
-$programData = New-TextBox 'C:\ProgramData\Arkanum' 220 104 470
-$siteName = New-TextBox 'Arkanum' 220 144 250
-$appPool = New-TextBox 'ArkanumAppPool' 220 184 250
+$installPath = New-TextBox 'C:\Program Files\Conclave\Web' 220 64 470
+$programData = New-TextBox 'C:\ProgramData\Conclave' 220 104 470
+$siteName = New-TextBox 'Conclave' 220 144 250
+$appPool = New-TextBox 'ConclaveAppPool' 220 184 250
 $port = New-TextBox '5068' 220 224 120
 $restoreKeyFile = New-TextBox '' 220 264 470
 $restoreKey = New-TextBox '' 220 304 470 $true
@@ -114,8 +114,8 @@ $sqlTab.Text = 'SQL Server'
 $tabs.Controls.Add($sqlTab)
 $sqlHost = New-TextBox '' 220 24 350
 $sqlPort = New-TextBox '1433' 220 64 120
-$sqlDb = New-TextBox 'Arkanum' 220 104 260
-$sqlUser = New-TextBox 'arkanum_app' 220 144 260
+$sqlDb = New-TextBox 'Conclave' 220 104 260
+$sqlUser = New-TextBox 'conclave_app' 220 144 260
 $sqlPassword = New-TextBox '' 220 184 260 $true
 $encrypt = New-Object System.Windows.Forms.CheckBox
 $encrypt.Text = 'Encrypt SQL connection'
@@ -142,7 +142,7 @@ $recoveryTab = New-Object System.Windows.Forms.TabPage
 $recoveryTab.Text = 'Recovery Key'
 $tabs.Controls.Add($recoveryTab)
 $recoveryText = New-Object System.Windows.Forms.Label
-$recoveryText.Text = "Recovery Key`r`n`r`nThe Windows installer creates C:\ProgramData\Arkanum\secrets\master-key.txt if one does not already exist. The WebUI first-run setup will display the Arkanum Recovery Key again and require an acknowledgment before the first administrator can be created.`r`n`r`nRecoverable = SQL database backup + matching Recovery Key.`r`nNot recoverable = SQL database backup alone."
+$recoveryText.Text = "Recovery Key`r`n`r`nThe Windows installer creates C:\ProgramData\Conclave\secrets\master-key.txt if one does not already exist. The WebUI first-run setup will display the Conclave Recovery Key again and require an acknowledgment before the first administrator can be created.`r`n`r`nRecoverable = SQL database backup + matching Recovery Key.`r`nNot recoverable = SQL database backup alone."
 $recoveryText.Location = New-Object System.Drawing.Point(24, 24)
 $recoveryText.Size = New-Object System.Drawing.Size(700, 180)
 $recoveryTab.Controls.Add($recoveryText)
@@ -192,7 +192,7 @@ function Build-CommandPreview {
         '-Port', $port.Text,
         '-SqlConnectionString', "`"$conn`"",
         '-AppPoolName', "`"$($appPool.Text)`"",
-        '-PackageVersion', '2026.0.6',
+        '-PackageVersion', '2026.0.1',
         '-Action', $selectedAction,
         '-RestoreKeyFile', "`"$($restoreKeyFile.Text)`"",
         '-RestoreKey', "`"$($restoreKey.Text)`""
@@ -207,7 +207,7 @@ $generate.Location = New-Object System.Drawing.Point(24, 340)
 $generate.Size = New-Object System.Drawing.Size(190, 32)
 $generate.Add_Click({
     try { Build-CommandPreview | Out-Null; $status.Text = 'Command preview generated.' }
-    catch { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Arkanum Setup', 'OK', 'Error') | Out-Null }
+    catch { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Conclave Setup', 'OK', 'Error') | Out-Null }
 })
 $summaryTab.Controls.Add($generate)
 
@@ -217,7 +217,7 @@ $run.Location = New-Object System.Drawing.Point(230, 340)
 $run.Size = New-Object System.Drawing.Size(150, 32)
 $run.Add_Click({
     if (-not $ack.Checked) {
-        [System.Windows.Forms.MessageBox]::Show('Acknowledge the Recovery Key requirement before running setup.', 'Arkanum Setup', 'OK', 'Error') | Out-Null
+        [System.Windows.Forms.MessageBox]::Show('Acknowledge the Recovery Key requirement before running setup.', 'Conclave Setup', 'OK', 'Error') | Out-Null
         return
     }
     try {
@@ -230,16 +230,16 @@ $run.Add_Click({
             Port = [int]$port.Text
             SqlConnectionString = $conn
             AppPoolName = $appPool.Text
-            PackageVersion = '2026.0.6'
+            PackageVersion = '2026.0.1'
             Action = Get-InstallerAction
             RestoreKeyFile = $restoreKeyFile.Text
             RestoreKey = $restoreKey.Text
         }
         & $script:CliInstaller @params
-        [System.Windows.Forms.MessageBox]::Show('Arkanum installation completed. Open the WebUI first-run setup to save the Recovery Key and create the first administrator.', 'Arkanum Setup', 'OK', 'Information') | Out-Null
+        [System.Windows.Forms.MessageBox]::Show('Conclave installation completed. Open the WebUI first-run setup to save the Recovery Key and create the first administrator.', 'Conclave Setup', 'OK', 'Information') | Out-Null
     }
     catch {
-        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Arkanum Setup failed', 'OK', 'Error') | Out-Null
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Conclave Setup failed', 'OK', 'Error') | Out-Null
     }
 })
 $summaryTab.Controls.Add($run)

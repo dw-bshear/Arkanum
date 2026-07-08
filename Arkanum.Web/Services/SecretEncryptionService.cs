@@ -46,8 +46,8 @@ public sealed class EnvironmentMasterKeyProvider(IConfiguration configuration) :
             }
         }
 
-        var variable = configuration["Arkanum:EncryptionKeyEnvironmentVariable"] ?? "ARKANUM_MASTER_KEY";
-        throw new InvalidOperationException($"Master encryption key is not set. Set environment variable '{variable}' or create the configured Arkanum master key file.");
+        var variable = GetConfiguredEnvironmentVariable(configuration);
+        throw new InvalidOperationException($"Master encryption key is not set. Set environment variable '{variable}' or create the configured Conclave master key file.");
     }
 
     public static string? EnsureLocalMasterKey(IConfiguration configuration)
@@ -87,23 +87,28 @@ public sealed class EnvironmentMasterKeyProvider(IConfiguration configuration) :
 
     public static string ResolveMasterKeyFilePath(IConfiguration configuration)
     {
-        var configured = configuration["Arkanum:MasterKeyFile"];
+        var configured = configuration["Conclave:MasterKeyFile"] ?? configuration["Arkanum:MasterKeyFile"];
         if (!string.IsNullOrWhiteSpace(configured))
         {
             return configured;
         }
 
-        var sqliteConnectionString = configuration.GetConnectionString("SqliteFallback") ?? "Data Source=/srv/blackbox/hermes/projects/arkanum/data/arkanum-dev.db";
+        var sqliteConnectionString = configuration.GetConnectionString("SqliteFallback") ?? "Data Source=/srv/blackbox/hermes/projects/conclave/data/conclave-dev.db";
         var sqlitePath = sqliteConnectionString.Replace("Data Source=", string.Empty, StringComparison.OrdinalIgnoreCase);
         var directory = Path.GetDirectoryName(sqlitePath);
-        return Path.Combine(string.IsNullOrWhiteSpace(directory) ? AppContext.BaseDirectory : directory, "arkanum-site-recovery.key");
+        return Path.Combine(string.IsNullOrWhiteSpace(directory) ? AppContext.BaseDirectory : directory, "conclave-site-recovery.key");
     }
 
     private static string? GetEnvironmentKey(IConfiguration configuration)
     {
-        var variable = configuration["Arkanum:EncryptionKeyEnvironmentVariable"] ?? "ARKANUM_MASTER_KEY";
-        return Environment.GetEnvironmentVariable(variable);
+        var variable = GetConfiguredEnvironmentVariable(configuration);
+        return Environment.GetEnvironmentVariable(variable) ?? Environment.GetEnvironmentVariable("ARKANUM_MASTER_KEY");
     }
+
+    private static string GetConfiguredEnvironmentVariable(IConfiguration configuration)
+        => configuration["Conclave:EncryptionKeyEnvironmentVariable"]
+           ?? configuration["Arkanum:EncryptionKeyEnvironmentVariable"]
+           ?? "CONCLAVE_MASTER_KEY";
 
     private static void TrySetOwnerOnlyPermissions(string keyFile)
     {
