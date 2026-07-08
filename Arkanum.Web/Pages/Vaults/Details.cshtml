@@ -140,10 +140,9 @@
                                 <span class="muted">Reset notification</span>
                                 @if (Model.CanAddOrChangeVaultContents)
                                 {
-                                    <form method="post" asp-page-handler="UpdateResetNotification" asp-route-id="@Model.Vault.Id" class="inline-form">
+                                    <form method="post" asp-page-handler="UpdateResetNotification" asp-route-id="@Model.Vault.Id" class="inline-form reset-date-form" data-preserve-scroll>
                                         <input type="hidden" name="ItemId" value="@item.Id" />
-                                        <input type="date" name="ResetNotificationDate" value="@(item.ResetNotificationDate?.ToString("yyyy-MM-dd"))" aria-label="Reset notification date for @item.Title" />
-                                        <button class="secondary-action small" type="submit">Save</button>
+                                        <input class="reset-date-input" type="date" name="ResetNotificationDate" value="@(item.ResetNotificationDate?.ToString("yyyy-MM-dd"))" aria-label="Reset notification date for @item.Title" data-auto-submit-on-change />
                                     </form>
                                 }
                                 else if (item.ResetNotificationDate is not null)
@@ -158,7 +157,6 @@
                                 @if (Model.RevealedItemId == item.Id && !string.IsNullOrWhiteSpace(Model.RevealedSecret))
                                 {
                                     <code id="revealedSecret-@item.Id">@Model.RevealedSecret</code>
-                                    <small>@(Model.CopyIntent ? "Ready to copy. " : "Revealed here. ")This reveal/copy action has been audited.</small>
                                     <button class="secondary-action small" type="button" data-copy-revealed data-copy-target="revealedSecret-@item.Id">Copy to clipboard</button>
                                 }
                                 else
@@ -167,12 +165,12 @@
                                 }
                             </div>
                             <div class="inline-actions">
-                                <form method="post" asp-page-handler="Reveal" asp-route-id="@Model.Vault.Id" asp-fragment="vault-item-@item.Id">
+                                <form method="post" asp-page-handler="Reveal" asp-route-id="@Model.Vault.Id" data-preserve-scroll>
                                     <input type="hidden" name="ItemId" value="@item.Id" />
                                     <input type="hidden" name="Title" value="@item.Title" />
                                     <button class="secondary-action small" type="submit">Reveal</button>
                                 </form>
-                                <form method="post" asp-page-handler="Copy" asp-route-id="@Model.Vault.Id" asp-fragment="vault-item-@item.Id">
+                                <form method="post" asp-page-handler="Copy" asp-route-id="@Model.Vault.Id" data-preserve-scroll>
                                     <input type="hidden" name="ItemId" value="@item.Id" />
                                     <input type="hidden" name="Title" value="@item.Title" />
                                     <button class="secondary-action small" type="submit">Copy</button>

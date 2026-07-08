@@ -67,4 +67,25 @@
       copyButton.textContent = 'Copied locally';
     });
   });
+
+  const vaultScrollKey = 'arkanum.vault.scrollY';
+  document.querySelectorAll('form[data-preserve-scroll]').forEach(form => {
+    form.addEventListener('submit', () => {
+      try { sessionStorage.setItem(vaultScrollKey, String(window.scrollY)); } catch { /* ignore */ }
+    });
+  });
+  document.querySelectorAll('[data-auto-submit-on-change]').forEach(input => {
+    input.addEventListener('change', () => {
+      input.closest('form')?.requestSubmit();
+    });
+  });
+  window.addEventListener('load', () => {
+    try {
+      const saved = sessionStorage.getItem(vaultScrollKey);
+      if (saved !== null) {
+        sessionStorage.removeItem(vaultScrollKey);
+        window.scrollTo({ top: Number(saved) || 0, behavior: 'instant' });
+      }
+    } catch { /* ignore */ }
+  });
 })();

@@ -113,7 +113,7 @@ public class DetailsModel(VaultRepository repository, VaultItemService itemServi
         TempData["RevealedSecret"] = secret;
         TempData["RevealedTitle"] = Title;
         TempData["CopyIntent"] = "false";
-        return RedirectToPage(null, null, new { id, revealedItemId = ItemId }, $"vault-item-{ItemId}");
+        return RedirectToPage(null, null, new { id, revealedItemId = ItemId });
     }
 
     public async Task<IActionResult> OnPostCopyAsync(Guid id)
@@ -123,7 +123,7 @@ public class DetailsModel(VaultRepository repository, VaultItemService itemServi
         TempData["RevealedSecret"] = secret;
         TempData["RevealedTitle"] = Title;
         TempData["CopyIntent"] = "true";
-        return RedirectToPage(null, null, new { id, revealedItemId = ItemId }, $"vault-item-{ItemId}");
+        return RedirectToPage(null, null, new { id, revealedItemId = ItemId });
     }
 
     public async Task<IActionResult> OnPostUpdateResetNotificationAsync(Guid id)

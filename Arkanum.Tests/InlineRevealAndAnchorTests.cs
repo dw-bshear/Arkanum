@@ -25,9 +25,26 @@ public class InlineRevealAndAnchorTests
         Assert.Contains("password-mask", markup);
         Assert.Contains("******", markup);
         Assert.Contains("Model.RevealedItemId == item.Id", markup);
-        Assert.Contains("asp-fragment=\"vault-item-@item.Id\"", markup);
+        Assert.Contains("data-preserve-scroll", markup);
         Assert.Contains("data-copy-target=\"revealedSecret-@item.Id\"", markup);
         Assert.Contains("copyButton.dataset.copyTarget", siteJs);
+    }
+
+    [Fact]
+    public void VaultMarkupPreservesScrollAndKeepsCredentialRowsUncluttered()
+    {
+        var root = ProjectRoot();
+        var markup = File.ReadAllText(Path.Combine(root, "Arkanum.Web", "Pages", "Vaults", "Details.cshtml"));
+        var siteJs = File.ReadAllText(Path.Combine(root, "Arkanum.Web", "wwwroot", "js", "site.js"));
+
+        Assert.DoesNotContain("This reveal/copy action has been audited", markup);
+        Assert.DoesNotContain("Revealed here", markup);
+        Assert.Contains("data-preserve-scroll", markup);
+        Assert.Contains("data-auto-submit-on-change", markup);
+        Assert.Contains("class=\"reset-date-input\"", markup);
+        Assert.DoesNotContain("<button class=\"secondary-action small\" type=\"submit\">Save</button>", markup);
+        Assert.Contains("sessionStorage.setItem(vaultScrollKey", siteJs);
+        Assert.Contains("data-auto-submit-on-change", siteJs);
     }
 
     [Fact]
@@ -70,7 +87,7 @@ public class InlineRevealAndAnchorTests
         var result = await model.OnPostRevealAsync(vault.Id);
 
         var redirect = Assert.IsType<RedirectToPageResult>(result);
-        Assert.Equal($"vault-item-{item.Id}", redirect.Fragment);
+        Assert.Null(redirect.Fragment);
         Assert.Equal(item.Id, redirect.RouteValues!["revealedItemId"]);
         Assert.False(redirect.RouteValues!.ContainsKey("revealedSecret"));
         Assert.Equal("Secret!2026", model.TempData["RevealedSecret"]);
