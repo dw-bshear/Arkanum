@@ -40,7 +40,8 @@ public class Iteration005MarkupTests
         Assert.Contains("class=\"invite-user-disclosure\"", markup);
         Assert.Contains("<summary class=\"secondary-action small\">Invite user</summary>", markup);
         Assert.Contains("class=\"vault-tree\"", markup);
-        Assert.Contains("class=\"tree-folder\" open", markup);
+        Assert.Contains("class=\"tree-folder\"", markup);
+        Assert.DoesNotContain("class=\"tree-folder\" open", markup);
         Assert.Contains("class=\"tree-items\"", markup);
     }
 

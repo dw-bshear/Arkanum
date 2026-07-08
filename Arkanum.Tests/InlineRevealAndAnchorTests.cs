@@ -68,6 +68,18 @@ public class InlineRevealAndAnchorTests
     }
 
     [Fact]
+    public void VaultFoldersDoNotExposeEntriesUntilUserExpandsThem()
+    {
+        var root = ProjectRoot();
+        var markup = File.ReadAllText(Path.Combine(root, "Arkanum.Web", "Pages", "Vaults", "Details.cshtml"));
+
+        Assert.Contains("<details class=\"tree-folder\">", markup);
+        Assert.Contains("<details class=\"tree-subfolder\">", markup);
+        Assert.DoesNotContain("<details class=\"tree-folder\" open>", markup);
+        Assert.DoesNotContain("<details class=\"tree-subfolder\" open>", markup);
+    }
+
+    [Fact]
     public async Task RevealPostRedirectsBackToTheCredentialRowAnchor()
     {
         await using var db = CreateDb(nameof(RevealPostRedirectsBackToTheCredentialRowAnchor));
