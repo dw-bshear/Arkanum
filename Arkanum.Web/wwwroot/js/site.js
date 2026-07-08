@@ -59,12 +59,12 @@
     });
   });
 
-  const copyButton = document.querySelector('[data-copy-revealed]');
-  if (copyButton) {
+  document.querySelectorAll('[data-copy-revealed]').forEach(copyButton => {
     copyButton.addEventListener('click', async () => {
-      const value = document.getElementById('revealedSecret')?.textContent || '';
+      const targetId = copyButton.dataset.copyTarget || 'revealedSecret';
+      const value = document.getElementById(targetId)?.textContent || '';
       if (navigator.clipboard && value) await navigator.clipboard.writeText(value);
       copyButton.textContent = 'Copied locally';
     });
-  }
+  });
 })();

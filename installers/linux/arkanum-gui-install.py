@@ -189,7 +189,7 @@ class Wizard(tk.Tk):
         selected_action = action_map.get(self.vars["install_action"].get(), "auto")
         env = {
             "ACTION": selected_action,
-            "ARKANUM_PACKAGE_VERSION": "2026.0.4",
+            "ARKANUM_PACKAGE_VERSION": "2026.0.5",
             "INSTALL_DIR": self.vars["install_dir"].get().strip(),
             "CONFIG_DIR": self.vars["config_dir"].get().strip(),
             "DATA_DIR": self.vars["data_dir"].get().strip(),

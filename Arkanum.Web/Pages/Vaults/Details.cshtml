@@ -68,16 +68,6 @@
     <div class="notice success">@Model.FolderStatus</div>
 }
 
-@if (!string.IsNullOrWhiteSpace(Model.RevealedSecret))
-{
-    <div class="notice success secret-reveal-panel">
-        <strong>@(Model.CopyIntent ? "Copy value" : "Revealed value") for @Model.RevealedTitle</strong>
-        <code id="revealedSecret">@Model.RevealedSecret</code>
-        <button class="secondary-action" type="button" data-copy-revealed>Copy to clipboard</button>
-        <small>This reveal/copy action has been audited. Plaintext is not stored in audit logs.</small>
-    </div>
-}
-
 <div class="vault-workspace">
     <article id="vault-access" class="feature-card access-card vault-section-card vault-section-access">
         <div class="access-card-header">
@@ -137,7 +127,7 @@
                     <ul class="tree-items">
                     @foreach (var item in folder.Items)
                     {
-                        <li>
+                        <li id="vault-item-@item.Id">
                             <div class="tree-item-main">
                                 <strong>@item.Title</strong>
                                 <span>@item.Type</span>
@@ -163,13 +153,26 @@
                             </div>
                             @if (Model.CanRevealSecrets)
                             {
+                            <div class="credential-secret-cell">
+                                <span class="muted">Password</span>
+                                @if (Model.RevealedItemId == item.Id && !string.IsNullOrWhiteSpace(Model.RevealedSecret))
+                                {
+                                    <code id="revealedSecret-@item.Id">@Model.RevealedSecret</code>
+                                    <small>@(Model.CopyIntent ? "Ready to copy. " : "Revealed here. ")This reveal/copy action has been audited.</small>
+                                    <button class="secondary-action small" type="button" data-copy-revealed data-copy-target="revealedSecret-@item.Id">Copy to clipboard</button>
+                                }
+                                else
+                                {
+                                    <code class="password-mask">******</code>
+                                }
+                            </div>
                             <div class="inline-actions">
-                                <form method="post" asp-page-handler="Reveal" asp-route-id="@Model.Vault.Id">
+                                <form method="post" asp-page-handler="Reveal" asp-route-id="@Model.Vault.Id" asp-fragment="vault-item-@item.Id">
                                     <input type="hidden" name="ItemId" value="@item.Id" />
                                     <input type="hidden" name="Title" value="@item.Title" />
                                     <button class="secondary-action small" type="submit">Reveal</button>
                                 </form>
-                                <form method="post" asp-page-handler="Copy" asp-route-id="@Model.Vault.Id">
+                                <form method="post" asp-page-handler="Copy" asp-route-id="@Model.Vault.Id" asp-fragment="vault-item-@item.Id">
                                     <input type="hidden" name="ItemId" value="@item.Id" />
                                     <input type="hidden" name="Title" value="@item.Title" />
                                     <button class="secondary-action small" type="submit">Copy</button>

@@ -33,7 +33,7 @@
 
 @if (Model.CanManageFeatureVisibility)
 {
-<div class="settings-tabs mt-3">
+<div class="settings-tabs mt-3" data-preserve-settings-tab data-preserve-scroll>
     <div class="settings-tab-list" role="tablist" aria-label="Administrator settings sections">
         <button class="settings-tab-button active" type="button" role="tab" aria-selected="true" aria-controls="settings-dashboard" data-settings-tab="settings-dashboard">Dashboard</button>
         <button class="settings-tab-button" type="button" role="tab" aria-selected="false" aria-controls="settings-directory" data-settings-tab="settings-directory">Directory / LDAP</button>

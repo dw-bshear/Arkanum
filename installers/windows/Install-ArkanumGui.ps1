@@ -192,7 +192,7 @@ function Build-CommandPreview {
         '-Port', $port.Text,
         '-SqlConnectionString', "`"$conn`"",
         '-AppPoolName', "`"$($appPool.Text)`"",
-        '-PackageVersion', '2026.0.4',
+        '-PackageVersion', '2026.0.5',
         '-Action', $selectedAction,
         '-RestoreKeyFile', "`"$($restoreKeyFile.Text)`"",
         '-RestoreKey', "`"$($restoreKey.Text)`""
@@ -230,7 +230,7 @@ $run.Add_Click({
             Port = [int]$port.Text
             SqlConnectionString = $conn
             AppPoolName = $appPool.Text
-            PackageVersion = '2026.0.4'
+            PackageVersion = '2026.0.5'
             Action = Get-InstallerAction
             RestoreKeyFile = $restoreKeyFile.Text
             RestoreKey = $restoreKey.Text

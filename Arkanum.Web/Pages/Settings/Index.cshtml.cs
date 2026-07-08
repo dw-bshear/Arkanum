@@ -111,7 +111,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         if (!ModelState.IsValid) { await LoadAsync(); return Page(); }
         await portalSettings.SaveDashboardTextAsync(db, DashboardHeroTitle ?? string.Empty, DashboardHeroDescription ?? string.Empty, ActorKey());
         TempData["Status"] = "Dashboard text saved.";
-        return RedirectToPage(null, null, "dashboard");
+        return RedirectToSettingsTab("dashboard");
     }
 
     public async Task<IActionResult> OnPostLdapAsync()
@@ -120,7 +120,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         if (!CanManageFeatureVisibility) return Forbid();
         await portalSettings.SaveLdapAsync(db, new LdapSettings(LdapHost ?? string.Empty, LdapPort ?? string.Empty, LdapBaseDn ?? string.Empty, LdapBindDn ?? string.Empty, LdapBindPassword ?? string.Empty, LdapUserFilter ?? string.Empty, LdapLoginAttribute ?? string.Empty, LdapDisplayNameAttribute ?? string.Empty, LdapEmailAttribute ?? string.Empty), ActorKey());
         TempData["Status"] = "LDAP settings saved.";
-        return RedirectToPage(null, null, "directory");
+        return RedirectToSettingsTab("directory");
     }
 
     public async Task<IActionResult> OnPostLdapSyncScheduleAsync()
@@ -129,7 +129,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         if (!CanManageFeatureVisibility) return Forbid();
         await portalSettings.SaveLdapSyncAsync(db, new LdapSyncSettings(LdapSyncInterval ?? string.Empty), ActorKey());
         TempData["Status"] = "Directory sync schedule saved.";
-        return RedirectToPage(null, null, "directory");
+        return RedirectToSettingsTab("directory");
     }
 
     public async Task<IActionResult> OnPostRunDirectorySyncAsync()
@@ -146,7 +146,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         {
             TempData["Status"] = $"Directory sync failed: {ex.Message}";
         }
-        return RedirectToPage(null, null, "directory");
+        return RedirectToSettingsTab("directory");
     }
 
     public async Task<IActionResult> OnPostMailAsync()
@@ -155,7 +155,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         if (!CanManageFeatureVisibility) return Forbid();
         await portalSettings.SaveMailAsync(db, new MailServerSettings(MailSmtpHost ?? string.Empty, MailSmtpPort ?? string.Empty, MailUseTls, MailFromAddress ?? string.Empty, MailFromName ?? string.Empty), ActorKey());
         TempData["Status"] = "Notification server settings saved.";
-        return RedirectToPage(null, null, "notifications");
+        return RedirectToSettingsTab("notifications");
     }
 
     public async Task<IActionResult> OnPostNotificationTemplatesAsync()
@@ -164,7 +164,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         if (!CanManageFeatureVisibility) return Forbid();
         await portalSettings.SaveNotificationTemplatesAsync(db, new NotificationTemplateSettings(NotificationAllUsersSubject ?? string.Empty, NotificationAllUsersBody ?? string.Empty, NotificationVaultAccessSubject ?? string.Empty, NotificationVaultAccessBody ?? string.Empty), ActorKey());
         TempData["Status"] = "Notification templates saved.";
-        return RedirectToPage(null, null, "notifications");
+        return RedirectToSettingsTab("notifications");
     }
 
     public async Task<IActionResult> OnPostSyslogAsync()
@@ -173,7 +173,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         if (!CanManageFeatureVisibility) return Forbid();
         await portalSettings.SaveSyslogAsync(db, new SyslogSettings(SyslogHost ?? string.Empty, SyslogPort ?? string.Empty, SyslogProtocol ?? string.Empty, SyslogEnabled), ActorKey());
         TempData["Status"] = "Syslog settings saved.";
-        return RedirectToPage(null, null, "logs");
+        return RedirectToSettingsTab("logs");
     }
 
     public async Task<IActionResult> OnPostSqlServerAsync()
@@ -186,7 +186,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         if (!ModelState.IsValid) { await LoadAsync(); return Page(); }
         await portalSettings.SaveSqlServerAsync(db, SqlServerHost ?? string.Empty, SqlServerPort ?? string.Empty, SqlServerDatabase ?? string.Empty, SqlServerUser ?? string.Empty, SqlServerPassword, SqlServerEncrypt, SqlServerTrustServerCertificate, ActorKey());
         TempData["Status"] = "SQL Server connection settings saved. A restart or setup workflow will be required before these values become the active application database connection.";
-        return RedirectToPage(null, null, "database");
+        return RedirectToSettingsTab("database");
     }
 
     public async Task<IActionResult> OnPostFederationAsync()
@@ -207,7 +207,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         if (!ModelState.IsValid) { await LoadAsync(); return Page(); }
         await portalSettings.SaveFederationAsync(db, mode, OidcAuthority ?? string.Empty, OidcClientId ?? string.Empty, OidcClientSecret, OidcScopes ?? string.Empty, SamlMetadataUrl ?? string.Empty, SamlEntityId ?? string.Empty, RequireExternalMfa, ActorKey());
         TempData["Status"] = "Federated identity settings saved. OIDC mode enables runtime federated sign-in while local emergency admin login remains available.";
-        return RedirectToPage(null, null, "federation");
+        return RedirectToSettingsTab("federation");
     }
 
     public async Task<IActionResult> OnPostSendAllUsersNotificationAsync()
@@ -216,7 +216,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         if (!CanManageFeatureVisibility) return Forbid();
         var activeUsers = await db.Users.CountAsync(u => u.AppAccessEnabled);
         TempData["Status"] = $"Notification queued for {activeUsers} active users.";
-        return RedirectToPage(null, null, "notifications");
+        return RedirectToSettingsTab("notifications");
     }
 
     public async Task<IActionResult> OnPostExportAllVaultsCsvAsync()
@@ -242,7 +242,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         created.Email = CreateEmail?.Trim() ?? string.Empty;
         await db.SaveChangesAsync();
         TempData["Status"] = "Local user created.";
-        return RedirectToPage(null, null, "users");
+        return RedirectToSettingsTab("users");
     }
 
     public async Task<IActionResult> OnPostToggleUserAccessAsync()
@@ -251,7 +251,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         if (!CanManageFeatureVisibility) return Forbid();
         await adminUserService.SetUserAccessAsync(db, UserKey ?? string.Empty, UserAccessEnabled, ActorKey(), DateTimeOffset.UtcNow);
         TempData["Status"] = UserAccessEnabled ? "User enabled." : "User disabled.";
-        return RedirectToPage(null, null, "users");
+        return RedirectToSettingsTab("users");
     }
 
     public async Task<IActionResult> OnPostUpdateUserRolesAsync()
@@ -260,7 +260,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         if (!CanManageFeatureVisibility) return Forbid();
         await adminUserService.UpdateUserRolesAsync(db, UserKey ?? string.Empty, UserRoles, ActorKey(), DateTimeOffset.UtcNow);
         TempData["Status"] = "User roles saved.";
-        return RedirectToPage(null, null, "users");
+        return RedirectToSettingsTab("users");
     }
 
     public async Task<IActionResult> OnPostCreateGroupAsync()
@@ -273,7 +273,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         db.UserGroups.Add(new UserGroupEntity { Name = name, Description = GroupDescription?.Trim() ?? string.Empty, CreatedAt = DateTimeOffset.UtcNow });
         await db.SaveChangesAsync();
         TempData["Status"] = "Group created.";
-        return RedirectToPage(null, null, "users");
+        return RedirectToSettingsTab("users");
     }
 
     public async Task<IActionResult> OnPostAssignGroupUserAsync()
@@ -291,7 +291,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         }
         await db.SaveChangesAsync();
         TempData["Status"] = GroupDelegatedManager ? "Group member and delegated manager saved." : "Group member saved.";
-        return RedirectToPage(null, null, "users");
+        return RedirectToSettingsTab("users");
     }
 
     public async Task<IActionResult> OnPostDashboardWidgetAsync()
@@ -300,8 +300,11 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         if (!CanManageFeatureVisibility) return Forbid();
         await dashboardService.UpdateWidgetAsync(db, WidgetKey ?? string.Empty, Enabled, Title ?? string.Empty, Description ?? string.Empty, RolesCsv ?? string.Empty, SortOrder);
         TempData["Status"] = "Feature visibility saved.";
-        return RedirectToPage(null, null, "visibility");
+        return RedirectToSettingsTab("visibility");
     }
+
+
+    private RedirectToPageResult RedirectToSettingsTab(string tab) => RedirectToPage(null, null, $"settings-{tab}");
 
     private async Task LoadAsync(string? userSearch = null)
     {

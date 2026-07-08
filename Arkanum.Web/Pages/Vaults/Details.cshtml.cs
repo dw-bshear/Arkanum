@@ -11,6 +11,7 @@ public class DetailsModel(VaultRepository repository, VaultItemService itemServi
     public VaultDetails? Vault { get; private set; }
     public string? RevealedSecret { get; private set; }
     public string? RevealedTitle { get; private set; }
+    public Guid? RevealedItemId { get; private set; }
     public bool CopyIntent { get; private set; }
     public bool CanInviteUsers { get; private set; }
     public bool CanEditVaultMetadata { get; private set; }
@@ -32,7 +33,14 @@ public class DetailsModel(VaultRepository repository, VaultItemService itemServi
     [BindProperty] public string? VaultName { get; set; }
     [BindProperty] public string? VaultDescription { get; set; }
 
-    public async Task<IActionResult> OnGetAsync(Guid id) => await LoadPageAsync(id);
+    public async Task<IActionResult> OnGetAsync(Guid id, Guid? revealedItemId = null, string? revealedSecret = null, string? revealedTitle = null, bool copyIntent = false)
+    {
+        RevealedItemId = revealedItemId;
+        RevealedSecret = revealedSecret ?? TempData["RevealedSecret"] as string;
+        RevealedTitle = revealedTitle ?? TempData["RevealedTitle"] as string;
+        CopyIntent = copyIntent || bool.TryParse(TempData["CopyIntent"] as string, out var tempCopyIntent) && tempCopyIntent;
+        return await LoadPageAsync(id);
+    }
 
     public async Task<IActionResult> OnPostUpdateMetadataAsync(Guid id)
     {
@@ -101,18 +109,21 @@ public class DetailsModel(VaultRepository repository, VaultItemService itemServi
     public async Task<IActionResult> OnPostRevealAsync(Guid id)
     {
         if (!await repository.CanRevealSecretAsync(db, id, ActorKey(), CurrentRoles())) return Forbid();
-        RevealedSecret = await itemService.RevealSecretAsync(db, ItemId, ActorKey(), SecretAccessPurpose.Reveal, DateTimeOffset.UtcNow);
-        RevealedTitle = Title;
-        return await LoadPageAsync(id);
+        var secret = await itemService.RevealSecretAsync(db, ItemId, ActorKey(), SecretAccessPurpose.Reveal, DateTimeOffset.UtcNow);
+        TempData["RevealedSecret"] = secret;
+        TempData["RevealedTitle"] = Title;
+        TempData["CopyIntent"] = "false";
+        return RedirectToPage(null, null, new { id, revealedItemId = ItemId }, $"vault-item-{ItemId}");
     }
 
     public async Task<IActionResult> OnPostCopyAsync(Guid id)
     {
         if (!await repository.CanRevealSecretAsync(db, id, ActorKey(), CurrentRoles())) return Forbid();
-        RevealedSecret = await itemService.RevealSecretAsync(db, ItemId, ActorKey(), SecretAccessPurpose.Copy, DateTimeOffset.UtcNow);
-        RevealedTitle = Title;
-        CopyIntent = true;
-        return await LoadPageAsync(id);
+        var secret = await itemService.RevealSecretAsync(db, ItemId, ActorKey(), SecretAccessPurpose.Copy, DateTimeOffset.UtcNow);
+        TempData["RevealedSecret"] = secret;
+        TempData["RevealedTitle"] = Title;
+        TempData["CopyIntent"] = "true";
+        return RedirectToPage(null, null, new { id, revealedItemId = ItemId }, $"vault-item-{ItemId}");
     }
 
     public async Task<IActionResult> OnPostUpdateResetNotificationAsync(Guid id)
