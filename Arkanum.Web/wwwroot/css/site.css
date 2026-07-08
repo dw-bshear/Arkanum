@@ -102,19 +102,23 @@ html[data-active-theme="dark"] .theme-switch-thumb { transform: translateX(2.1re
 .credential-form-grid label { display: grid; gap: .35rem; color: var(--muted); font-weight: 800; }
 .vault-tree { display: grid; gap: .55rem; margin-top: .75rem; }
 .tree-folder { border: 1px solid var(--line); border-radius: .9rem; background: var(--bg); overflow: hidden; }
-.tree-folder summary { display: flex; align-items: center; gap: .55rem; padding: .75rem .9rem; cursor: pointer; list-style: none; }
-.tree-folder summary::-webkit-details-marker { display: none; }
-.tree-folder summary span:last-child { margin-left: auto; color: var(--muted); font-size: .85rem; font-weight: 800; }
+.tree-folder summary, .tree-subfolder summary { display: flex; align-items: center; gap: .55rem; padding: .75rem .9rem; cursor: pointer; list-style: none; }
+.tree-folder summary::-webkit-details-marker, .tree-subfolder summary::-webkit-details-marker { display: none; }
+.tree-folder summary span:last-child, .tree-subfolder summary span:last-child { margin-left: auto; color: var(--muted); font-size: .85rem; font-weight: 800; }
+.tree-subfolder { margin: .5rem .75rem .75rem 1.25rem; border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: .85rem; background: color-mix(in srgb, var(--panel) 72%, transparent); overflow: hidden; }
+.tree-subfolder summary { padding: .6rem .75rem; background: color-mix(in srgb, var(--panel-strong) 70%, transparent); }
 .tree-folder:not([open]) .tree-twist { transform: rotate(-90deg); }
 .tree-twist { display: inline-block; color: var(--accent-strong); transition: transform .15s ease; }
-.tree-items { list-style: none; margin: 0; padding: 0 .75rem .75rem 2rem; display: grid; gap: .45rem; }
-.tree-items li { display: grid; grid-template-columns: minmax(180px, 1.4fr) minmax(150px, .8fr) minmax(160px, 1fr) auto; gap: .75rem; align-items: center; border-left: 2px solid var(--line); padding: .6rem .7rem; background: color-mix(in srgb, var(--panel) 80%, transparent); border-radius: .65rem; }
+.tree-items { list-style: none; margin: 0; padding: .6rem .75rem .75rem 1rem; display: grid; gap: .45rem; }
+.tree-items li { display: grid; grid-template-columns: minmax(180px, 1.5fr) minmax(150px, 1fr) minmax(160px, 1fr) auto; gap: .75rem; align-items: center; border-left: 2px solid var(--line); padding: .6rem .7rem; background: color-mix(in srgb, var(--panel) 80%, transparent); border-radius: .65rem; }
 .tree-item-main { display: grid; gap: .1rem; }
 .tree-item-main span, .tree-item-main small, .tree-empty { color: var(--muted); }
 .reset-notification-cell, .credential-secret-cell { display: grid; gap: .25rem; align-content: center; }
+.reset-notification-cell { justify-self: end; text-align: right; }
+.vault-item-actions { justify-self: end; margin-top: 0; }
 .reset-date-form { display: block; }
 .reset-date-input { width: 9.5rem; border: 1px solid var(--line); border-radius: .65rem; padding: .45rem .55rem; background: color-mix(in srgb, var(--bg) 92%, transparent); color: var(--text); font-size: .88rem; }
-.credential-secret-cell code { display: inline-block; max-width: 17rem; overflow-wrap: anywhere; border-radius: .55rem; padding: .35rem .5rem; background: var(--bg); }
+.credential-secret-cell code, .username-value { display: inline-block; max-width: 17rem; overflow-wrap: anywhere; border-radius: .55rem; padding: .35rem .5rem; background: var(--bg); color: var(--text); }
 .password-mask { color: var(--muted); letter-spacing: .16em; }
 .tree-empty { padding: 0 .9rem .8rem 2rem; margin: 0; }
 h1 { font-size: clamp(2rem, 5vw, 4.2rem); line-height: .95; font-weight: 850; letter-spacing: -.06em; margin-bottom: 1rem; }

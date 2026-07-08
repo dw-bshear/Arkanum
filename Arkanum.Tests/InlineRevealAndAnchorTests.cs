@@ -48,6 +48,26 @@ public class InlineRevealAndAnchorTests
     }
 
     [Fact]
+    public void VaultMarkupGroupsItemsAndUsesTypeSpecificLabels()
+    {
+        var root = ProjectRoot();
+        var markup = File.ReadAllText(Path.Combine(root, "Arkanum.Web", "Pages", "Vaults", "Details.cshtml"));
+        var css = File.ReadAllText(Path.Combine(root, "Arkanum.Web", "wwwroot", "css", "site.css"));
+
+        Assert.Contains("Credentials", markup);
+        Assert.Contains("Secure Notes", markup);
+        Assert.Contains("folder.Items.Where(item => item.Type == VaultItemType.LoginCredential).OrderBy(item => item.Title)", markup);
+        Assert.Contains("folder.Items.Where(item => item.Type == VaultItemType.SecureNote).OrderBy(item => item.Title)", markup);
+        Assert.Contains("<span class=\"muted\">Username</span>", markup);
+        Assert.Contains("<span class=\"muted\">@(item.Type == VaultItemType.SecureNote ? \"SecureNote\" : \"Password\")</span>", markup);
+        Assert.Contains("vault-item-row", markup);
+        Assert.Contains("vault-item-actions", markup);
+        Assert.Contains("reset-notification-cell", markup);
+        Assert.Contains("grid-template-columns: minmax(180px, 1.5fr) minmax(150px, 1fr) minmax(160px, 1fr) auto", css);
+        Assert.Contains(".reset-notification-cell { justify-self: end", css);
+    }
+
+    [Fact]
     public async Task RevealPostRedirectsBackToTheCredentialRowAnchor()
     {
         await using var db = CreateDb(nameof(RevealPostRedirectsBackToTheCredentialRowAnchor));

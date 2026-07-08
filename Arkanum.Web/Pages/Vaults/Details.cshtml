@@ -1,4 +1,5 @@
 @page "{id:guid}"
+@using Arkanum.Web.Domain
 @model Arkanum.Web.Pages.Vaults.DetailsModel
 @{
     ViewData["Title"] = Model.Vault?.Name ?? "Vault";
@@ -124,62 +125,77 @@
                 <summary><span class="tree-twist">▾</span><strong>@folder.Name</strong><span>@folder.Items.Count item@(folder.Items.Count == 1 ? string.Empty : "s")</span></summary>
                 @if (folder.Items.Any())
                 {
-                    <ul class="tree-items">
-                    @foreach (var item in folder.Items)
+                    var credentialItems = folder.Items.Where(item => item.Type == VaultItemType.LoginCredential).OrderBy(item => item.Title).ToArray();
+                    var secureNoteItems = folder.Items.Where(item => item.Type == VaultItemType.SecureNote).OrderBy(item => item.Title).ToArray();
+                    foreach (var group in new[] { (Name: "Credentials", Items: credentialItems), (Name: "Secure Notes", Items: secureNoteItems) })
                     {
-                        <li id="vault-item-@item.Id">
-                            <div class="tree-item-main">
-                                <strong>@item.Title</strong>
-                                <span>@item.Type</span>
-                                @if (!string.IsNullOrWhiteSpace(item.Username))
-                                {
-                                    <small>@item.Username</small>
-                                }
-                            </div>
-                            <div class="reset-notification-cell">
-                                <span class="muted">Reset notification</span>
-                                @if (Model.CanAddOrChangeVaultContents)
-                                {
-                                    <form method="post" asp-page-handler="UpdateResetNotification" asp-route-id="@Model.Vault.Id" class="inline-form reset-date-form" data-preserve-scroll>
-                                        <input type="hidden" name="ItemId" value="@item.Id" />
-                                        <input class="reset-date-input" type="date" name="ResetNotificationDate" value="@(item.ResetNotificationDate?.ToString("yyyy-MM-dd"))" aria-label="Reset notification date for @item.Title" data-auto-submit-on-change />
-                                    </form>
-                                }
-                                else if (item.ResetNotificationDate is not null)
-                                {
-                                    <small>@item.ResetNotificationDate.Value.ToString("yyyy-MM-dd")</small>
-                                }
-                            </div>
-                            @if (Model.CanRevealSecrets)
+                        <details class="tree-subfolder" open>
+                            <summary><span class="tree-twist">▾</span><strong>@group.Name</strong><span>@group.Items.Length item@(group.Items.Length == 1 ? string.Empty : "s")</span></summary>
+                            @if (group.Items.Any())
                             {
-                            <div class="credential-secret-cell">
-                                <span class="muted">Password</span>
-                                @if (Model.RevealedItemId == item.Id && !string.IsNullOrWhiteSpace(Model.RevealedSecret))
+                                <ul class="tree-items">
+                                @foreach (var item in group.Items)
                                 {
-                                    <code id="revealedSecret-@item.Id">@Model.RevealedSecret</code>
-                                    <button class="secondary-action small" type="button" data-copy-revealed data-copy-target="revealedSecret-@item.Id">Copy to clipboard</button>
+                                    <li id="vault-item-@item.Id" class="vault-item-row">
+                                        <div class="tree-item-main">
+                                            <strong>@item.Title</strong>
+                                            @if (item.Type == VaultItemType.LoginCredential)
+                                            {
+                                                <span class="muted">Username</span>
+                                                <code class="username-value">@(string.IsNullOrWhiteSpace(item.Username) ? "—" : item.Username)</code>
+                                            }
+                                            else
+                                            {
+                                                <span>@item.Type</span>
+                                            }
+                                        </div>
+                                        @if (Model.CanRevealSecrets)
+                                        {
+                                        <div class="credential-secret-cell">
+                                            <span class="muted">@(item.Type == VaultItemType.SecureNote ? "SecureNote" : "Password")</span>
+                                            @if (Model.RevealedItemId == item.Id && !string.IsNullOrWhiteSpace(Model.RevealedSecret))
+                                            {
+                                                <code id="revealedSecret-@item.Id">@Model.RevealedSecret</code>
+                                                <button class="secondary-action small" type="button" data-copy-revealed data-copy-target="revealedSecret-@item.Id">Copy to clipboard</button>
+                                            }
+                                            else
+                                            {
+                                                <code class="password-mask">******</code>
+                                            }
+                                        </div>
+                                        <div class="inline-actions vault-item-actions">
+                                            <form method="post" asp-page-handler="Reveal" asp-route-id="@Model.Vault.Id" data-preserve-scroll>
+                                                <input type="hidden" name="ItemId" value="@item.Id" />
+                                                <input type="hidden" name="Title" value="@item.Title" />
+                                                <button class="secondary-action small" type="submit">Reveal</button>
+                                            </form>
+                                            <form method="post" asp-page-handler="Copy" asp-route-id="@Model.Vault.Id" data-preserve-scroll>
+                                                <input type="hidden" name="ItemId" value="@item.Id" />
+                                                <input type="hidden" name="Title" value="@item.Title" />
+                                                <button class="secondary-action small" type="submit">Copy</button>
+                                            </form>
+                                        </div>
+                                        }
+                                        <div class="reset-notification-cell">
+                                            <span class="muted">Reset notification</span>
+                                            @if (Model.CanAddOrChangeVaultContents)
+                                            {
+                                                <form method="post" asp-page-handler="UpdateResetNotification" asp-route-id="@Model.Vault.Id" class="inline-form reset-date-form" data-preserve-scroll>
+                                                    <input type="hidden" name="ItemId" value="@item.Id" />
+                                                    <input class="reset-date-input" type="date" name="ResetNotificationDate" value="@(item.ResetNotificationDate?.ToString("yyyy-MM-dd"))" aria-label="Reset notification date for @item.Title" data-auto-submit-on-change />
+                                                </form>
+                                            }
+                                            else if (item.ResetNotificationDate is not null)
+                                            {
+                                                <small>@item.ResetNotificationDate.Value.ToString("yyyy-MM-dd")</small>
+                                            }
+                                        </div>
+                                    </li>
                                 }
-                                else
-                                {
-                                    <code class="password-mask">******</code>
-                                }
-                            </div>
-                            <div class="inline-actions">
-                                <form method="post" asp-page-handler="Reveal" asp-route-id="@Model.Vault.Id" data-preserve-scroll>
-                                    <input type="hidden" name="ItemId" value="@item.Id" />
-                                    <input type="hidden" name="Title" value="@item.Title" />
-                                    <button class="secondary-action small" type="submit">Reveal</button>
-                                </form>
-                                <form method="post" asp-page-handler="Copy" asp-route-id="@Model.Vault.Id" data-preserve-scroll>
-                                    <input type="hidden" name="ItemId" value="@item.Id" />
-                                    <input type="hidden" name="Title" value="@item.Title" />
-                                    <button class="secondary-action small" type="submit">Copy</button>
-                                </form>
-                            </div>
+                                </ul>
                             }
-                        </li>
+                        </details>
                     }
-                    </ul>
                 }
                 else
                 {
