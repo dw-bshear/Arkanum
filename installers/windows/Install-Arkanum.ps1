@@ -6,7 +6,7 @@ param(
     [int]$Port = 5068,
     [Parameter(Mandatory=$true)][string]$SqlConnectionString,
     [string]$AppPoolName = 'ArkanumAppPool',
-    [string]$PackageVersion = '2026.0.5',
+    [string]$PackageVersion = '2026.0.6',
     # ValidateSet('install','upgrade','repair','side-by-side','restore') plus auto detection for GUI defaults.
     [ValidateSet('install','upgrade','repair','side-by-side','restore','auto')][string]$Action = 'auto',
     [string]$RestoreKeyFile = '',

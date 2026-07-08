@@ -9,8 +9,14 @@ Arkanum is currently a trusted-server ASP.NET Core application backed by SQL Ser
 ## Current capabilities
 
 - Vaults, folders, login credentials, and secure notes.
+- Collapsed-by-default vault trees so entry names are not exposed until a user expands the relevant folder/subtree.
+- Separate Credentials and Secure Notes subtrees inside each vault folder, with alphabetized entries.
+- Inline reveal/copy flow with masked placeholders until an authorized reveal/copy action is selected.
+- Per-entry reset notification dates for credential or secure-note review/change reminders.
+- Controlled CSV export for vault contents using encrypted ZIP payloads.
 - Server-side AES-256-GCM encryption for protected vault item content.
 - Site-wide recovery key model: all vaults recover together, or encrypted contents do not recover.
+- Installer restore mode for rebuilding a server from a SQL backup plus the matching Arkanum Recovery Key.
 - First-run local administrator setup.
 - Separate federated login and emergency/manual login pages.
 - Local emergency administrator accounts with hashed passwords.
@@ -73,6 +79,8 @@ The intended feedback/deployment tracks are:
 
 See:
 
+- [`docs/2026.0.6-feedback-release.md`](docs/2026.0.6-feedback-release.md)
+- [`docs/upgrade-and-native-packaging.md`](docs/upgrade-and-native-packaging.md)
 - [`docs/phase1-installable-feedback-release.md`](docs/phase1-installable-feedback-release.md)
 - [`docs/offline-package-checklist.md`](docs/offline-package-checklist.md)
 - [`installers/windows/`](installers/windows/)
@@ -151,6 +159,7 @@ Review `.gitignore` before adding new operational scripts or lab files.
 
 | Document | Purpose |
 | --- | --- |
+| [`docs/2026.0.6-feedback-release.md`](docs/2026.0.6-feedback-release.md) | Current feedback prerelease notes, installer restore mode, vault UX, reminders, and CSV export. |
 | [`docs/backup-and-restore.md`](docs/backup-and-restore.md) | SQL database + recovery/master-key restore model. |
 | [`docs/offline-package-checklist.md`](docs/offline-package-checklist.md) | Checklist for moving packages into controlled/disconnected networks. |
 | [`docs/phase1-installable-feedback-release.md`](docs/phase1-installable-feedback-release.md) | Installable feedback release goals and boundaries. |
