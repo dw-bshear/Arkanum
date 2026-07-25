@@ -21,9 +21,9 @@
                 </button>
                 <div class="collapse navbar-collapse" id="mainNav">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                        <li class="nav-item"><a class="nav-link" asp-page="/Index">Dashboard</a></li>
                         @if (User?.Identity?.IsAuthenticated == true)
                         {
+                            <li class="nav-item"><a class="nav-link" asp-page="/Index">Dashboard</a></li>
                             <li class="nav-item"><a class="nav-link" asp-page="/Vaults/Index">Vaults</a></li>
                             <li class="nav-item"><a class="nav-link" asp-page="/Settings/Index">Settings</a></li>
                         }

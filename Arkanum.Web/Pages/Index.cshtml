@@ -10,94 +10,113 @@
     <div class="notice success">@status</div>
 }
 
-<section class="landing-hero">
-    <div class="landing-copy">
-        <p class="eyebrow">Arkanum credential vault</p>
-        <h1>@Model.DashboardText.HeroTitle</h1>
-        <p>@Model.DashboardText.HeroDescription</p>
-        <div class="hero-actions">
-            @if (Model.SetupRequired)
-            {
-                <a class="primary-action" asp-page="/Setup">Create first administrator</a>
-            }
-            else if (User?.Identity?.IsAuthenticated == true)
-            {
-                <a class="primary-action" asp-page="/Vaults/Index">Open vaults</a>
-                @if (!Model.IsStandardUser)
-                {
-                    <a class="secondary-action" asp-page="/Settings/Index">Open settings</a>
-                }
-            }
-            else
-            {
-                <a class="primary-action" asp-page="/Login">Sign in</a>
-            }
-        </div>
-    </div>
-    <aside class="landing-status" aria-label="Workspace summary">
-        @if (Model.IsStandardUser)
-        {
-            <div>
-                <span class="status-label">Your vaults</span>
-                <strong>@Model.UserVaults.Count</strong>
-            </div>
-            <p>Your personal vault is created automatically. Open it to add credentials or invite another user when you want to share access.</p>
-        }
-        else
-        {
-            <div>
-                <span class="status-label">Vaults</span>
-                <strong>@Model.VaultCount</strong>
-            </div>
-            <div>
-                <span class="status-label">Access events</span>
-                <strong>@Model.RecentAuditCount</strong>
-            </div>
-            <p>Administrative and role-specific tools are grouped under Settings.</p>
-        }
-    </aside>
-</section>
-
-@if (User?.Identity?.IsAuthenticated == true && Model.IsStandardUser)
+@if (!Model.IsAuthenticated)
 {
-    <section class="section-heading">
-        <p class="eyebrow">Your Vaults</p>
-        <h2>Personal and shared vaults</h2>
-        <p>Start with your personal vault. Invite other users from a vault page when you want to collaborate.</p>
-    </section>
-    <section class="grid three landing-actions" aria-label="Your vaults">
-    @foreach (var vault in Model.UserVaults)
-    {
-        <article class="feature-card feature-link-card">
-            <span class="badge-soft">Your Vaults</span>
-            <h2>@vault.Name</h2>
-            <p>@vault.Description</p>
-            <p><strong>@vault.ItemCount</strong> items · <strong>@vault.FolderCount</strong> folders</p>
-            <a class="secondary-action" asp-page="/Vaults/Details" asp-route-id="@vault.Id">Open vault</a>
-        </article>
-    }
+    <section class="landing-hero low-disclosure-landing">
+        <div class="landing-copy">
+            <p class="eyebrow">Arkanum</p>
+            <h1>Sign in to continue</h1>
+            <p>Use your approved authentication method to access the workspace.</p>
+            <div class="hero-actions pre-auth-sign-in">
+                @if (Model.SetupRequired)
+                {
+                    <a class="primary-action" asp-page="/Setup">Create first administrator</a>
+                }
+                else
+                {
+                    <a class="primary-action" asp-page="/Login">Sign in</a>
+                }
+            </div>
+        </div>
     </section>
 }
 else
 {
-    <section class="grid three landing-actions" aria-label="Common next steps">
-        <article class="feature-card">
-            <span class="badge-soft">Vaults</span>
-            <h2>Open vaults</h2>
-            <p>Browse the vaults, folders, credentials, and notes available to your account.</p>
-            <a class="secondary-action" asp-page="/Vaults/Index">Go to vaults</a>
-        </article>
-        <article class="feature-card">
-            <span class="badge-soft">Review</span>
-            <h2>Review recent work</h2>
-            <p>Use vault details and item history to understand what changed before revealing or copying a secret.</p>
-            <a class="secondary-action" asp-page="/Vaults/Index">Review items</a>
-        </article>
-        <article class="feature-card">
-            <span class="badge-soft">Settings</span>
-            <h2>Find more tools</h2>
-            <p>Settings shows the user, vault, audit, directory, and policy tools your permissions allow.</p>
-            <a class="secondary-action" asp-page="/Settings/Index">Open settings</a>
-        </article>
+    <section class="landing-hero">
+        <div class="landing-copy">
+            <p class="eyebrow">Arkanum credential vault</p>
+            <h1>@Model.DashboardText.HeroTitle</h1>
+            <p>@Model.DashboardText.HeroDescription</p>
+            <div class="hero-actions">
+                @if (Model.SetupRequired)
+                {
+                    <a class="primary-action" asp-page="/Setup">Create first administrator</a>
+                }
+                else
+                {
+                    <a class="primary-action" asp-page="/Vaults/Index">Open vaults</a>
+                    @if (!Model.IsStandardUser)
+                    {
+                        <a class="secondary-action" asp-page="/Settings/Index">Open settings</a>
+                    }
+                }
+            </div>
+        </div>
+        <aside class="landing-status" aria-label="Workspace summary">
+            @if (Model.IsStandardUser)
+            {
+                <div>
+                    <span class="status-label">Your vaults</span>
+                    <strong>@Model.UserVaults.Count</strong>
+                </div>
+                <p>Your personal vault is created automatically. Open it to add credentials or invite another user when you want to share access.</p>
+            }
+            else
+            {
+                <div>
+                    <span class="status-label">Vaults</span>
+                    <strong>@Model.VaultCount</strong>
+                </div>
+                <div>
+                    <span class="status-label">Access events</span>
+                    <strong>@Model.RecentAuditCount</strong>
+                </div>
+                <p>Administrative and role-specific tools are grouped under Settings.</p>
+            }
+        </aside>
     </section>
+
+    @if (Model.IsStandardUser)
+    {
+        <section class="section-heading">
+            <p class="eyebrow">Your Vaults</p>
+            <h2>Personal and shared vaults</h2>
+            <p>Start with your personal vault. Invite other users from a vault page when you want to collaborate.</p>
+        </section>
+        <section class="grid three landing-actions" aria-label="Your vaults">
+        @foreach (var vault in Model.UserVaults)
+        {
+            <article class="feature-card feature-link-card">
+                <span class="badge-soft">Your Vaults</span>
+                <h2>@vault.Name</h2>
+                <p>@vault.Description</p>
+                <p><strong>@vault.ItemCount</strong> items · <strong>@vault.FolderCount</strong> folders</p>
+                <a class="secondary-action" asp-page="/Vaults/Details" asp-route-id="@vault.Id">Open vault</a>
+            </article>
+        }
+        </section>
+    }
+    else
+    {
+        <section class="grid three landing-actions" aria-label="Common next steps">
+            <article class="feature-card">
+                <span class="badge-soft">Vaults</span>
+                <h2>Open vaults</h2>
+                <p>Browse the vaults, folders, credentials, and notes available to your account.</p>
+                <a class="secondary-action" asp-page="/Vaults/Index">Go to vaults</a>
+            </article>
+            <article class="feature-card">
+                <span class="badge-soft">Review</span>
+                <h2>Review recent work</h2>
+                <p>Use vault details and item history to understand what changed before revealing or copying a secret.</p>
+                <a class="secondary-action" asp-page="/Vaults/Index">Review items</a>
+            </article>
+            <article class="feature-card">
+                <span class="badge-soft">Settings</span>
+                <h2>Find more tools</h2>
+                <p>Settings shows the user, vault, audit, directory, and policy tools your permissions allow.</p>
+                <a class="secondary-action" asp-page="/Settings/Index">Open settings</a>
+            </article>
+        </section>
+    }
 }
