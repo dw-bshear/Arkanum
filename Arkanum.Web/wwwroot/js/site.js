@@ -69,9 +69,32 @@
   });
 
   const vaultScrollKey = 'arkanum.vault.scrollY';
+  const vaultDetailsKey = 'arkanum.vault.openDetails';
+
+  function restoreOpenDetails() {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(vaultDetailsKey) || '[]');
+      if (!Array.isArray(saved)) return;
+      saved.forEach(key => {
+        const detail = document.querySelector(`[data-detail-key="${CSS.escape(key)}"]`);
+        if (detail) detail.open = true;
+      });
+      sessionStorage.removeItem(vaultDetailsKey);
+    } catch { /* ignore */ }
+  }
+
+  restoreOpenDetails();
+
   document.querySelectorAll('form[data-preserve-scroll]').forEach(form => {
     form.addEventListener('submit', () => {
-      try { sessionStorage.setItem(vaultScrollKey, String(window.scrollY)); } catch { /* ignore */ }
+      try {
+        sessionStorage.setItem(vaultScrollKey, String(window.scrollY));
+        const openDetails = Array.from(document.querySelectorAll('.vault-tree details[data-detail-key]'))
+          .filter(detail => detail.open)
+          .map(detail => detail.dataset.detailKey)
+          .filter(Boolean);
+        sessionStorage.setItem(vaultDetailsKey, JSON.stringify(openDetails));
+      } catch { /* ignore */ }
     });
   });
   document.querySelectorAll('[data-auto-submit-on-change]').forEach(input => {

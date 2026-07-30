@@ -121,15 +121,17 @@
         <div class="vault-tree" role="tree" aria-label="Vault folders and credential entries">
         @foreach (var folder in Model.Vault.Folders)
         {
-            <details class="tree-folder">
+            var folderContainsRevealedItem = Model.RevealedItemId is Guid revealedFolderItemId && folder.Items.Any(item => item.Id == revealedFolderItemId);
+            <details class="tree-folder" data-detail-key="folder-@folder.Id" open="@folderContainsRevealedItem">
                 <summary><span class="tree-twist">▾</span><strong>@folder.Name</strong><span>@folder.Items.Count item@(folder.Items.Count == 1 ? string.Empty : "s")</span></summary>
                 @if (folder.Items.Any())
                 {
                     var credentialItems = folder.Items.Where(item => item.Type == VaultItemType.LoginCredential).OrderBy(item => item.Title).ToArray();
                     var secureNoteItems = folder.Items.Where(item => item.Type == VaultItemType.SecureNote).OrderBy(item => item.Title).ToArray();
-                    foreach (var group in new[] { (Name: "Credentials", Items: credentialItems), (Name: "Secure Notes", Items: secureNoteItems) })
+                    foreach (var group in new[] { (Name: "Credentials", Key: "credentials", Items: credentialItems), (Name: "Secure Notes", Key: "secure-notes", Items: secureNoteItems) })
                     {
-                        <details class="tree-subfolder">
+                        var groupContainsRevealedItem = Model.RevealedItemId is Guid revealedGroupItemId && group.Items.Any(item => item.Id == revealedGroupItemId);
+                        <details class="tree-subfolder" data-detail-key="folder-@folder.Id-@group.Key" open="@groupContainsRevealedItem">
                             <summary><span class="tree-twist">▾</span><strong>@group.Name</strong><span>@group.Items.Length item@(group.Items.Length == 1 ? string.Empty : "s")</span></summary>
                             @if (group.Items.Any())
                             {

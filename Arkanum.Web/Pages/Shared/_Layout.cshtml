@@ -4,6 +4,36 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Arkanum</title>
+    <script>
+        (() => {
+            const selected = localStorage.getItem('arkanum-theme') === 'dark' ? 'dark' : 'light';
+            document.documentElement.dataset.theme = selected;
+            document.documentElement.dataset.activeTheme = selected;
+        })();
+    </script>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #f6f7fb;
+            --panel: #ffffff;
+            --text: #14213d;
+            --accent: #6d5dfc;
+        }
+
+        html[data-active-theme="dark"] {
+            --bg: #0b1020;
+            --panel: #121a2e;
+            --text: #edf2ff;
+            --accent: #9b8cff;
+        }
+
+        html,
+        body {
+            min-height: 100%;
+            background: var(--bg);
+            color: var(--text);
+        }
+    </style>
     <script type="importmap"></script>
     <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
     <link rel="icon" type="image/png" sizes="32x32" href="~/favicon-32x32.png" />

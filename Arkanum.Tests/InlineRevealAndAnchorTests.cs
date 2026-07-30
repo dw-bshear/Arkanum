@@ -44,6 +44,8 @@ public class InlineRevealAndAnchorTests
         Assert.Contains("class=\"reset-date-input\"", markup);
         Assert.DoesNotContain("<button class=\"secondary-action small\" type=\"submit\">Save</button>", markup);
         Assert.Contains("sessionStorage.setItem(vaultScrollKey", siteJs);
+        Assert.Contains("sessionStorage.setItem(vaultDetailsKey", siteJs);
+        Assert.Contains("restoreOpenDetails", siteJs);
         Assert.Contains("data-auto-submit-on-change", siteJs);
     }
 
@@ -68,15 +70,15 @@ public class InlineRevealAndAnchorTests
     }
 
     [Fact]
-    public void VaultFoldersDoNotExposeEntriesUntilUserExpandsThem()
+    public void VaultFoldersOpenOnlyWhenPreservingContextOrShowingRevealedItem()
     {
         var root = ProjectRoot();
         var markup = File.ReadAllText(Path.Combine(root, "Arkanum.Web", "Pages", "Vaults", "Details.cshtml"));
 
-        Assert.Contains("<details class=\"tree-folder\">", markup);
-        Assert.Contains("<details class=\"tree-subfolder\">", markup);
-        Assert.DoesNotContain("<details class=\"tree-folder\" open>", markup);
-        Assert.DoesNotContain("<details class=\"tree-subfolder\" open>", markup);
+        Assert.Contains("<details class=\"tree-folder\" data-detail-key=\"folder-@folder.Id\" open=\"@folderContainsRevealedItem\">", markup);
+        Assert.Contains("<details class=\"tree-subfolder\" data-detail-key=\"folder-@folder.Id-@group.Key\" open=\"@groupContainsRevealedItem\">", markup);
+        Assert.Contains("folderContainsRevealedItem", markup);
+        Assert.Contains("groupContainsRevealedItem", markup);
     }
 
     [Fact]
