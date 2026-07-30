@@ -10,7 +10,13 @@
 </section>
 <div class="grid two">
     <article class="feature-card"><h2>Retention</h2><p>Server-side audit records are retained for 90 days by default.</p></article>
-    <article class="feature-card"><h2>Exports</h2><p>Auditor report export is planned without granting edit permissions.</p></article>
+    <article class="feature-card">
+        <h2>Exports</h2>
+        <p>Download the current audit list as text/csv with stable report columns. Other formats are deferred.</p>
+        <form method="post" asp-page-handler="ExportCsv" class="inline-form">
+            <button class="secondary-action" type="submit">Download audit CSV</button>
+        </form>
+    </article>
 </div>
 <div class="table-card mt-3">
 <table>
