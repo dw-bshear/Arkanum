@@ -57,8 +57,8 @@ public class Iteration006FolderTests
         var networkFolder = Assert.Single(details!.Folders, f => f.Name == "Network devices");
         Assert.Contains(networkFolder.Items, i => i.Id == credential.Id && i.Type == VaultItemType.LoginCredential && i.Username == "admin@example.com");
         Assert.Contains(networkFolder.Items, i => i.Id == note.Id && i.Type == VaultItemType.SecureNote);
-        Assert.Equal("P@ssw0rd!2345", await itemService.RevealSecretAsync(db, credential.Id, owner.UserKey, SecretAccessPurpose.Reveal, DateTimeOffset.Parse("2026-06-27T04:10:00Z")));
-        Assert.Equal("Call the network lead before reset.", await itemService.RevealSecretAsync(db, note.Id, owner.UserKey, SecretAccessPurpose.Reveal, DateTimeOffset.Parse("2026-06-27T04:11:00Z")));
+        Assert.Equal("P@ssw0rd!2345", await itemService.RevealSecretAsync(db, vault.Id, credential.Id, owner.UserKey, SecretAccessPurpose.Reveal, DateTimeOffset.Parse("2026-06-27T04:10:00Z")));
+        Assert.Equal("Call the network lead before reset.", await itemService.RevealSecretAsync(db, vault.Id, note.Id, owner.UserKey, SecretAccessPurpose.Reveal, DateTimeOffset.Parse("2026-06-27T04:11:00Z")));
     }
 
     [Fact]

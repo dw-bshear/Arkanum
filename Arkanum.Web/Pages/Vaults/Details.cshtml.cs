@@ -92,7 +92,14 @@ public class DetailsModel(VaultRepository repository, VaultItemService itemServi
         if (string.IsNullOrWhiteSpace(Title)) ModelState.AddModelError(nameof(Title), "Title is required.");
         if (string.IsNullOrWhiteSpace(SecretValue)) ModelState.AddModelError(nameof(SecretValue), "Password is required.");
         if (!ModelState.IsValid) return await LoadPageAsync(id);
-        await itemService.CreateLoginCredentialAsync(db, id, FolderId, Title ?? string.Empty, Username ?? string.Empty, SecretValue ?? string.Empty, ActorKey(), DateTimeOffset.UtcNow);
+        try
+        {
+            await itemService.CreateLoginCredentialAsync(db, id, FolderId, Title ?? string.Empty, Username ?? string.Empty, SecretValue ?? string.Empty, ActorKey(), DateTimeOffset.UtcNow);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
         return RedirectToPage(new { id });
     }
 
@@ -102,14 +109,29 @@ public class DetailsModel(VaultRepository repository, VaultItemService itemServi
         if (string.IsNullOrWhiteSpace(Title)) ModelState.AddModelError(nameof(Title), "Title is required.");
         if (string.IsNullOrWhiteSpace(SecretValue)) ModelState.AddModelError(nameof(SecretValue), "Note is required.");
         if (!ModelState.IsValid) return await LoadPageAsync(id);
-        await itemService.CreateSecureNoteAsync(db, id, FolderId, Title ?? string.Empty, SecretValue ?? string.Empty, ActorKey(), DateTimeOffset.UtcNow);
+        try
+        {
+            await itemService.CreateSecureNoteAsync(db, id, FolderId, Title ?? string.Empty, SecretValue ?? string.Empty, ActorKey(), DateTimeOffset.UtcNow);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
         return RedirectToPage(new { id });
     }
 
     public async Task<IActionResult> OnPostRevealAsync(Guid id)
     {
         if (!await repository.CanRevealSecretAsync(db, id, ActorKey(), CurrentRoles())) return Forbid();
-        var secret = await itemService.RevealSecretAsync(db, ItemId, ActorKey(), SecretAccessPurpose.Reveal, DateTimeOffset.UtcNow);
+        string secret;
+        try
+        {
+            secret = await itemService.RevealSecretAsync(db, id, ItemId, ActorKey(), SecretAccessPurpose.Reveal, DateTimeOffset.UtcNow);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
         TempData["RevealedSecret"] = secret;
         TempData["RevealedTitle"] = Title;
         TempData["CopyIntent"] = "false";
@@ -119,7 +141,15 @@ public class DetailsModel(VaultRepository repository, VaultItemService itemServi
     public async Task<IActionResult> OnPostCopyAsync(Guid id)
     {
         if (!await repository.CanRevealSecretAsync(db, id, ActorKey(), CurrentRoles())) return Forbid();
-        var secret = await itemService.RevealSecretAsync(db, ItemId, ActorKey(), SecretAccessPurpose.Copy, DateTimeOffset.UtcNow);
+        string secret;
+        try
+        {
+            secret = await itemService.RevealSecretAsync(db, id, ItemId, ActorKey(), SecretAccessPurpose.Copy, DateTimeOffset.UtcNow);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
         TempData["RevealedSecret"] = secret;
         TempData["RevealedTitle"] = Title;
         TempData["CopyIntent"] = "true";
@@ -129,7 +159,14 @@ public class DetailsModel(VaultRepository repository, VaultItemService itemServi
     public async Task<IActionResult> OnPostUpdateResetNotificationAsync(Guid id)
     {
         if (!await repository.CanAddOrChangeVaultContentsAsync(db, id, ActorKey(), CurrentRoles())) return Forbid();
-        await itemService.UpdateResetNotificationAsync(db, ItemId, ResetNotificationDate, ActorKey(), DateTimeOffset.UtcNow);
+        try
+        {
+            await itemService.UpdateResetNotificationAsync(db, id, ItemId, ResetNotificationDate, ActorKey(), DateTimeOffset.UtcNow);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
         return RedirectToPage(new { id });
     }
 

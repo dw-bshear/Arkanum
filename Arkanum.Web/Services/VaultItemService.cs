@@ -14,6 +14,7 @@ public sealed class VaultItemService(SecretEncryptionService encryptionService)
 {
     public async Task<VaultItemEntity> CreateLoginCredentialAsync(ArkanumDbContext db, Guid vaultId, Guid folderId, string title, string username, string password, string actorUserKey, DateTimeOffset now)
     {
+        await EnsureFolderBelongsToVaultAsync(db, vaultId, folderId);
         var encrypted = encryptionService.Encrypt(password);
         var item = new VaultItemEntity
         {
@@ -42,6 +43,7 @@ public sealed class VaultItemService(SecretEncryptionService encryptionService)
 
     public async Task<VaultItemEntity> CreateSecureNoteAsync(ArkanumDbContext db, Guid vaultId, Guid folderId, string title, string note, string actorUserKey, DateTimeOffset now)
     {
+        await EnsureFolderBelongsToVaultAsync(db, vaultId, folderId);
         var encrypted = encryptionService.Encrypt(note);
         var item = new VaultItemEntity
         {
@@ -67,9 +69,9 @@ public sealed class VaultItemService(SecretEncryptionService encryptionService)
         return item;
     }
 
-    public async Task<string> RevealSecretAsync(ArkanumDbContext db, Guid itemId, string actorUserKey, SecretAccessPurpose purpose, DateTimeOffset now)
+    public async Task<string> RevealSecretAsync(ArkanumDbContext db, Guid vaultId, Guid itemId, string actorUserKey, SecretAccessPurpose purpose, DateTimeOffset now)
     {
-        var item = await db.VaultItems.SingleAsync(i => i.Id == itemId);
+        var item = await LoadVaultItemAsync(db, vaultId, itemId);
         var plaintext = encryptionService.Decrypt(new EncryptedSecretPayload(item.EncryptedSecret, item.EncryptionKeyId, item.EncryptionAlgorithm));
         db.AuditEvents.Add(new AuditEventEntity
         {
@@ -83,9 +85,9 @@ public sealed class VaultItemService(SecretEncryptionService encryptionService)
         return plaintext;
     }
 
-    public async Task UpdateResetNotificationAsync(ArkanumDbContext db, Guid itemId, DateOnly? resetDate, string actorUserKey, DateTimeOffset now)
+    public async Task UpdateResetNotificationAsync(ArkanumDbContext db, Guid vaultId, Guid itemId, DateOnly? resetDate, string actorUserKey, DateTimeOffset now)
     {
-        var item = await db.VaultItems.SingleAsync(i => i.Id == itemId);
+        var item = await LoadVaultItemAsync(db, vaultId, itemId);
         item.ResetNotificationDate = resetDate;
         item.ResetNotificationSentAt = null;
         db.AuditEvents.Add(new AuditEventEntity
@@ -99,5 +101,19 @@ public sealed class VaultItemService(SecretEncryptionService encryptionService)
                 : $"Credential reset notification date set to {resetDate:yyyy-MM-dd}. Secret value was not logged."
         });
         await db.SaveChangesAsync();
+    }
+
+    private static async Task EnsureFolderBelongsToVaultAsync(ArkanumDbContext db, Guid vaultId, Guid folderId)
+    {
+        if (!await db.VaultFolders.AnyAsync(f => f.Id == folderId && f.VaultId == vaultId))
+        {
+            throw new UnauthorizedAccessException("The selected folder does not belong to the target vault.");
+        }
+    }
+
+    private static async Task<VaultItemEntity> LoadVaultItemAsync(ArkanumDbContext db, Guid vaultId, Guid itemId)
+    {
+        return await db.VaultItems.SingleOrDefaultAsync(i => i.Id == itemId && i.VaultId == vaultId)
+            ?? throw new UnauthorizedAccessException("The selected item does not belong to the authorized vault.");
     }
 }

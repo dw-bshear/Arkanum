@@ -266,7 +266,8 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
     {
         await LoadRolesAsync();
         if (!CanManageFeatureVisibility) return Forbid();
-        await adminUserService.SetUserAccessAsync(db, UserKey ?? string.Empty, UserAccessEnabled, ActorKey(), DateTimeOffset.UtcNow);
+        if (!await ValidateSubmittedUserKeyAsync(UserKey, nameof(UserKey))) { await LoadAsync(); return Page(); }
+        await adminUserService.SetUserAccessAsync(db, UserKey?.Trim() ?? string.Empty, UserAccessEnabled, ActorKey(), DateTimeOffset.UtcNow);
         TempData["Status"] = UserAccessEnabled ? "User enabled." : "User disabled.";
         return RedirectToSettingsTab("users");
     }
@@ -275,7 +276,8 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
     {
         await LoadRolesAsync();
         if (!CanManageFeatureVisibility) return Forbid();
-        await adminUserService.UpdateUserRolesAsync(db, UserKey ?? string.Empty, UserRoles, ActorKey(), DateTimeOffset.UtcNow);
+        if (!await ValidateSubmittedUserKeyAsync(UserKey, nameof(UserKey))) { await LoadAsync(); return Page(); }
+        await adminUserService.UpdateUserRolesAsync(db, UserKey?.Trim() ?? string.Empty, UserRoles, ActorKey(), DateTimeOffset.UtcNow);
         TempData["Status"] = "User roles saved.";
         return RedirectToSettingsTab("users");
     }
@@ -297,14 +299,16 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
     {
         await LoadRolesAsync();
         if (!CanManageFeatureVisibility) return Forbid();
+        if (!await ValidateGroupAssignmentAsync()) { await LoadAsync(); return Page(); }
         var actor = ActorKey();
-        if (!await db.UserGroupMembers.AnyAsync(m => m.GroupId == GroupId && m.UserKey == GroupUserKey))
+        var groupUserKey = GroupUserKey?.Trim() ?? string.Empty;
+        if (!await db.UserGroupMembers.AnyAsync(m => m.GroupId == GroupId && m.UserKey == groupUserKey))
         {
-            db.UserGroupMembers.Add(new UserGroupMemberEntity { GroupId = GroupId, UserKey = GroupUserKey ?? string.Empty, AddedByUserKey = actor, AddedAt = DateTimeOffset.UtcNow });
+            db.UserGroupMembers.Add(new UserGroupMemberEntity { GroupId = GroupId, UserKey = groupUserKey, AddedByUserKey = actor, AddedAt = DateTimeOffset.UtcNow });
         }
-        if (GroupDelegatedManager && !await db.UserGroupManagers.AnyAsync(m => m.GroupId == GroupId && m.UserKey == GroupUserKey))
+        if (GroupDelegatedManager && !await db.UserGroupManagers.AnyAsync(m => m.GroupId == GroupId && m.UserKey == groupUserKey))
         {
-            db.UserGroupManagers.Add(new UserGroupManagerEntity { GroupId = GroupId, UserKey = GroupUserKey ?? string.Empty, AddedByUserKey = actor, AddedAt = DateTimeOffset.UtcNow });
+            db.UserGroupManagers.Add(new UserGroupManagerEntity { GroupId = GroupId, UserKey = groupUserKey, AddedByUserKey = actor, AddedAt = DateTimeOffset.UtcNow });
         }
         await db.SaveChangesAsync();
         TempData["Status"] = GroupDelegatedManager ? "Group member and delegated manager saved." : "Group member saved.";
@@ -322,6 +326,35 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
 
 
     private RedirectToPageResult RedirectToSettingsTab(string tab) => RedirectToPage(null, null, $"settings-{tab}");
+
+    private async Task<bool> ValidateSubmittedUserKeyAsync(string? userKey, string fieldName)
+    {
+        var normalized = userKey?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalized) || !await db.Users.AnyAsync(u => u.UserKey == normalized))
+        {
+            ModelState.AddModelError(fieldName, "Select a valid user.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task<bool> ValidateGroupAssignmentAsync()
+    {
+        var valid = true;
+        if (!await db.UserGroups.AnyAsync(g => g.Id == GroupId))
+        {
+            ModelState.AddModelError(nameof(GroupId), "Select a valid group.");
+            valid = false;
+        }
+
+        if (!await ValidateSubmittedUserKeyAsync(GroupUserKey, nameof(GroupUserKey)))
+        {
+            valid = false;
+        }
+
+        return valid;
+    }
 
     private async Task LoadAsync(string? userSearch = null)
     {

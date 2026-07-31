@@ -49,8 +49,8 @@ public class Iteration003Tests
         var service = new VaultItemService(new SecretEncryptionService(new StaticMasterKeyProvider("0123456789abcdef0123456789abcdef")));
         var item = await service.CreateLoginCredentialAsync(db, vault.Id, folder.Id, "Firewall", "fw-admin", "SuperSecret!234", "admin-key", DateTimeOffset.Parse("2026-06-26T12:05:00Z"));
 
-        var revealed = await service.RevealSecretAsync(db, item.Id, "auditor-key", SecretAccessPurpose.Reveal, DateTimeOffset.Parse("2026-06-26T12:06:00Z"));
-        var copied = await service.RevealSecretAsync(db, item.Id, "auditor-key", SecretAccessPurpose.Copy, DateTimeOffset.Parse("2026-06-26T12:07:00Z"));
+        var revealed = await service.RevealSecretAsync(db, vault.Id, item.Id, "auditor-key", SecretAccessPurpose.Reveal, DateTimeOffset.Parse("2026-06-26T12:06:00Z"));
+        var copied = await service.RevealSecretAsync(db, vault.Id, item.Id, "auditor-key", SecretAccessPurpose.Copy, DateTimeOffset.Parse("2026-06-26T12:07:00Z"));
 
         Assert.Equal("SuperSecret!234", revealed);
         Assert.Equal("SuperSecret!234", copied);
