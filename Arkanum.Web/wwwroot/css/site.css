@@ -98,7 +98,7 @@ html[data-active-theme="dark"] .theme-switch-thumb { transform: translateX(2.1re
 .landing-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, .55fr); gap: 1.25rem; align-items: stretch; margin-bottom: 1.25rem; }
 .hero > div, .status-card, .feature-card, .card-form, .table-card, .landing-copy, .landing-status { background: color-mix(in srgb, var(--panel) 96%, transparent); border: 1px solid var(--line); border-radius: 1.25rem; box-shadow: var(--shadow); padding: 1.4rem; }
 .vault-workspace { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: start; }
-.vault-detail-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; max-width: none; width: 100%; }
+.vault-detail-heading { display: grid; grid-template-columns: minmax(0, 1fr) max-content; align-items: start; gap: 1rem; max-width: none; width: 100%; }
 .vault-section-nav { display: flex; flex-wrap: wrap; gap: .6rem; margin: -.25rem 0 1.15rem; }
 .vault-section-nav a { display: inline-flex; align-items: center; gap: .45rem; padding: .5rem .75rem; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--panel) 92%, transparent); color: var(--text); font-weight: 850; text-decoration: none; box-shadow: 0 8px 24px rgba(20, 33, 61, .06); }
 .vault-section-nav span { display: inline-grid; place-items: center; width: 1.35rem; height: 1.35rem; border-radius: 999px; color: white; background: linear-gradient(135deg, var(--accent), var(--accent-strong)); font-size: .75rem; }
@@ -107,8 +107,9 @@ html[data-active-theme="dark"] .theme-switch-thumb { transform: translateX(2.1re
 .vault-section-contents { border-top-color: var(--accent-strong) !important; }
 .vault-section-add-entry { border-top-color: #22c55e !important; }
 .vault-section-add-note { border-top-color: #f59e0b !important; }
-.vault-detail-heading > div { max-width: 820px; }
-.vault-detail-heading > .vault-heading-actions { max-width: none; }
+.vault-heading-copy { max-width: 820px; grid-column: 1; }
+.vault-retired-notice { grid-column: 1 / -1; }
+.vault-detail-heading > .vault-heading-actions { grid-column: 2; grid-row: 1 / span 2; max-width: none; justify-self: end; }
 .credential-tree-card { grid-column: 1 / -1; max-width: none; }
 .add-credential-form, .add-note-form { max-width: none; align-self: stretch; }
 .add-credential-form { grid-column: 1; }
@@ -161,7 +162,7 @@ p { color: var(--muted); }
 .section-heading { margin-bottom: 1rem; max-width: 820px; }
 .vaults-heading { display: flex; align-items: start; justify-content: space-between; gap: 1rem; max-width: none; }
 .vaults-heading > div { max-width: 820px; }
-.vault-heading-actions { margin-left: auto; display: flex; align-items: flex-start; justify-content: flex-end; justify-items: end; gap: .75rem; flex-wrap: wrap; text-align: right; }
+.vault-heading-actions { display: flex; align-items: flex-start; justify-content: flex-end; justify-items: end; gap: .75rem; flex-wrap: wrap; text-align: right; }
 .vault-heading-actions > a, .vault-heading-actions > details { flex: 0 0 auto; }
 .vault-heading-actions summary { display: inline-flex; justify-content: center; list-style: none; cursor: pointer; }
 .vault-heading-actions summary::-webkit-details-marker { display: none; }

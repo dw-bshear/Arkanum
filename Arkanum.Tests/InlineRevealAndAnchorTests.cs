@@ -77,8 +77,10 @@ public class InlineRevealAndAnchorTests
         var css = File.ReadAllText(Path.Combine(root, "Arkanum.Web", "wwwroot", "css", "site.css"));
 
         Assert.Contains("vault-heading-actions", markup);
-        Assert.Contains(".vault-detail-heading { display: flex; justify-content: space-between; align-items: flex-start", css);
-        Assert.Contains(".vault-heading-actions { margin-left: auto; display: flex; align-items: flex-start; justify-content: flex-end", css);
+        Assert.Contains("vault-heading-copy", markup);
+        Assert.Contains(".vault-detail-heading { display: grid; grid-template-columns: minmax(0, 1fr) max-content", css);
+        Assert.Contains(".vault-detail-heading > .vault-heading-actions { grid-column: 2; grid-row: 1 / span 2; max-width: none; justify-self: end; }", css);
+        Assert.Contains(".vault-heading-actions { display: flex; align-items: flex-start; justify-content: flex-end", css);
         Assert.Contains(".vault-heading-actions > a, .vault-heading-actions > details { flex: 0 0 auto; }", css);
     }
 

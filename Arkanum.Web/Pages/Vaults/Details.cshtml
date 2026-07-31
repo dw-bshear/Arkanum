@@ -10,9 +10,9 @@
 <section class="section-heading vault-detail-heading">
     @if (Model.Vault.IsRetired)
     {
-        <div class="notice warning">This is a retired vault. It is hidden from normal vault lists; contents are preserved for administrator/auditor review.</div>
+        <div class="notice warning vault-retired-notice">This is a retired vault. It is hidden from normal vault lists; contents are preserved for administrator/auditor review.</div>
     }
-    <div>
+    <div class="vault-heading-copy">
         <p class="eyebrow">Vault</p>
         <h1>@Model.Vault.Name</h1>
         <p>@Model.Vault.Description</p>
