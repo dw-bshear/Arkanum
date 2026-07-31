@@ -69,7 +69,7 @@ public class VaultRetirementIssueTests
 
         Assert.Contains("CanRetireVaults", indexModel);
         Assert.Contains("OnPostRetireAsync", indexModel);
-        Assert.Contains("Retire test/smoke vault", indexMarkup);
+        Assert.Contains("Archive Vault", indexMarkup);
         Assert.Contains("This is safer than hard delete", indexMarkup);
         Assert.Contains("name=\"RetireConfirmationName\"", indexMarkup);
         Assert.Contains("asp-page-handler=\"Retire\"", indexMarkup);
