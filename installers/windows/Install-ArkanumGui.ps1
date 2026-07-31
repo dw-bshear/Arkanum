@@ -84,6 +84,12 @@ $action.DropDownStyle = 'DropDownList'
 $action.SelectedIndex = 0
 $action.Location = New-Object System.Drawing.Point(220, 24)
 $action.Size = New-Object System.Drawing.Size(300, 24)
+$databaseSetupMode = New-Object System.Windows.Forms.ComboBox
+$databaseSetupMode.DropDownStyle = 'DropDownList'
+[void]$databaseSetupMode.Items.AddRange(@('Use existing database', 'Create new database', 'Restore database'))
+$databaseSetupMode.SelectedIndex = 0
+$databaseSetupMode.Location = New-Object System.Drawing.Point(220, 424)
+$databaseSetupMode.Size = New-Object System.Drawing.Size(300, 24)
 $restoreSource = New-Object System.Windows.Forms.ComboBox
 $restoreSource.DropDownStyle = 'DropDownList'
 [void]$restoreSource.Items.AddRange(@('Use database already restored by DBA', 'Restore from SQL backup file', 'Attach existing database files / DBA handoff'))
@@ -126,6 +132,14 @@ $sqlPort = New-TextBox '1433' 220 64 120
 $sqlDb = New-TextBox 'Arkanum' 220 104 260
 $sqlUser = New-TextBox 'arkanum_app' 220 144 260
 $sqlPassword = New-TextBox '' 220 184 260 $true
+$setupSqlUser = New-TextBox '' 220 284 260
+$setupSqlPassword = New-TextBox '' 220 324 260 $true
+$runtimeSqlUser = New-TextBox 'arkanum_app' 220 364 260
+$runtimeSqlPassword = New-TextBox '' 220 404 260 $true
+$generateRuntimePassword = New-Object System.Windows.Forms.CheckBox
+$generateRuntimePassword.Text = 'Generate runtime password'
+$generateRuntimePassword.Location = New-Object System.Drawing.Point(220, 434)
+$generateRuntimePassword.Size = New-Object System.Drawing.Size(260, 24)
 $encrypt = New-Object System.Windows.Forms.CheckBox
 $encrypt.Text = 'Encrypt SQL connection'
 $encrypt.Checked = $true
@@ -141,11 +155,16 @@ foreach ($pair in @(
     @('SQL Server port', $sqlPort, 64),
     @('Database name', $sqlDb, 104),
     @('SQL username', $sqlUser, 144),
-    @('SQL password', $sqlPassword, 184)
+    @('SQL password', $sqlPassword, 184),
+    @('Database setup mode', $databaseSetupMode, 244),
+    @('Setup/admin SQL username', $setupSqlUser, 284),
+    @('Setup/admin SQL password', $setupSqlPassword, 324),
+    @('Runtime app login', $runtimeSqlUser, 364),
+    @('Runtime app password', $runtimeSqlPassword, 404)
 )) {
     $sqlTab.Controls.Add((New-Label $pair[0] 24 $pair[2])); $sqlTab.Controls.Add($pair[1])
 }
-$sqlTab.Controls.Add($encrypt); $sqlTab.Controls.Add($trust)
+$sqlTab.Controls.Add($encrypt); $sqlTab.Controls.Add($trust); $sqlTab.Controls.Add($generateRuntimePassword)
 
 $recoveryTab = New-Object System.Windows.Forms.TabPage
 $recoveryTab.Text = 'Recovery Key'
@@ -188,6 +207,15 @@ function Get-InstallerAction {
     }
 }
 
+
+function Get-DatabaseSetupMode {
+    switch ($databaseSetupMode.SelectedItem) {
+        'Create new database' { return 'create-new-database' }
+        'Restore database' { return 'restore-database' }
+        default { return 'use-existing-database' }
+    }
+}
+
 function Get-RestoreSource {
     switch ($restoreSource.SelectedItem) {
         'Restore from SQL backup file' { return 'sql-backup-file' }
@@ -211,6 +239,15 @@ function Build-CommandPreview {
         '-AppPoolName', "`"$($appPool.Text)`"",
         '-PackageVersion', '2026.0.6',
         '-Action', $selectedAction,
+        '-DatabaseSetupMode', (Get-DatabaseSetupMode),
+        '-SqlServerHost', "`"$($sqlHost.Text)`"",
+        '-SqlServerPort', $sqlPort.Text,
+        '-DatabaseName', "`"$($sqlDb.Text)`"",
+        '-SetupSqlUsername', "`"$($setupSqlUser.Text)`"",
+        '-SetupSqlPassword', "`"$($setupSqlPassword.Text)`"",
+        '-RuntimeSqlLogin', "`"$($runtimeSqlUser.Text)`"",
+        '-RuntimeSqlPassword', "`"$($runtimeSqlPassword.Text)`"",
+        '-GenerateRuntimePassword:' + $generateRuntimePassword.Checked,
         '-RestoreSource', (Get-RestoreSource),
         '-SqlBackupFile', "`"$($sqlBackupFile.Text)`"",
         '-RestoreKeyFile', "`"$($restoreKeyFile.Text)`"",
@@ -251,6 +288,15 @@ $run.Add_Click({
             AppPoolName = $appPool.Text
             PackageVersion = '2026.0.6'
             Action = Get-InstallerAction
+            DatabaseSetupMode = Get-DatabaseSetupMode
+            SqlServerHost = $sqlHost.Text
+            SqlServerPort = $sqlPort.Text
+            DatabaseName = $sqlDb.Text
+            SetupSqlUsername = $setupSqlUser.Text
+            SetupSqlPassword = $setupSqlPassword.Text
+            RuntimeSqlLogin = $runtimeSqlUser.Text
+            RuntimeSqlPassword = $runtimeSqlPassword.Text
+            GenerateRuntimePassword = $generateRuntimePassword.Checked
             RestoreSource = Get-RestoreSource
             SqlBackupFile = $sqlBackupFile.Text
             RestoreKeyFile = $restoreKeyFile.Text

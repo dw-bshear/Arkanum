@@ -52,6 +52,7 @@ class Wizard(tk.Tk):
         self.resizable(True, True)
         self.vars = {
             "install_action": tk.StringVar(value="auto"),
+            "database_setup_mode": tk.StringVar(value="use-existing-database"),
             "restore_source": tk.StringVar(value="dba-restored-database"),
             "install_dir": tk.StringVar(value="/opt/arkanum"),
             "config_dir": tk.StringVar(value="/etc/arkanum"),
@@ -64,12 +65,17 @@ class Wizard(tk.Tk):
             "sql_database": tk.StringVar(value="Arkanum"),
             "sql_user": tk.StringVar(value="arkanum_app"),
             "sql_password": tk.StringVar(value=""),
+            "setup_sql_user": tk.StringVar(value=""),
+            "setup_sql_password": tk.StringVar(value=""),
+            "runtime_sql_user": tk.StringVar(value="arkanum_app"),
+            "runtime_sql_password": tk.StringVar(value=""),
             "sql_backup_file": tk.StringVar(value=""),
             "restore_key_file": tk.StringVar(value=""),
             "restore_key": tk.StringVar(value=""),
         }
         self.encrypt = tk.BooleanVar(value=True)
         self.trust = tk.BooleanVar(value=True)
+        self.generate_runtime_password = tk.BooleanVar(value=False)
         self.ack = tk.BooleanVar(value=False)
         self.command_text = tk.StringVar(value="")
         self.status = tk.StringVar(value="Complete the pages, then generate or run the installer command.")
@@ -145,6 +151,8 @@ class Wizard(tk.Tk):
 
     def _sql_page(self, parent: ttk.Notebook) -> ttk.Frame:
         frame = ttk.Frame(parent, padding=12)
+        ttk.Label(frame, text="Database setup mode").pack(anchor="w", pady=(8, 0))
+        ttk.Combobox(frame, textvariable=self.vars["database_setup_mode"], values=["Use existing database", "Create new database", "use-existing-database", "create-new-database"], state="readonly").pack(fill="x")
         for label, key in [
             ("SQL Server host", "sql_host"),
             ("SQL Server port", "sql_port"),
@@ -153,6 +161,11 @@ class Wizard(tk.Tk):
         ]:
             self._entry(frame, label, key)
         self._entry(frame, "SQL password", "sql_password", show="*")
+        self._entry(frame, "Setup/admin SQL username", "setup_sql_user")
+        self._entry(frame, "Setup/admin SQL password", "setup_sql_password", show="*")
+        self._entry(frame, "Runtime app login", "runtime_sql_user")
+        self._entry(frame, "Runtime app password", "runtime_sql_password", show="*")
+        ttk.Checkbutton(frame, text="Generate runtime password", variable=self.generate_runtime_password).pack(anchor="w", pady=(10, 0))
         ttk.Checkbutton(frame, text="Encrypt SQL connection", variable=self.encrypt).pack(anchor="w", pady=(10, 0))
         ttk.Checkbutton(frame, text="Trust SQL Server certificate", variable=self.trust).pack(anchor="w")
         ttk.Button(frame, text="Build connection string", command=self.generate_command).pack(anchor="w", pady=12)
@@ -205,6 +218,8 @@ class Wizard(tk.Tk):
             "install side-by-side": "side-by-side",
         }
         selected_action = action_map.get(self.vars["install_action"].get(), "auto")
+        database_setup_map = {"Use existing database": "use-existing-database", "Create new database": "create-new-database"}
+        selected_database_setup = database_setup_map.get(self.vars["database_setup_mode"].get(), self.vars["database_setup_mode"].get() or "use-existing-database")
         restore_source_map = {
             "Use database already restored by DBA": "dba-restored-database",
             "Restore from SQL backup file": "sql-backup-file",
@@ -213,6 +228,15 @@ class Wizard(tk.Tk):
         selected_restore_source = restore_source_map.get(self.vars["restore_source"].get(), self.vars["restore_source"].get() or "dba-restored-database")
         env = {
             "ACTION": selected_action,
+            "DATABASE_SETUP_MODE": selected_database_setup,
+            "SQL_SERVER_HOST": self.vars["sql_host"].get().strip(),
+            "SQL_SERVER_PORT": self.vars["sql_port"].get().strip(),
+            "DATABASE_NAME": self.vars["sql_database"].get().strip(),
+            "SETUP_SQL_USERNAME": self.vars["setup_sql_user"].get().strip(),
+            "SETUP_SQL_PASSWORD": self.vars["setup_sql_password"].get(),
+            "RUNTIME_SQL_LOGIN": self.vars["runtime_sql_user"].get().strip(),
+            "RUNTIME_SQL_PASSWORD": self.vars["runtime_sql_password"].get(),
+            "GENERATE_RUNTIME_PASSWORD": "true" if self.generate_runtime_password.get() else "false",
             "RESTORE_SOURCE": selected_restore_source,
             "SQL_BACKUP_FILE": self.vars["sql_backup_file"].get().strip(),
             "ARKANUM_PACKAGE_VERSION": "2026.0.6",

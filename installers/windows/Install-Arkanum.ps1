@@ -4,11 +4,20 @@ param(
     [string]$ProgramDataPath = 'C:\ProgramData\Arkanum',
     [string]$SiteName = 'Arkanum',
     [int]$Port = 5068,
-    [Parameter(Mandatory=$true)][string]$SqlConnectionString,
+    [string]$SqlConnectionString = '',
     [string]$AppPoolName = 'ArkanumAppPool',
     [string]$PackageVersion = '2026.0.6',
     # ValidateSet('install','upgrade','repair','side-by-side','restore') plus auto detection for GUI defaults.
     [ValidateSet('install','upgrade','repair','side-by-side','restore','auto')][string]$Action = 'auto',
+    [ValidateSet('auto','use-existing-database','create-new-database','restore-database')][string]$DatabaseSetupMode = 'auto',
+    [string]$SqlServerHost = '',
+    [string]$SqlServerPort = '1433',
+    [string]$DatabaseName = 'Arkanum',
+    [string]$SetupSqlUsername = '',
+    [string]$SetupSqlPassword = '',
+    [string]$RuntimeSqlLogin = 'arkanum_app',
+    [string]$RuntimeSqlPassword = '',
+    [switch]$GenerateRuntimePassword,
     [ValidateSet('dba-restored-database','sql-backup-file','attach-database-files')][string]$RestoreSource = 'dba-restored-database',
     [string]$SqlBackupFile = '',
     [string]$RestoreKeyFile = '',
@@ -42,6 +51,10 @@ function Write-ArkanumReport {
         "Generated UTC: $((Get-Date).ToUniversalTime().ToString('s'))Z",
         "Health URL: http://localhost:$Port/health",
         "Backup path: $BackupPath",
+        "Database setup mode: $DatabaseSetupMode",
+        "Runtime SQL login: $RuntimeSqlLogin",
+        'SQL setup credential persistence: not persisted',
+        'setup/admin SQL credential is used only during provisioning.',
         "Restore source: $RestoreSource",
         "SQL backup file: $(if ([string]::IsNullOrWhiteSpace($SqlBackupFile)) { 'not provided' } else { $SqlBackupFile })",
         "Recovery Key source: $restoreKeySource",
@@ -51,6 +64,48 @@ function Write-ArkanumReport {
         $HealthBody
     )
     $lines | Set-Content -Path $ReportPath -Encoding UTF8
+}
+
+
+function New-ArkanumRuntimePassword {
+    $bytes = New-Object byte[] 32
+    [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+    return [Convert]::ToBase64String($bytes).TrimEnd('=') + '!aA1'
+}
+
+function Build-ArkanumRuntimeSqlConnectionString {
+    if (![string]::IsNullOrWhiteSpace($SqlConnectionString)) { return $SqlConnectionString }
+    if ([string]::IsNullOrWhiteSpace($SqlServerHost) -or [string]::IsNullOrWhiteSpace($DatabaseName) -or [string]::IsNullOrWhiteSpace($RuntimeSqlLogin) -or [string]::IsNullOrWhiteSpace($RuntimeSqlPassword)) {
+        throw 'SqlConnectionString or SQL Server host/database/runtime login/runtime password is required.'
+    }
+    return "Server=tcp:$SqlServerHost,$SqlServerPort;Database=$DatabaseName;User Id=$RuntimeSqlLogin;Password=$RuntimeSqlPassword;Encrypt=True;TrustServerCertificate=True;"
+}
+
+function Invoke-ArkanumSqlProvisioning {
+    if ($DatabaseSetupMode -ne 'create-new-database') { return }
+    if ([string]::IsNullOrWhiteSpace($SetupSqlUsername) -or [string]::IsNullOrWhiteSpace($SetupSqlPassword)) {
+        throw 'Create new database mode requires setup/admin SQL username and password. The setup/admin SQL credential is used only during provisioning and is not persisted.'
+    }
+    if ([string]::IsNullOrWhiteSpace($RuntimeSqlPassword)) { throw 'Create new database mode requires a runtime SQL password or -GenerateRuntimePassword.' }
+    $scriptPath = Join-Path $PSScriptRoot '..\sql\provision-arkanum-sql.sql'
+    if (!(Test-Path $scriptPath)) { throw "Missing SQL provisioning script: $scriptPath" }
+    $server = "tcp:$SqlServerHost,$SqlServerPort"
+    Write-Host 'Database setup mode: create-new-database'
+    Write-Host 'Creating Arkanum database and limited runtime SQL login/user. SQL setup credential persistence: not persisted.'
+    Write-Host 'Persist only the runtime SQL connection after provisioning.'
+    & sqlcmd -S $server -U $SetupSqlUsername -P $SetupSqlPassword -b -i $scriptPath -v DatabaseName=$DatabaseName RuntimeLogin=$RuntimeSqlLogin RuntimePassword=$RuntimeSqlPassword | ForEach-Object { $_ -replace [regex]::Escape($SetupSqlPassword), '[REDACTED]' -replace [regex]::Escape($RuntimeSqlPassword), '[REDACTED]' }
+}
+
+function Invoke-ArkanumSqlUpgradePreflight {
+    if ($Action -ne 'upgrade') { return }
+    $scriptPath = Join-Path $PSScriptRoot '..\sql\upgrade-preflight.sql'
+    if (!(Test-Path $scriptPath)) { throw "Missing SQL upgrade preflight script: $scriptPath" }
+    Write-Host 'Database reachability preflight'
+    Write-Host 'Schema/version preflight'
+    Write-Host 'Runtime login permission preflight'
+    Write-Host 'SQL backup strongly recommended before upgrade.'
+    Write-Host 'Failure categories: database reachability, schema mismatch, permission problem, recovery-key mismatch.'
+    & sqlcmd -b -i $scriptPath | ForEach-Object { $_ -replace '(Password=)[^;]+', '$1[REDACTED]' }
 }
 
 Import-Module WebAdministration
@@ -75,6 +130,12 @@ if ($Action -eq 'auto') {
 if ($Action -eq 'restore') {
     $reportPath = Join-Path $logDir "restore-report-$PackageVersion.txt"
 }
+
+if ($DatabaseSetupMode -eq 'auto') {
+    if ($Action -eq 'restore') { $DatabaseSetupMode = 'restore-database' } else { $DatabaseSetupMode = 'use-existing-database' }
+}
+if ($GenerateRuntimePassword -and [string]::IsNullOrWhiteSpace($RuntimeSqlPassword)) { $RuntimeSqlPassword = New-ArkanumRuntimePassword }
+$SqlConnectionString = Build-ArkanumRuntimeSqlConnectionString
 
 if ($Action -eq 'side-by-side') {
     $InstallPath = "$InstallPath-$PackageVersion"
@@ -101,6 +162,8 @@ if ($Action -eq 'restore' -and $RestoreSource -ne 'dba-restored-database') {
 }
 
 New-Item -ItemType Directory -Force -Path $InstallPath, $secretDir, $configDir, $logDir, $backupRoot | Out-Null
+Invoke-ArkanumSqlProvisioning
+Invoke-ArkanumSqlUpgradePreflight
 
 $backupPath = ''
 if ($Action -in @('upgrade','repair')) {

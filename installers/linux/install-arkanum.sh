@@ -3,6 +3,15 @@ set -euo pipefail
 
 ARKANUM_PACKAGE_VERSION=${ARKANUM_PACKAGE_VERSION:-2026.0.6}
 ACTION=${ACTION:-auto}
+DATABASE_SETUP_MODE=${DATABASE_SETUP_MODE:-auto}
+SQL_SERVER_HOST=${SQL_SERVER_HOST:-}
+SQL_SERVER_PORT=${SQL_SERVER_PORT:-1433}
+DATABASE_NAME=${DATABASE_NAME:-Arkanum}
+SETUP_SQL_USERNAME=${SETUP_SQL_USERNAME:-}
+SETUP_SQL_PASSWORD=${SETUP_SQL_PASSWORD:-}
+RUNTIME_SQL_LOGIN=${RUNTIME_SQL_LOGIN:-arkanum_app}
+RUNTIME_SQL_PASSWORD=${RUNTIME_SQL_PASSWORD:-}
+GENERATE_RUNTIME_PASSWORD=${GENERATE_RUNTIME_PASSWORD:-false}
 RESTORE_SOURCE=${RESTORE_SOURCE:-dba-restored-database}
 SQL_BACKUP_FILE=${SQL_BACKUP_FILE:-}
 INSTALL_DIR=${INSTALL_DIR:-/opt/arkanum}
@@ -49,6 +58,10 @@ write_report() {
     echo "State file: ${STATE_FILE}"
     echo "Generated UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "Health URL: ${APP_URLS}/health"
+    echo "Database setup mode: ${DATABASE_SETUP_MODE}"
+    echo "Runtime SQL login: ${RUNTIME_SQL_LOGIN}"
+    echo "SQL setup credential persistence: not persisted"
+    echo "setup/admin SQL credential is used only during provisioning."
     echo "Restore source: ${RESTORE_SOURCE}"
     echo "SQL backup file: ${SQL_BACKUP_FILE:-not provided}"
     echo "Recovery Key source: ${recovery_key_source}"
@@ -59,6 +72,59 @@ write_report() {
   chmod 640 "${REPORT_FILE}" 2>/dev/null || true
 }
 
+
+generate_runtime_password() {
+  python3 - <<'PYGEN'
+import secrets
+print(secrets.token_urlsafe(32) + '!aA1')
+PYGEN
+}
+
+build_runtime_sql_connection() {
+  if [ -n "${ARKANUM_SQL_CONNECTION:-}" ]; then
+    return
+  fi
+  if [ -z "${SQL_SERVER_HOST}" ] || [ -z "${DATABASE_NAME}" ] || [ -z "${RUNTIME_SQL_LOGIN}" ] || [ -z "${RUNTIME_SQL_PASSWORD}" ]; then
+    fail "ARKANUM_SQL_CONNECTION or SQL_SERVER_HOST/DATABASE_NAME/RUNTIME_SQL_LOGIN/RUNTIME_SQL_PASSWORD is required for the runtime SQL connection."
+  fi
+  ARKANUM_SQL_CONNECTION="Server=tcp:${SQL_SERVER_HOST},${SQL_SERVER_PORT};Database=${DATABASE_NAME};User Id=${RUNTIME_SQL_LOGIN};Password=${RUNTIME_SQL_PASSWORD};Encrypt=True;TrustServerCertificate=True;"
+  export ARKANUM_SQL_CONNECTION
+}
+
+Invoke-ArkanumSqlProvisioning() {
+  if [ "${DATABASE_SETUP_MODE}" != "create-new-database" ]; then
+    return
+  fi
+  [ -n "${SETUP_SQL_USERNAME}" ] || fail "Create new database mode requires SETUP_SQL_USERNAME. The setup/admin SQL credential is used only during provisioning and is not persisted."
+  [ -n "${SETUP_SQL_PASSWORD}" ] || fail "Create new database mode requires SETUP_SQL_PASSWORD. The setup/admin SQL credential is used only during provisioning and is not persisted."
+  [ -n "${RUNTIME_SQL_PASSWORD}" ] || fail "Create new database mode requires RUNTIME_SQL_PASSWORD or GENERATE_RUNTIME_PASSWORD=true."
+  command -v sqlcmd >/dev/null 2>&1 || fail "sqlcmd is required for create-new-database SQL provisioning."
+  local script_path="${PACKAGE_ROOT}/installers/sql/provision-arkanum-sql.sql"
+  [ -f "${script_path}" ] || script_path="${SCRIPT_DIR}/../sql/provision-arkanum-sql.sql"
+  [ -f "${script_path}" ] || fail "Missing SQL provisioning script: ${script_path}"
+  info "Database setup mode: create-new-database"
+  info "Creating Arkanum database and limited runtime SQL login/user. SQL setup credential persistence: not persisted."
+  info "Persist only the runtime SQL connection after provisioning."
+  sqlcmd -S "tcp:${SQL_SERVER_HOST},${SQL_SERVER_PORT}" -U "${SETUP_SQL_USERNAME}" -P "${SETUP_SQL_PASSWORD}" -b -i "${script_path}" -v DatabaseName="${DATABASE_NAME}" RuntimeLogin="${RUNTIME_SQL_LOGIN}" RuntimePassword="${RUNTIME_SQL_PASSWORD}" \
+    | sed -e "s/${SETUP_SQL_PASSWORD//\//\\/}/[REDACTED]/g" -e "s/${RUNTIME_SQL_PASSWORD//\//\\/}/[REDACTED]/g"
+}
+
+Invoke-ArkanumSqlUpgradePreflight() {
+  if [ "${ACTION}" != "upgrade" ]; then
+    return
+  fi
+  command -v sqlcmd >/dev/null 2>&1 || fail "sqlcmd is required for SQL upgrade preflight."
+  local script_path="${PACKAGE_ROOT}/installers/sql/upgrade-preflight.sql"
+  [ -f "${script_path}" ] || script_path="${SCRIPT_DIR}/../sql/upgrade-preflight.sql"
+  [ -f "${script_path}" ] || fail "Missing SQL upgrade preflight script: ${script_path}"
+  info "Database reachability preflight"
+  info "Schema/version preflight"
+  info "Runtime login permission preflight"
+  info "SQL backup strongly recommended before upgrade."
+  info "Failure categories: database reachability, schema mismatch, permission problem, recovery-key mismatch."
+  sqlcmd -b -i "${script_path}" | sed -E 's/(Password=)[^;]+/\1[REDACTED]/g'
+}
+
 if [ "${EUID}" -ne 0 ]; then
   fail "Run as root or with sudo."
 fi
@@ -67,6 +133,10 @@ fi
 case "${ACTION}" in
   auto|install|upgrade|repair|side-by-side|restore) ;;
   *) fail "ACTION must be one of auto, install, upgrade, repair, side-by-side, restore." ;;
+esac
+case "${DATABASE_SETUP_MODE}" in
+  auto|use-existing-database|create-new-database|restore-database) ;;
+  *) fail "DATABASE_SETUP_MODE must be one of auto, use-existing-database, create-new-database, restore-database." ;;
 esac
 case "${RESTORE_SOURCE}" in
   dba-restored-database|sql-backup-file|attach-database-files) ;;
@@ -93,6 +163,13 @@ if [ ! -f "${PACKAGE_DIR}/Arkanum.Web.dll" ]; then
   fail "Published Arkanum.Web.dll was not found in PACKAGE_DIR=${PACKAGE_DIR}. Run from an Arkanum Linux package or set PACKAGE_DIR to the published app folder."
 fi
 
+if [ "${GENERATE_RUNTIME_PASSWORD}" = "true" ] && [ -z "${RUNTIME_SQL_PASSWORD}" ]; then
+  RUNTIME_SQL_PASSWORD=$(generate_runtime_password)
+fi
+if [ "${DATABASE_SETUP_MODE}" = "auto" ]; then
+  if [ "${ACTION}" = "restore" ]; then DATABASE_SETUP_MODE=restore-database; else DATABASE_SETUP_MODE=use-existing-database; fi
+fi
+build_runtime_sql_connection
 if [ -z "${ARKANUM_SQL_CONNECTION:-}" ]; then
   cat >&2 <<'EOF'
 [FAIL] ARKANUM_SQL_CONNECTION is required for Phase C installs and upgrades.
@@ -145,6 +222,9 @@ fi
 if [ "${ACTION}" = "restore" ] && [ "${RESTORE_SOURCE}" != "dba-restored-database" ]; then
   fail "SQL backup and attach restore paths are staged for DBA workflow selection but not automated in this release. For this release, restore the SQL database first, then choose RESTORE_SOURCE=dba-restored-database."
 fi
+
+Invoke-ArkanumSqlProvisioning
+Invoke-ArkanumSqlUpgradePreflight
 
 if ! id "${SERVICE_USER}" >/dev/null 2>&1; then
   info "Creating service user ${SERVICE_USER}."

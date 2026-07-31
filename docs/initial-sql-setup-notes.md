@@ -1,19 +1,89 @@
 # Arkanum initial SQL Server setup notes
 
-This is a planning note for the installer/setup workflow. The admin Settings page can now store SQL Server connection values, but those values do not by themselves move a running Arkanum instance to a different database. The running database provider is selected at application startup from `ConnectionStrings:DefaultConnection`.
+The installer now treats SQL Server setup as an explicit installation workflow instead of requiring the operator to pre-create a final application connection string by hand.
 
-Open questions for the installation workflow:
+## Database setup mode
 
-1. Whether the installer creates the SQL Server database or connects to an existing database.
-2. Which credential is used for one-time setup/migration work. This should be separate from the runtime web-application credential.
-3. Which least-privilege SQL login Arkanum uses at runtime after setup.
-4. Where the final active connection string is stored on Windows Server 2022/IIS, such as environment variables, appsettings production transform, or a protected configuration provider.
-5. Whether setup should run schema creation/migration automatically or require an explicit administrator confirmation.
-6. How setup reports success before restart: database exists, schema applied, runtime login verified, and application restarted against SQL Server.
+Supported database setup modes:
 
-Recommended direction:
+```text
+Auto detect
+Use existing database
+Create new database
+Restore from database backup
+```
 
-- Use an elevated setup credential only during installation to create the database/schema and runtime SQL login.
-- Store only the runtime SQL connection for normal application use.
-- Restart Arkanum after SQL settings are applied so Entity Framework uses the selected provider from startup.
-- Keep the admin Settings page as the control surface for connection values and status, but treat initial database creation as a dedicated setup/install step rather than a normal in-app save action.
+For `Use existing database`, provide an existing runtime SQL connection string or runtime SQL host/database/login/password values.
+
+For `Create new database`, the installer collects:
+
+```text
+SQL Server host
+SQL Server port
+Setup/admin SQL username
+Setup/admin SQL password
+Database name
+Runtime app login name
+Runtime app login password or Generate runtime password
+Encrypt connection
+Trust server certificate
+```
+
+The setup/admin SQL credential is used only during installation/provisioning. It is not written to the install-state manifest, runtime config, app environment file, web.config, or install report.
+
+Persist only the runtime SQL connection after provisioning. The runtime connection uses the limited runtime login.
+
+## Limited runtime login
+
+The provisioning script creates or reuses:
+
+- the Arkanum database;
+- a SQL login for the runtime application account;
+- a database user mapped to that login;
+- database-level membership needed for Arkanum runtime and EF migrations.
+
+The runtime login is intentionally database-scoped. It is not granted server-wide roles such as sysadmin or serveradmin.
+
+Current role grants:
+
+```text
+db_datareader
+db_datawriter
+db_ddladmin
+```
+
+`db_ddladmin` is included so EF Core schema updates can run during controlled installer upgrade/migration flows. If a future release moves all schema changes to a separate setup account, this can be reduced further.
+
+## SQL upgrade preflight
+
+Upgrade mode performs SQL upgrade preflight before replacing/restarting application files.
+
+Preflight checks include:
+
+- database reachability;
+- current database/schema marker check using `__EFMigrationsHistory`;
+- runtime login permission preflight;
+- clear failure categories for database reachability, schema mismatch, permission problem, and recovery-key mismatch;
+- pre-upgrade backup location/report guidance.
+
+A pre-upgrade backup is strongly recommended before migrations or file changes. Installer upgrade reports include rollback guidance for application files; database rollback remains a DBA operation requiring the matching SQL backup and Arkanum Recovery Key.
+
+## Reports and secret handling
+
+Reports must not include SQL passwords, setup credentials, runtime passwords, or Recovery Keys.
+
+Reports may include non-secret metadata such as:
+
+- database setup mode;
+- database name;
+- runtime SQL login name;
+- report path;
+- state manifest path;
+- pre-upgrade backup path;
+- health/preflight status.
+
+## Operator notes
+
+The admin Settings page can store SQL Server connection values for display/configuration, but those values do not by themselves move a running Arkanum instance to a different database. The active database provider is selected at application startup from `ConnectionStrings:DefaultConnection`.
+
+Initial database creation, runtime login provisioning, restore, and upgrade/migration should remain dedicated setup/install steps rather than normal in-app save actions.
