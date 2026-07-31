@@ -20,6 +20,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
     public LdapSyncSettings LdapSync { get; private set; } = new("12h");
     public MailServerSettings Mail { get; private set; } = new(string.Empty, "587", true, string.Empty, "Arkanum");
     public NotificationTemplateSettings NotificationTemplates { get; private set; } = new(string.Empty, string.Empty, string.Empty, string.Empty);
+    public CredentialResetReminderSettings CredentialResetReminders { get; private set; } = new(true, string.Empty, string.Empty, "08:00");
     public SyslogSettings Syslog { get; private set; } = new(string.Empty, "514", "UDP", false);
     public SqlServerSettings SqlServer { get; private set; } = new(string.Empty, "1433", "Arkanum", string.Empty, false, true, true);
     public FederationSettings Federation { get; private set; } = new("Local", string.Empty, string.Empty, false, "openid profile email", string.Empty, string.Empty, true);
@@ -59,10 +60,16 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
     [BindProperty] public bool MailUseTls { get; set; }
     [BindProperty] public string? MailFromAddress { get; set; }
     [BindProperty] public string? MailFromName { get; set; }
+    [BindProperty] public string? MailUsername { get; set; }
+    [BindProperty] public string? MailPassword { get; set; }
     [BindProperty] public string? NotificationAllUsersSubject { get; set; }
     [BindProperty] public string? NotificationAllUsersBody { get; set; }
     [BindProperty] public string? NotificationVaultAccessSubject { get; set; }
     [BindProperty] public string? NotificationVaultAccessBody { get; set; }
+    [BindProperty] public bool CredentialResetReminderEnabled { get; set; }
+    [BindProperty] public string? CredentialResetReminderSubject { get; set; }
+    [BindProperty] public string? CredentialResetReminderBody { get; set; }
+    [BindProperty] public string? CredentialResetReminderDailySendTime { get; set; }
 
     [BindProperty] public string? SyslogHost { get; set; }
     [BindProperty] public string? SyslogPort { get; set; }
@@ -153,7 +160,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
     {
         await LoadRolesAsync();
         if (!CanManageFeatureVisibility) return Forbid();
-        await portalSettings.SaveMailAsync(db, new MailServerSettings(MailSmtpHost ?? string.Empty, MailSmtpPort ?? string.Empty, MailUseTls, MailFromAddress ?? string.Empty, MailFromName ?? string.Empty), ActorKey());
+        await portalSettings.SaveMailAsync(db, new MailServerSettings(MailSmtpHost ?? string.Empty, MailSmtpPort ?? string.Empty, MailUseTls, MailFromAddress ?? string.Empty, MailFromName ?? string.Empty, MailUsername ?? string.Empty), MailPassword, ActorKey());
         TempData["Status"] = "Notification server settings saved.";
         return RedirectToSettingsTab("notifications");
     }
@@ -164,6 +171,16 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         if (!CanManageFeatureVisibility) return Forbid();
         await portalSettings.SaveNotificationTemplatesAsync(db, new NotificationTemplateSettings(NotificationAllUsersSubject ?? string.Empty, NotificationAllUsersBody ?? string.Empty, NotificationVaultAccessSubject ?? string.Empty, NotificationVaultAccessBody ?? string.Empty), ActorKey());
         TempData["Status"] = "Notification templates saved.";
+        return RedirectToSettingsTab("notifications");
+    }
+
+
+    public async Task<IActionResult> OnPostCredentialResetRemindersAsync()
+    {
+        await LoadRolesAsync();
+        if (!CanManageFeatureVisibility) return Forbid();
+        await portalSettings.SaveCredentialResetRemindersAsync(db, new CredentialResetReminderSettings(CredentialResetReminderEnabled, CredentialResetReminderSubject ?? string.Empty, CredentialResetReminderBody ?? string.Empty, CredentialResetReminderDailySendTime ?? string.Empty), ActorKey());
+        TempData["Status"] = "Credential reset reminder settings saved.";
         return RedirectToSettingsTab("notifications");
     }
 
@@ -320,7 +337,13 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         LdapSync = PortalSettingsService.ToLdapSync(settings);
         LdapSyncInterval = LdapSync.Interval;
         Mail = PortalSettingsService.ToMail(settings);
+        MailUsername = Mail.Username;
         NotificationTemplates = PortalSettingsService.ToNotificationTemplates(settings);
+        CredentialResetReminders = PortalSettingsService.ToCredentialResetReminders(settings);
+        CredentialResetReminderEnabled = CredentialResetReminders.Enabled;
+        CredentialResetReminderSubject = CredentialResetReminders.SubjectTemplate;
+        CredentialResetReminderBody = CredentialResetReminders.BodyTemplate;
+        CredentialResetReminderDailySendTime = CredentialResetReminders.DailySendTime;
         Syslog = PortalSettingsService.ToSyslog(settings);
         SqlServer = PortalSettingsService.ToSqlServer(settings);
         SqlServerHost = SqlServer.Host;

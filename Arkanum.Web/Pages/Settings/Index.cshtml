@@ -174,6 +174,8 @@
             <div class="settings-form-grid">
                 <label>SMTP host<input name="MailSmtpHost" value="@Model.Mail.SmtpHost" placeholder="smtp.example.local" /></label>
                 <label>SMTP port<input name="MailSmtpPort" value="@Model.Mail.SmtpPort" placeholder="587" /></label>
+                <label>SMTP username<input name="MailUsername" value="@Model.Mail.Username" autocomplete="username" /></label>
+                <label>SMTP password<input name="MailPassword" type="password" autocomplete="new-password" placeholder="Leave blank to keep saved password" /></label>
                 <label>From address<input name="MailFromAddress" value="@Model.Mail.FromAddress" placeholder="arkanum@email.com" /></label>
                 <label>From name<input name="MailFromName" value="@Model.Mail.FromName" placeholder="Arkanum" /></label>
             </div>
@@ -191,6 +193,19 @@
             <label>All active users message<textarea name="NotificationAllUsersBody" rows="6">@Model.NotificationTemplates.AllUsersBody</textarea></label>
             <label>Vault access granted message<textarea name="NotificationVaultAccessBody" rows="6">@Model.NotificationTemplates.VaultAccessBody</textarea></label>
             <button class="primary-action" type="submit">Save email templates</button>
+        </form>
+        <form method="post" asp-page-handler="CredentialResetReminders" class="card-form settings-wide-form mt-3">
+            <h3>Credential reset reminders</h3>
+            <p class="form-help">Send one digest per eligible vault member when credential reset notification dates are due. Global administrators are excluded from vault reminder digests, and reminder emails never include secret values.</p>
+            <label class="check-row"><input name="CredentialResetReminderEnabled" type="checkbox" value="true" checked="@Model.CredentialResetReminders.Enabled" /> Enable credential reset reminders</label>
+            <input name="CredentialResetReminderEnabled" type="hidden" value="false" />
+            <div class="settings-form-grid">
+                <label>Credential reset reminder daily send time<input name="CredentialResetReminderDailySendTime" type="time" value="@Model.CredentialResetReminders.DailySendTime" /></label>
+                <label>Reminder subject template<input name="CredentialResetReminderSubject" value="@Model.CredentialResetReminders.SubjectTemplate" /></label>
+            </div>
+            <p class="form-help">Available variables: <code>{{displayName}}</code>, <code>{{email}}</code>, <code>{{CredentialList}}</code>, <code>{{VaultName}}</code>, <code>{{CredentialName}}</code>, and <code>{{DueDate}}</code>.</p>
+            <label>Reminder body template<textarea name="CredentialResetReminderBody" rows="7">@Model.CredentialResetReminders.BodyTemplate</textarea></label>
+            <button class="primary-action" type="submit">Save credential reset reminders</button>
         </form>
         <form method="post" asp-page-handler="SendAllUsersNotification" class="card-form settings-wide-form mt-3">
             <h3>Send notification to all active users</h3>

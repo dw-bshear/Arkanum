@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Mail;
 using Arkanum.Web.Data;
 using Arkanum.Web.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +18,35 @@ public sealed class NoOpEmailSender : IEmailSender
     public Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
 
+public sealed class SmtpEmailSender(IServiceScopeFactory scopeFactory) : IEmailSender
+{
+    public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ArkanumDbContext>();
+        var settingsService = scope.ServiceProvider.GetRequiredService<PortalSettingsService>();
+        var settings = await settingsService.GetAllAsync(db);
+        var mail = PortalSettingsService.ToMail(settings);
+        if (string.IsNullOrWhiteSpace(mail.SmtpHost) || string.IsNullOrWhiteSpace(mail.FromAddress)) return;
+
+        using var smtp = new SmtpClient(mail.SmtpHost, int.TryParse(mail.SmtpPort, out var port) ? port : 587)
+        {
+            EnableSsl = mail.UseTls
+        };
+        var password = settings[PortalSettingKeys.MailPassword];
+        if (!string.IsNullOrWhiteSpace(mail.Username) && !string.IsNullOrWhiteSpace(password))
+        {
+            smtp.Credentials = new NetworkCredential(mail.Username, password);
+        }
+        using var mailMessage = new MailMessage(new MailAddress(mail.FromAddress, mail.FromName), new MailAddress(message.To))
+        {
+            Subject = message.Subject,
+            Body = message.Body
+        };
+        await smtp.SendMailAsync(mailMessage, cancellationToken);
+    }
+}
+
 public sealed record CredentialResetReminderResult(int DueItems, int MessagesSent);
 
 public sealed class CredentialResetReminderService(IEmailSender emailSender, PortalSettingsService settingsService)
@@ -30,26 +61,31 @@ public sealed class CredentialResetReminderService(IEmailSender emailSender, Por
         if (dueItems.Count == 0) return new CredentialResetReminderResult(0, 0);
 
         var settings = await settingsService.GetAllAsync(db);
-        var subjectTemplate = settings.GetValueOrDefault(PortalSettingKeys.CredentialResetReminderSubject, "Arkanum credential reset reminder");
-        var bodyTemplate = settings.GetValueOrDefault(PortalSettingKeys.CredentialResetReminderBody, DefaultBodyTemplate);
+        var reminderSettings = PortalSettingsService.ToCredentialResetReminders(settings);
+        if (!reminderSettings.Enabled) return new CredentialResetReminderResult(dueItems.Count, 0);
+
+        var subjectTemplate = reminderSettings.SubjectTemplate;
+        var bodyTemplate = reminderSettings.BodyTemplate;
         var messagesSent = 0;
+        var dueVaultIds = dueItems.Select(d => d.Item.VaultId).Distinct().ToArray();
+        var memberships = (await db.VaultMembers.AsNoTracking()
+            .Where(m => dueVaultIds.Contains(m.VaultId))
+            .Join(db.Users.AsNoTracking(), m => m.UserKey, u => u.UserKey, (m, u) => new { m.VaultId, User = u })
+            .Where(x => x.User.AppAccessEnabled && x.User.Email != "")
+            .ToListAsync(cancellationToken))
+            .Where(x => !HasRole(x.User, ArkanumRole.Administrator))
+            .ToList();
 
-        foreach (var group in dueItems.GroupBy(d => d.Item.VaultId))
+        foreach (var recipientGroup in memberships.GroupBy(x => x.User.Email.Trim().ToLowerInvariant()))
         {
-            var vaultItems = group.ToList();
-            var recipients = await db.VaultMembers.AsNoTracking()
-                .Where(m => m.VaultId == group.Key)
-                .Join(db.Users.AsNoTracking(), m => m.UserKey, u => u.UserKey, (_, u) => u)
-                .Where(u => u.AppAccessEnabled && u.Email != "" && !u.RolesCsv.Split(',', StringSplitOptions.RemoveEmptyEntries).Contains(nameof(ArkanumRole.Administrator)))
-                .ToListAsync(cancellationToken);
-
-            foreach (var recipient in recipients.DistinctBy(u => u.Email.ToLowerInvariant()))
-            {
-                var subject = subjectTemplate.Replace("{{VaultName}}", vaultItems[0].VaultName, StringComparison.OrdinalIgnoreCase);
-                var body = BuildBody(bodyTemplate, recipient, vaultItems);
-                await emailSender.SendAsync(new EmailMessage(recipient.Email, subject, body), cancellationToken);
-                messagesSent++;
-            }
+            var recipient = recipientGroup.First().User;
+            var allowedVaultIds = recipientGroup.Select(x => x.VaultId).ToHashSet();
+            var recipientItems = dueItems.Where(d => allowedVaultIds.Contains(d.Item.VaultId)).ToList();
+            if (recipientItems.Count == 0) continue;
+            var subject = ApplyTemplate(subjectTemplate, recipient, recipientItems);
+            var body = ApplyTemplate(bodyTemplate, recipient, recipientItems);
+            await emailSender.SendAsync(new EmailMessage(recipient.Email.Trim(), subject, body), cancellationToken);
+            messagesSent++;
         }
 
         foreach (var due in dueItems)
@@ -68,18 +104,21 @@ public sealed class CredentialResetReminderService(IEmailSender emailSender, Por
         return new CredentialResetReminderResult(dueItems.Count, messagesSent);
     }
 
-    private static string BuildBody(string template, AppUserEntity recipient, IReadOnlyList<DueCredential> dueItems)
+    private static bool HasRole(AppUserEntity user, ArkanumRole role) => user.RolesCsv
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Any(r => string.Equals(r, role.ToString(), StringComparison.OrdinalIgnoreCase));
+
+    private static string ApplyTemplate(string template, AppUserEntity recipient, IReadOnlyList<DueCredential> dueItems)
     {
         var lines = dueItems.Select(d => $"Vault: {d.VaultName}\nCredential: {d.Item.Title}\nDue date: {d.Item.ResetNotificationDate:yyyy-MM-dd}");
         return template
             .Replace("{{displayName}}", string.IsNullOrWhiteSpace(recipient.DisplayName) ? recipient.Username : recipient.DisplayName, StringComparison.OrdinalIgnoreCase)
+            .Replace("{{email}}", recipient.Email, StringComparison.OrdinalIgnoreCase)
             .Replace("{{CredentialList}}", string.Join("\n\n", lines), StringComparison.OrdinalIgnoreCase)
             .Replace("{{VaultName}}", dueItems[0].VaultName, StringComparison.OrdinalIgnoreCase)
             .Replace("{{CredentialName}}", dueItems[0].Item.Title, StringComparison.OrdinalIgnoreCase)
             .Replace("{{DueDate}}", dueItems[0].Item.ResetNotificationDate?.ToString("yyyy-MM-dd") ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
-
-    private const string DefaultBodyTemplate = "Hello {{displayName}},\n\nThe following credentials are due for review or password reset:\n\n{{CredentialList}}\n\nSign in to Arkanum to review the credential. This email does not contain secret values.";
 
     private sealed record DueCredential(VaultItemEntity Item, string VaultName);
 }

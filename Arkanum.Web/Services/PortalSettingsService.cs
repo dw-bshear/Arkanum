@@ -21,6 +21,8 @@ public static class PortalSettingKeys
     public const string MailSmtpHost = "mail.smtpHost";
     public const string MailSmtpPort = "mail.smtpPort";
     public const string MailUseTls = "mail.useTls";
+    public const string MailUsername = "mail.username";
+    public const string MailPassword = "mail.password";
     public const string MailFromAddress = "mail.fromAddress";
     public const string MailFromName = "mail.fromName";
     public const string NotificationAllUsersSubject = "notifications.allUsers.subject";
@@ -30,6 +32,7 @@ public static class PortalSettingKeys
     public const string CredentialResetReminderEnabled = "notifications.credentialReset.enabled";
     public const string CredentialResetReminderSubject = "notifications.credentialReset.subject";
     public const string CredentialResetReminderBody = "notifications.credentialReset.body";
+    public const string CredentialResetReminderDailySendTime = "notifications.credentialReset.dailySendTime";
     public const string SyslogHost = "syslog.host";
     public const string SyslogPort = "syslog.port";
     public const string SyslogProtocol = "syslog.protocol";
@@ -54,8 +57,9 @@ public static class PortalSettingKeys
 public sealed record DashboardTextSettings(string HeroTitle, string HeroDescription);
 public sealed record LdapSettings(string Host, string Port, string BaseDn, string BindDn, string BindPassword, string UserFilter, string LoginAttribute, string DisplayNameAttribute, string EmailAttribute);
 public sealed record LdapSyncSettings(string Interval);
-public sealed record MailServerSettings(string SmtpHost, string SmtpPort, bool UseTls, string FromAddress, string FromName);
+public sealed record MailServerSettings(string SmtpHost, string SmtpPort, bool UseTls, string FromAddress, string FromName, string Username = "", bool HasPassword = false);
 public sealed record NotificationTemplateSettings(string AllUsersSubject, string AllUsersBody, string VaultAccessSubject, string VaultAccessBody);
+public sealed record CredentialResetReminderSettings(bool Enabled, string SubjectTemplate, string BodyTemplate, string DailySendTime);
 public sealed record SyslogSettings(string Host, string Port, string Protocol, bool Enabled);
 public sealed record SqlServerSettings(string Host, string Port, string Database, string User, bool HasPassword, bool Encrypt, bool TrustServerCertificate);
 public sealed record FederationSettings(string Mode, string OidcAuthority, string OidcClientId, bool HasOidcClientSecret, string OidcScopes, string SamlMetadataUrl, string SamlEntityId, bool RequireExternalMfa)
@@ -86,6 +90,8 @@ public sealed class PortalSettingsService
         [PortalSettingKeys.MailSmtpHost] = string.Empty,
         [PortalSettingKeys.MailSmtpPort] = "587",
         [PortalSettingKeys.MailUseTls] = "true",
+        [PortalSettingKeys.MailUsername] = string.Empty,
+        [PortalSettingKeys.MailPassword] = string.Empty,
         [PortalSettingKeys.MailFromAddress] = string.Empty,
         [PortalSettingKeys.MailFromName] = "Arkanum",
         [PortalSettingKeys.NotificationAllUsersSubject] = "Arkanum notice",
@@ -95,6 +101,7 @@ public sealed class PortalSettingsService
         [PortalSettingKeys.CredentialResetReminderEnabled] = "true",
         [PortalSettingKeys.CredentialResetReminderSubject] = "Arkanum credential reset reminder",
         [PortalSettingKeys.CredentialResetReminderBody] = "Hello {{displayName}},\n\nThe following credentials are due for review or password reset:\n\n{{CredentialList}}\n\nSign in to Arkanum to review the credential. This email does not contain secret values.",
+        [PortalSettingKeys.CredentialResetReminderDailySendTime] = "08:00",
         [PortalSettingKeys.SyslogHost] = string.Empty,
         [PortalSettingKeys.SyslogPort] = "514",
         [PortalSettingKeys.SyslogProtocol] = "UDP",
@@ -169,14 +176,22 @@ public sealed class PortalSettingsService
         await SetAsync(db, new Dictionary<string, string> { [PortalSettingKeys.LdapSyncInterval] = interval }, actorUserKey);
     }
 
-    public async Task SaveMailAsync(ArkanumDbContext db, MailServerSettings input, string actorUserKey) => await SetAsync(db, new Dictionary<string, string>
+    public async Task SaveMailAsync(ArkanumDbContext db, MailServerSettings input, string actorUserKey) => await SaveMailAsync(db, input, null, actorUserKey);
+
+    public async Task SaveMailAsync(ArkanumDbContext db, MailServerSettings input, string? password, string actorUserKey)
     {
-        [PortalSettingKeys.MailSmtpHost] = input.SmtpHost.Trim(),
-        [PortalSettingKeys.MailSmtpPort] = input.SmtpPort.Trim(),
-        [PortalSettingKeys.MailUseTls] = input.UseTls ? "true" : "false",
-        [PortalSettingKeys.MailFromAddress] = input.FromAddress.Trim(),
-        [PortalSettingKeys.MailFromName] = input.FromName.Trim()
-    }, actorUserKey);
+        var values = new Dictionary<string, string>
+        {
+            [PortalSettingKeys.MailSmtpHost] = input.SmtpHost.Trim(),
+            [PortalSettingKeys.MailSmtpPort] = input.SmtpPort.Trim(),
+            [PortalSettingKeys.MailUseTls] = input.UseTls ? "true" : "false",
+            [PortalSettingKeys.MailUsername] = input.Username.Trim(),
+            [PortalSettingKeys.MailFromAddress] = input.FromAddress.Trim(),
+            [PortalSettingKeys.MailFromName] = input.FromName.Trim()
+        };
+        if (!string.IsNullOrWhiteSpace(password)) values[PortalSettingKeys.MailPassword] = password.Trim();
+        await SetAsync(db, values, actorUserKey);
+    }
 
     public async Task SaveNotificationTemplatesAsync(ArkanumDbContext db, NotificationTemplateSettings input, string actorUserKey) => await SetAsync(db, new Dictionary<string, string>
     {
@@ -184,6 +199,14 @@ public sealed class PortalSettingsService
         [PortalSettingKeys.NotificationAllUsersBody] = input.AllUsersBody.Trim(),
         [PortalSettingKeys.NotificationVaultAccessSubject] = input.VaultAccessSubject.Trim(),
         [PortalSettingKeys.NotificationVaultAccessBody] = input.VaultAccessBody.Trim()
+    }, actorUserKey);
+
+    public async Task SaveCredentialResetRemindersAsync(ArkanumDbContext db, CredentialResetReminderSettings input, string actorUserKey) => await SetAsync(db, new Dictionary<string, string>
+    {
+        [PortalSettingKeys.CredentialResetReminderEnabled] = input.Enabled ? "true" : "false",
+        [PortalSettingKeys.CredentialResetReminderSubject] = string.IsNullOrWhiteSpace(input.SubjectTemplate) ? Defaults[PortalSettingKeys.CredentialResetReminderSubject] : input.SubjectTemplate.Trim(),
+        [PortalSettingKeys.CredentialResetReminderBody] = string.IsNullOrWhiteSpace(input.BodyTemplate) ? Defaults[PortalSettingKeys.CredentialResetReminderBody] : input.BodyTemplate.Trim(),
+        [PortalSettingKeys.CredentialResetReminderDailySendTime] = NormalizeDailySendTime(input.DailySendTime)
     }, actorUserKey);
 
     public async Task SaveSyslogAsync(ArkanumDbContext db, SyslogSettings input, string actorUserKey) => await SetAsync(db, new Dictionary<string, string>
@@ -241,8 +264,9 @@ public sealed class PortalSettingsService
 
     public static LdapSettings ToLdap(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.LdapHost], settings[PortalSettingKeys.LdapPort], settings[PortalSettingKeys.LdapBaseDn], settings[PortalSettingKeys.LdapBindDn], settings[PortalSettingKeys.LdapBindPassword], settings[PortalSettingKeys.LdapUserFilter], settings[PortalSettingKeys.LdapLoginAttribute], settings[PortalSettingKeys.LdapDisplayNameAttribute], settings[PortalSettingKeys.LdapEmailAttribute]);
     public static LdapSyncSettings ToLdapSync(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.LdapSyncInterval]);
-    public static MailServerSettings ToMail(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.MailSmtpHost], settings[PortalSettingKeys.MailSmtpPort], string.Equals(settings[PortalSettingKeys.MailUseTls], "true", StringComparison.OrdinalIgnoreCase), settings[PortalSettingKeys.MailFromAddress], settings[PortalSettingKeys.MailFromName]);
+    public static MailServerSettings ToMail(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.MailSmtpHost], settings[PortalSettingKeys.MailSmtpPort], string.Equals(settings[PortalSettingKeys.MailUseTls], "true", StringComparison.OrdinalIgnoreCase), settings[PortalSettingKeys.MailFromAddress], settings[PortalSettingKeys.MailFromName], settings[PortalSettingKeys.MailUsername], !string.IsNullOrWhiteSpace(settings[PortalSettingKeys.MailPassword]));
     public static NotificationTemplateSettings ToNotificationTemplates(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.NotificationAllUsersSubject], settings[PortalSettingKeys.NotificationAllUsersBody], settings[PortalSettingKeys.NotificationVaultAccessSubject], settings[PortalSettingKeys.NotificationVaultAccessBody]);
+    public static CredentialResetReminderSettings ToCredentialResetReminders(IReadOnlyDictionary<string, string> settings) => new(string.Equals(settings[PortalSettingKeys.CredentialResetReminderEnabled], "true", StringComparison.OrdinalIgnoreCase), settings[PortalSettingKeys.CredentialResetReminderSubject], settings[PortalSettingKeys.CredentialResetReminderBody], settings[PortalSettingKeys.CredentialResetReminderDailySendTime]);
     public static SyslogSettings ToSyslog(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.SyslogHost], settings[PortalSettingKeys.SyslogPort], settings[PortalSettingKeys.SyslogProtocol], string.Equals(settings[PortalSettingKeys.SyslogEnabled], "true", StringComparison.OrdinalIgnoreCase));
     public static SqlServerSettings ToSqlServer(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.SqlServerHost], settings[PortalSettingKeys.SqlServerPort], settings[PortalSettingKeys.SqlServerDatabase], settings[PortalSettingKeys.SqlServerUser], !string.IsNullOrWhiteSpace(settings[PortalSettingKeys.SqlServerPassword]), string.Equals(settings[PortalSettingKeys.SqlServerEncrypt], "true", StringComparison.OrdinalIgnoreCase), string.Equals(settings[PortalSettingKeys.SqlServerTrustServerCertificate], "true", StringComparison.OrdinalIgnoreCase));
     public static FederationSettings ToFederation(IReadOnlyDictionary<string, string> settings) => new(
@@ -254,6 +278,8 @@ public sealed class PortalSettingsService
         settings[PortalSettingKeys.SamlMetadataUrl],
         settings[PortalSettingKeys.SamlEntityId],
         string.Equals(settings[PortalSettingKeys.RequireExternalMfa], "true", StringComparison.OrdinalIgnoreCase));
+
+    private static string NormalizeDailySendTime(string value) => TimeOnly.TryParse(value, out var parsed) ? parsed.ToString("HH:mm") : Defaults[PortalSettingKeys.CredentialResetReminderDailySendTime];
 
     private static async Task SetAsync(ArkanumDbContext db, IReadOnlyDictionary<string, string> values, string actorUserKey)
     {
