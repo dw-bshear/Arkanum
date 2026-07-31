@@ -7,7 +7,15 @@ using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddRazorPages();
+builder.Services.AddRazorPages(options =>
+{
+    options.Conventions.AuthorizeFolder("/");
+    options.Conventions.AllowAnonymousToPage("/Index");
+    options.Conventions.AllowAnonymousToPage("/Login");
+    options.Conventions.AllowAnonymousToPage("/ManualLogin");
+    options.Conventions.AllowAnonymousToPage("/Setup");
+    options.Conventions.AllowAnonymousToPage("/Error");
+});
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options => ArkanumCookiePolicy.Configure(options, builder.Configuration))
     .AddOpenIdConnect(FederatedAuthenticationService.OidcScheme, _ => { });
@@ -131,7 +139,7 @@ app.MapGet("/install-report", async (ArkanumDbContext db, InstallReportService r
     return Results.Ok(report);
 });
 app.MapStaticAssets();
-app.MapRazorPages().WithStaticAssets();
+app.MapRazorPages().WithStaticAssets().RequireAuthorization();
 app.Run();
 
 static void TrySqlitePatch(ArkanumDbContext db, string sql)
