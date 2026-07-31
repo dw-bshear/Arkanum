@@ -50,7 +50,7 @@ public sealed class VaultRepository
         var existing = await db.VaultMembers
             .Where(m => m.UserKey == userKey && m.CanInvite)
             .Join(db.Vaults, m => m.VaultId, v => v.Id, (_, v) => v)
-            .SingleOrDefaultAsync(v => v.CreatedByUserKey == userKey && v.Name == PersonalVaultName(username));
+            .SingleOrDefaultAsync(v => !v.IsRetired && v.CreatedByUserKey == userKey && v.Name == PersonalVaultName(username));
         if (existing is not null) return existing;
 
         return await CreateVaultAsync(db, PersonalVaultName(username), "Your personal credential vault. Invite other users when you want to share access.", userKey, now);
@@ -58,7 +58,7 @@ public sealed class VaultRepository
 
     public async Task<IReadOnlyList<VaultSummary>> ListVaultsAsync(ArkanumDbContext db)
     {
-        var vaults = await db.Vaults.AsNoTracking().OrderBy(v => v.Name).ToListAsync();
+        var vaults = await db.Vaults.AsNoTracking().Where(v => !v.IsRetired).OrderBy(v => v.Name).ToListAsync();
         return await SummarizeVaultsAsync(db, vaults);
     }
 
@@ -72,6 +72,7 @@ public sealed class VaultRepository
         var vaults = await db.VaultMembers.AsNoTracking()
             .Where(m => m.UserKey == userKey)
             .Join(db.Vaults.AsNoTracking(), m => m.VaultId, v => v.Id, (_, v) => v)
+            .Where(v => !v.IsRetired)
             .OrderBy(v => v.Name)
             .ToListAsync();
         return await SummarizeVaultsAsync(db, vaults);
@@ -93,6 +94,10 @@ public sealed class VaultRepository
             vault.Id,
             vault.Name,
             vault.Description,
+            vault.IsRetired,
+            vault.RetiredAt,
+            vault.RetiredByUserKey,
+            vault.RetirementReason,
             members,
             folders.Select(f => new VaultFolderDetails(
                 f.Id,
@@ -102,7 +107,9 @@ public sealed class VaultRepository
 
     public async Task<bool> CanAccessVaultAsync(ArkanumDbContext db, Guid vaultId, string userKey, IReadOnlyCollection<ArkanumRole> roles)
     {
+        var isRetired = await db.Vaults.Where(v => v.Id == vaultId).Select(v => v.IsRetired).SingleOrDefaultAsync();
         if (ArkanumRoleCapabilities.CanReviewAllVaults(roles)) return true;
+        if (isRetired) return false;
         return await db.VaultMembers.AnyAsync(m => m.VaultId == vaultId && m.UserKey == userKey);
     }
 
@@ -150,6 +157,30 @@ public sealed class VaultRepository
             Target = vault.Name,
             OccurredAt = now,
             Message = "Vault metadata updated."
+        });
+        await db.SaveChangesAsync();
+    }
+
+    public async Task RetireVaultAsync(ArkanumDbContext db, Guid vaultId, string actorUserKey, IReadOnlyCollection<ArkanumRole> roles, string confirmationName, DateTimeOffset now)
+    {
+        if (!ArkanumRoleCapabilities.IsAdministrator(roles)) throw new UnauthorizedAccessException("Only administrators can retire vaults.");
+        var vault = await db.Vaults.SingleAsync(v => v.Id == vaultId);
+        if (vault.IsRetired) return;
+        if (!string.Equals(vault.Name, confirmationName?.Trim(), StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Type the exact vault name to confirm retirement.");
+        }
+        vault.IsRetired = true;
+        vault.RetiredAt = now;
+        vault.RetiredByUserKey = actorUserKey;
+        vault.RetirementReason = string.IsNullOrWhiteSpace(confirmationName) ? "Retired by administrator" : "Retired by administrator after exact-name confirmation";
+        db.AuditEvents.Add(new AuditEventEntity
+        {
+            Type = AuditEventType.VaultAssignmentChanged,
+            ActorUserKey = actorUserKey,
+            Target = vault.Name,
+            OccurredAt = now,
+            Message = "Vault retired by administrator. Vault contents were preserved and hidden from normal vault lists. Secret values were not logged."
         });
         await db.SaveChangesAsync();
     }
@@ -224,7 +255,7 @@ public sealed class VaultRepository
 }
 
 public sealed record VaultSummary(Guid Id, string Name, string Description, int FolderCount, int ItemCount, DateTimeOffset CreatedAt);
-public sealed record VaultDetails(Guid Id, string Name, string Description, IReadOnlyList<VaultMemberSummary> Members, IReadOnlyList<VaultFolderDetails> Folders);
+public sealed record VaultDetails(Guid Id, string Name, string Description, bool IsRetired, DateTimeOffset? RetiredAt, string RetiredByUserKey, string RetirementReason, IReadOnlyList<VaultMemberSummary> Members, IReadOnlyList<VaultFolderDetails> Folders);
 public sealed record VaultMemberSummary(string UserKey, string Username, string DisplayName, bool CanInvite);
 public sealed record VaultFolderDetails(Guid Id, string Name, IReadOnlyList<VaultItemSummary> Items);
 public sealed record VaultItemSummary(Guid Id, string Title, VaultItemType Type, string? Username, DateOnly? ResetNotificationDate);

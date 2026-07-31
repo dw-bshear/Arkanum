@@ -75,6 +75,10 @@ public sealed class VaultEntity
     public string Description { get; set; } = string.Empty;
     public string CreatedByUserKey { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public bool IsRetired { get; set; }
+    public DateTimeOffset? RetiredAt { get; set; }
+    public string RetiredByUserKey { get; set; } = string.Empty;
+    public string RetirementReason { get; set; } = string.Empty;
 }
 
 public sealed class VaultFolderEntity

@@ -10,9 +10,12 @@ public class IndexModel(VaultRepository repository, Arkanum.Web.Data.ArkanumDbCo
 {
     [BindProperty] public string Name { get; set; } = string.Empty;
     [BindProperty] public string Description { get; set; } = string.Empty;
+    [BindProperty] public Guid RetireVaultId { get; set; }
+    [BindProperty] public string? RetireConfirmationName { get; set; }
     public IReadOnlyList<VaultSummary> Vaults { get; private set; } = [];
     public bool IsStandardUser { get; private set; }
     public bool CanCreateVault { get; private set; }
+    public bool CanRetireVaults { get; private set; }
 
     public async Task OnGetAsync()
     {
@@ -35,11 +38,30 @@ public class IndexModel(VaultRepository repository, Arkanum.Web.Data.ArkanumDbCo
         return RedirectToPage();
     }
 
+    public async Task<IActionResult> OnPostRetireAsync()
+    {
+        var roles = CurrentRoles();
+        if (!ArkanumRoleCapabilities.IsAdministrator(roles)) return Forbid();
+        try
+        {
+            await repository.RetireVaultAsync(db, RetireVaultId, ActorKey(), roles, RetireConfirmationName ?? string.Empty, DateTimeOffset.UtcNow);
+        }
+        catch (InvalidOperationException ex)
+        {
+            ModelState.AddModelError(nameof(RetireConfirmationName), ex.Message);
+            await EnsureStandardPersonalVaultAsync();
+            Vaults = await repository.ListVaultsForUserAsync(db, ActorKey(), roles);
+            return Page();
+        }
+        return RedirectToPage();
+    }
+
     private async Task EnsureStandardPersonalVaultAsync()
     {
         var roles = CurrentRoles();
         IsStandardUser = roles.SetEquals([ArkanumRole.User]);
         CanCreateVault = ArkanumRoleCapabilities.CanCreateVault(roles) || ArkanumRoleCapabilities.CanManageAnyVault(roles);
+        CanRetireVaults = ArkanumRoleCapabilities.IsAdministrator(roles);
         if (User?.Identity?.IsAuthenticated == true && IsStandardUser)
         {
             await repository.EnsurePersonalVaultAsync(db, ActorKey(), User.Identity.Name ?? "User", DateTimeOffset.UtcNow);

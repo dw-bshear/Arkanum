@@ -11,6 +11,8 @@ public sealed class Vault
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public bool IsRetired { get; set; }
+    public DateTimeOffset? RetiredAt { get; set; }
     public List<VaultFolder> Folders { get; set; } = [];
 }
 

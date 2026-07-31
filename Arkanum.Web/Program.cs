@@ -81,6 +81,10 @@ using (var scope = app.Services.CreateScope())
         db.Database.ExecuteSqlRaw("IF OBJECT_ID('RecoveryStates', 'U') IS NULL CREATE TABLE [RecoveryStates] ([Id] nvarchar(64) NOT NULL CONSTRAINT PK_RecoveryStates PRIMARY KEY, [RecoveryKeyId] nvarchar(128) NOT NULL, [EncryptedSentinel] nvarchar(max) NOT NULL, [EncryptionAlgorithm] nvarchar(64) NOT NULL, [CreatedAt] datetimeoffset NOT NULL)");
         db.Database.ExecuteSqlRaw("IF COL_LENGTH('VaultItems', 'ResetNotificationDate') IS NULL ALTER TABLE [VaultItems] ADD [ResetNotificationDate] date NULL");
         db.Database.ExecuteSqlRaw("IF COL_LENGTH('VaultItems', 'ResetNotificationSentAt') IS NULL ALTER TABLE [VaultItems] ADD [ResetNotificationSentAt] datetimeoffset NULL");
+        db.Database.ExecuteSqlRaw("IF COL_LENGTH('Vaults', 'IsRetired') IS NULL ALTER TABLE [Vaults] ADD [IsRetired] bit NOT NULL CONSTRAINT DF_Vaults_IsRetired DEFAULT 0");
+        db.Database.ExecuteSqlRaw("IF COL_LENGTH('Vaults', 'RetiredAt') IS NULL ALTER TABLE [Vaults] ADD [RetiredAt] datetimeoffset NULL");
+        db.Database.ExecuteSqlRaw("IF COL_LENGTH('Vaults', 'RetiredByUserKey') IS NULL ALTER TABLE [Vaults] ADD [RetiredByUserKey] nvarchar(max) NOT NULL CONSTRAINT DF_Vaults_RetiredByUserKey DEFAULT ''");
+        db.Database.ExecuteSqlRaw("IF COL_LENGTH('Vaults', 'RetirementReason') IS NULL ALTER TABLE [Vaults] ADD [RetirementReason] nvarchar(max) NOT NULL CONSTRAINT DF_Vaults_RetirementReason DEFAULT ''");
     }
     if (string.IsNullOrWhiteSpace(connectionString))
     {
@@ -96,6 +100,10 @@ using (var scope = app.Services.CreateScope())
         TrySqlitePatch(db, "ALTER TABLE Users ADD COLUMN LockoutEndAt TEXT NULL");
         TrySqlitePatch(db, "ALTER TABLE VaultItems ADD COLUMN ResetNotificationDate TEXT NULL");
         TrySqlitePatch(db, "ALTER TABLE VaultItems ADD COLUMN ResetNotificationSentAt TEXT NULL");
+        TrySqlitePatch(db, "ALTER TABLE Vaults ADD COLUMN IsRetired INTEGER NOT NULL DEFAULT 0");
+        TrySqlitePatch(db, "ALTER TABLE Vaults ADD COLUMN RetiredAt TEXT NULL");
+        TrySqlitePatch(db, "ALTER TABLE Vaults ADD COLUMN RetiredByUserKey TEXT NOT NULL DEFAULT ''");
+        TrySqlitePatch(db, "ALTER TABLE Vaults ADD COLUMN RetirementReason TEXT NOT NULL DEFAULT ''");
     }
     scope.ServiceProvider.GetRequiredService<DashboardService>().EnsureDefaultWidgetsAsync(db).GetAwaiter().GetResult();
     scope.ServiceProvider.GetRequiredService<PortalSettingsService>().EnsureDefaultsAsync(db).GetAwaiter().GetResult();

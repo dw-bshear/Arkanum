@@ -8,6 +8,10 @@
 @if (Model.Vault is not null)
 {
 <section class="section-heading vault-detail-heading">
+    @if (Model.Vault.IsRetired)
+    {
+        <div class="notice warning">This is a retired vault. It is hidden from normal vault lists; contents are preserved for administrator/auditor review.</div>
+    }
     <div>
         <p class="eyebrow">Vault</p>
         <h1>@Model.Vault.Name</h1>

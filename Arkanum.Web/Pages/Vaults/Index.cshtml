@@ -27,15 +27,36 @@
 </section>
 <div class="table-card mt-3">
 <table>
-<thead><tr><th>Name</th><th>Description</th><th>Folders</th><th>Items</th><th>Created</th></tr></thead>
+<thead><tr><th>Name</th><th>Description</th><th>Folders</th><th>Items</th><th>Created</th>@if (Model.CanRetireVaults) { <th>Admin actions</th> }</tr></thead>
 <tbody>
 @foreach (var vault in Model.Vaults)
 {
-    <tr><td><a asp-page="/Vaults/Details" asp-route-id="@vault.Id">@vault.Name</a></td><td>@vault.Description</td><td>@vault.FolderCount</td><td>@vault.ItemCount</td><td>@vault.CreatedAt.LocalDateTime</td></tr>
+    <tr>
+        <td><a asp-page="/Vaults/Details" asp-route-id="@vault.Id">@vault.Name</a></td>
+        <td>@vault.Description</td>
+        <td>@vault.FolderCount</td>
+        <td>@vault.ItemCount</td>
+        <td>@vault.CreatedAt.LocalDateTime</td>
+        @if (Model.CanRetireVaults)
+        {
+            <td>
+                <details class="compact-disclosure">
+                    <summary class="secondary-action small">Retire test/smoke vault</summary>
+                    <form method="post" asp-page-handler="Retire" class="card-form compact-create-vault mt-3">
+                        <input type="hidden" name="RetireVaultId" value="@vault.Id" />
+                        <p class="form-help"><strong>This is safer than hard delete.</strong> The vault is hidden from normal user vault lists, but credentials, notes, membership metadata, and audit history are preserved.</p>
+                        <p class="form-help">Type the exact vault name to confirm: <strong>@vault.Name</strong></p>
+                        <label>Confirm vault name<input name="RetireConfirmationName" autocomplete="off" /></label>
+                        <button class="secondary-action small" type="submit">Retire vault</button>
+                    </form>
+                </details>
+            </td>
+        }
+    </tr>
 }
 @if (!Model.Vaults.Any())
 {
-    <tr><td colspan="5">No vaults are available to your account yet.</td></tr>
+    <tr><td colspan="@(Model.CanRetireVaults ? 6 : 5)">No vaults are available to your account yet.</td></tr>
 }
 </tbody>
 </table>
