@@ -33,6 +33,31 @@ public sealed class Issue016RoleFallbackTests
     }
 
     [Fact]
+    public async Task VaultCreateWithNumericUserRoleClaimFailsClosed()
+    {
+        await using var db = CreateDb(nameof(VaultCreateWithNumericUserRoleClaimFailsClosed));
+        var model = new VaultIndexModel(new VaultRepository(), db)
+        {
+            PageContext = PageContextFor("numeric-user-role", "2"),
+            Name = "Numeric role claim should not create"
+        };
+
+        var result = await model.OnPostCreateAsync();
+
+        Assert.IsType<ForbidResult>(result);
+        Assert.Empty(await db.Vaults.ToListAsync());
+    }
+
+    [Fact]
+    public void RoleCatalogRejectsNumericRoleClaimValues()
+    {
+        Assert.Null(ArkanumRoleCatalog.ParseClaimRole("0"));
+        Assert.Null(ArkanumRoleCatalog.ParseClaimRole("2"));
+        Assert.Equal(ArkanumRole.User, ArkanumRoleCatalog.ParseClaimRole("User"));
+        Assert.Equal(ArkanumRole.Administrator, ArkanumRoleCatalog.ParseClaimRole("Administrator"));
+    }
+
+    [Fact]
     public void VaultIndexRoleHelperDoesNotConvertMissingOrMalformedClaimsToUser()
     {
         using var db = CreateDb(nameof(VaultIndexRoleHelperDoesNotConvertMissingOrMalformedClaimsToUser));
@@ -112,6 +137,7 @@ public sealed class Issue016RoleFallbackTests
             var source = File.ReadAllText(Path.Combine(root, relativePath));
             Assert.DoesNotContain("roles.Count == 0 ? [ArkanumRole.User]", source);
             Assert.DoesNotContain("roles.Length == 0 ? [ArkanumRole.User]", source);
+            Assert.DoesNotContain("Enum.TryParse<ArkanumRole>", source);
             Assert.DoesNotContain("?? \"anonymous\"", source);
         }
     }

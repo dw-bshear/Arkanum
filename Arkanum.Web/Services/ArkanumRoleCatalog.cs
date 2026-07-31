@@ -16,6 +16,16 @@ public static class ArkanumRoleCatalog
 
     public static string Describe(ArkanumRole role) => Descriptions.Single(d => d.Role == role).Summary;
 
+    public static ArkanumRole? ParseClaimRole(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+
+        var trimmed = value.Trim();
+        if (!Enum.GetNames<ArkanumRole>().Contains(trimmed, StringComparer.OrdinalIgnoreCase)) return null;
+
+        return Enum.Parse<ArkanumRole>(trimmed, ignoreCase: true);
+    }
+
     public static IReadOnlyCollection<ArkanumRole> Normalize(IReadOnlyCollection<ArkanumRole> roles)
     {
         var normalized = roles.Count == 0 ? [ArkanumRole.User] : roles.Distinct().OrderBy(r => r.ToString()).ToList();

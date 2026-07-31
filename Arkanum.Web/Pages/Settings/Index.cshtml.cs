@@ -388,7 +388,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         }
 
         var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role)
-            .Select(c => Enum.TryParse<ArkanumRole>(c.Value, out var role) ? role : (ArkanumRole?)null)
+            .Select(c => ArkanumRoleCatalog.ParseClaimRole(c.Value))
             .OfType<ArkanumRole>()
             .Distinct()
             .ToArray();

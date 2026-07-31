@@ -73,7 +73,7 @@ public class IndexModel(VaultRepository repository, Arkanum.Web.Data.ArkanumDbCo
         if (User?.Identity?.IsAuthenticated != true) return [];
 
         var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role)
-            .Select(c => Enum.TryParse<ArkanumRole>(c.Value, out var role) ? role : (ArkanumRole?)null)
+            .Select(c => ArkanumRoleCatalog.ParseClaimRole(c.Value))
             .OfType<ArkanumRole>()
             .ToHashSet();
         return roles;
