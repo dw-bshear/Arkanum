@@ -70,6 +70,19 @@ public class InlineRevealAndAnchorTests
     }
 
     [Fact]
+    public void VaultDetailHeadingActionsAreRightAligned()
+    {
+        var root = ProjectRoot();
+        var markup = File.ReadAllText(Path.Combine(root, "Arkanum.Web", "Pages", "Vaults", "Details.cshtml"));
+        var css = File.ReadAllText(Path.Combine(root, "Arkanum.Web", "wwwroot", "css", "site.css"));
+
+        Assert.Contains("vault-heading-actions", markup);
+        Assert.Contains(".vault-detail-heading { display: flex; justify-content: space-between; align-items: flex-start", css);
+        Assert.Contains(".vault-heading-actions { margin-left: auto; display: flex; align-items: flex-start; justify-content: flex-end", css);
+        Assert.Contains(".vault-heading-actions > a, .vault-heading-actions > details { flex: 0 0 auto; }", css);
+    }
+
+    [Fact]
     public void VaultFoldersOpenOnlyWhenPreservingContextOrShowingRevealedItem()
     {
         var root = ProjectRoot();
