@@ -84,13 +84,20 @@ $action.DropDownStyle = 'DropDownList'
 $action.SelectedIndex = 0
 $action.Location = New-Object System.Drawing.Point(220, 24)
 $action.Size = New-Object System.Drawing.Size(300, 24)
+$restoreSource = New-Object System.Windows.Forms.ComboBox
+$restoreSource.DropDownStyle = 'DropDownList'
+[void]$restoreSource.Items.AddRange(@('Use database already restored by DBA', 'Restore from SQL backup file', 'Attach existing database files / DBA handoff'))
+$restoreSource.SelectedIndex = 0
+$restoreSource.Location = New-Object System.Drawing.Point(220, 264)
+$restoreSource.Size = New-Object System.Drawing.Size(360, 24)
 $installPath = New-TextBox 'C:\Program Files\Arkanum\Web' 220 64 470
 $programData = New-TextBox 'C:\ProgramData\Arkanum' 220 104 470
 $siteName = New-TextBox 'Arkanum' 220 144 250
 $appPool = New-TextBox 'ArkanumAppPool' 220 184 250
 $port = New-TextBox '5068' 220 224 120
-$restoreKeyFile = New-TextBox '' 220 264 470
-$restoreKey = New-TextBox '' 220 304 470 $true
+$sqlBackupFile = New-TextBox '' 220 304 470
+$restoreKeyFile = New-TextBox '' 220 344 470
+$restoreKey = New-TextBox '' 220 384 470 $true
 foreach ($pair in @(
     @('Install action', $action, 24),
     @('Install path', $installPath, 64),
@@ -98,14 +105,16 @@ foreach ($pair in @(
     @('IIS site name', $siteName, 144),
     @('IIS app pool', $appPool, 184),
     @('HTTP port', $port, 224),
-    @('Recovery Key file', $restoreKeyFile, 264),
-    @('Paste Recovery Key', $restoreKey, 304)
+    @('Restore database source', $restoreSource, 264),
+    @('SQL backup file', $sqlBackupFile, 304),
+    @('Recovery Key file', $restoreKeyFile, 344),
+    @('Paste Recovery Key', $restoreKey, 384)
 )) {
     $installTab.Controls.Add((New-Label $pair[0] 24 $pair[2])); $installTab.Controls.Add($pair[1])
 }
 $installHelp = New-Object System.Windows.Forms.Label
-$installHelp.Text = 'The installer configures IIS, the application pool, ProgramData folders, runtime configuration, site permissions, upgrade backups, and install-state.json.'
-$installHelp.Location = New-Object System.Drawing.Point(24, 270)
+$installHelp.Text = 'Restore source currently supports the DBA-restored database path. SQL backup and attach restore paths are staged for DBA workflow selection but not automated in this release.'
+$installHelp.Location = New-Object System.Drawing.Point(24, 424)
 $installHelp.Size = New-Object System.Drawing.Size(700, 70)
 $installTab.Controls.Add($installHelp)
 
@@ -179,6 +188,14 @@ function Get-InstallerAction {
     }
 }
 
+function Get-RestoreSource {
+    switch ($restoreSource.SelectedItem) {
+        'Restore from SQL backup file' { return 'sql-backup-file' }
+        'Attach existing database files / DBA handoff' { return 'attach-database-files' }
+        default { return 'dba-restored-database' }
+    }
+}
+
 function Build-CommandPreview {
     $conn = Build-ConnectionString $sqlHost.Text $sqlPort.Text $sqlDb.Text $sqlUser.Text $sqlPassword.Text $encrypt.Checked $trust.Checked
     $selectedAction = Get-InstallerAction
@@ -194,6 +211,8 @@ function Build-CommandPreview {
         '-AppPoolName', "`"$($appPool.Text)`"",
         '-PackageVersion', '2026.0.6',
         '-Action', $selectedAction,
+        '-RestoreSource', (Get-RestoreSource),
+        '-SqlBackupFile', "`"$($sqlBackupFile.Text)`"",
         '-RestoreKeyFile', "`"$($restoreKeyFile.Text)`"",
         '-RestoreKey', "`"$($restoreKey.Text)`""
     )
@@ -232,6 +251,8 @@ $run.Add_Click({
             AppPoolName = $appPool.Text
             PackageVersion = '2026.0.6'
             Action = Get-InstallerAction
+            RestoreSource = Get-RestoreSource
+            SqlBackupFile = $sqlBackupFile.Text
             RestoreKeyFile = $restoreKeyFile.Text
             RestoreKey = $restoreKey.Text
         }

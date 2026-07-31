@@ -52,6 +52,7 @@ class Wizard(tk.Tk):
         self.resizable(True, True)
         self.vars = {
             "install_action": tk.StringVar(value="auto"),
+            "restore_source": tk.StringVar(value="dba-restored-database"),
             "install_dir": tk.StringVar(value="/opt/arkanum"),
             "config_dir": tk.StringVar(value="/etc/arkanum"),
             "data_dir": tk.StringVar(value="/var/lib/arkanum"),
@@ -63,6 +64,7 @@ class Wizard(tk.Tk):
             "sql_database": tk.StringVar(value="Arkanum"),
             "sql_user": tk.StringVar(value="arkanum_app"),
             "sql_password": tk.StringVar(value=""),
+            "sql_backup_file": tk.StringVar(value=""),
             "restore_key_file": tk.StringVar(value=""),
             "restore_key": tk.StringVar(value=""),
         }
@@ -108,6 +110,20 @@ class Wizard(tk.Tk):
         )
         action.pack(fill="x")
         ttk.Label(frame, text="Auto detects an existing install-state.json and selects upgrade. Use side-by-side for isolated test installs.", wraplength=680).pack(anchor="w", pady=(4, 8))
+        ttk.Label(frame, text="Restore database source").pack(anchor="w", pady=(8, 0))
+        restore_source = ttk.Combobox(
+            frame,
+            textvariable=self.vars["restore_source"],
+            values=[
+                "dba-restored-database",
+                "Use database already restored by DBA",
+                "Restore from SQL backup file",
+                "Attach existing database files / DBA handoff",
+            ],
+            state="readonly",
+        )
+        restore_source.pack(fill="x")
+        ttk.Label(frame, text="This release supports the DBA-restored database path. SQL backup and attach paths are shown for workflow planning but are not automated yet.", wraplength=680).pack(anchor="w", pady=(4, 8))
         for label, key in [
             ("Install directory", "install_dir"),
             ("Configuration directory", "config_dir"),
@@ -118,6 +134,8 @@ class Wizard(tk.Tk):
         ]:
             self._entry(frame, label, key)
         ttk.Label(frame, text="Use http://0.0.0.0:5068 if the site should be reachable from other LAN clients.", wraplength=680).pack(anchor="w", pady=10)
+        ttk.Label(frame, text="SQL backup file").pack(anchor="w", pady=(8, 0))
+        ttk.Entry(frame, textvariable=self.vars["sql_backup_file"]).pack(fill="x")
         ttk.Label(frame, text="Recovery Key file").pack(anchor="w", pady=(8, 0))
         ttk.Entry(frame, textvariable=self.vars["restore_key_file"]).pack(fill="x")
         ttk.Label(frame, text="Paste Recovery Key").pack(anchor="w", pady=(8, 0))
@@ -187,8 +205,16 @@ class Wizard(tk.Tk):
             "install side-by-side": "side-by-side",
         }
         selected_action = action_map.get(self.vars["install_action"].get(), "auto")
+        restore_source_map = {
+            "Use database already restored by DBA": "dba-restored-database",
+            "Restore from SQL backup file": "sql-backup-file",
+            "Attach existing database files / DBA handoff": "attach-database-files",
+        }
+        selected_restore_source = restore_source_map.get(self.vars["restore_source"].get(), self.vars["restore_source"].get() or "dba-restored-database")
         env = {
             "ACTION": selected_action,
+            "RESTORE_SOURCE": selected_restore_source,
+            "SQL_BACKUP_FILE": self.vars["sql_backup_file"].get().strip(),
             "ARKANUM_PACKAGE_VERSION": "2026.0.6",
             "INSTALL_DIR": self.vars["install_dir"].get().strip(),
             "CONFIG_DIR": self.vars["config_dir"].get().strip(),

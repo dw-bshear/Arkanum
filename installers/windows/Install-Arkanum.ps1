@@ -9,6 +9,8 @@ param(
     [string]$PackageVersion = '2026.0.6',
     # ValidateSet('install','upgrade','repair','side-by-side','restore') plus auto detection for GUI defaults.
     [ValidateSet('install','upgrade','repair','side-by-side','restore','auto')][string]$Action = 'auto',
+    [ValidateSet('dba-restored-database','sql-backup-file','attach-database-files')][string]$RestoreSource = 'dba-restored-database',
+    [string]$SqlBackupFile = '',
     [string]$RestoreKeyFile = '',
     [string]$RestoreKey = ''
 )
@@ -20,11 +22,15 @@ function Write-ArkanumReport {
         [string]$ReportPath,
         [string]$HealthStatus,
         [string]$HealthBody,
-        [string]$BackupPath
+        [string]$BackupPath,
+        [string]$RecoveryValidation = 'NotRun'
     )
+
+    $restoreKeySource = if (![string]::IsNullOrWhiteSpace($RestoreKeyFile)) { 'file' } elseif (![string]::IsNullOrWhiteSpace($RestoreKey)) { 'pasted' } else { 'not provided' }
 
     $lines = @(
         'Arkanum installer report',
+        'Restore report',
         'Product: Arkanum',
         "Package version: $PackageVersion",
         "Install action: $Action",
@@ -36,6 +42,11 @@ function Write-ArkanumReport {
         "Generated UTC: $((Get-Date).ToUniversalTime().ToString('s'))Z",
         "Health URL: http://localhost:$Port/health",
         "Backup path: $BackupPath",
+        "Restore source: $RestoreSource",
+        "SQL backup file: $(if ([string]::IsNullOrWhiteSpace($SqlBackupFile)) { 'not provided' } else { $SqlBackupFile })",
+        "Recovery Key source: $restoreKeySource",
+        "Recovery sentinel validation: $RecoveryValidation",
+        'No SQL passwords or Recovery Key values are written to this report.',
         "Post-install health status: $HealthStatus",
         $HealthBody
     )
@@ -61,6 +72,10 @@ if ($Action -eq 'auto') {
     if ($existingInstall) { $Action = 'upgrade' } else { $Action = 'install' }
 }
 
+if ($Action -eq 'restore') {
+    $reportPath = Join-Path $logDir "restore-report-$PackageVersion.txt"
+}
+
 if ($Action -eq 'side-by-side') {
     $InstallPath = "$InstallPath-$PackageVersion"
     $ProgramDataPath = "$ProgramDataPath-$PackageVersion"
@@ -79,6 +94,10 @@ if ($Action -eq 'upgrade' -and -not $existingInstall) {
 
 if ($Action -eq 'restore' -and [string]::IsNullOrWhiteSpace($RestoreKeyFile) -and [string]::IsNullOrWhiteSpace($RestoreKey)) {
     throw 'Restore from database backup requires -RestoreKeyFile or -RestoreKey.'
+}
+
+if ($Action -eq 'restore' -and $RestoreSource -ne 'dba-restored-database') {
+    throw 'SQL backup and attach restore paths are staged for DBA workflow selection but not automated in this release. For this release, restore the SQL database first, then choose dba-restored-database.'
 }
 
 New-Item -ItemType Directory -Force -Path $InstallPath, $secretDir, $configDir, $logDir, $backupRoot | Out-Null
@@ -104,7 +123,9 @@ Copy-Item -Path (Join-Path $PackagePath '*') -Destination $InstallPath -Recurse 
 
 $keyPath = Join-Path $secretDir 'master-key.txt'
 if ($Action -eq 'restore') {
-    Write-Host 'Restore from database backup selected. Installing provided Recovery Key.'
+    Write-Host 'Restore/recover existing Arkanum instance selected.'
+    Write-Host "Restore source: $RestoreSource"
+    Write-Host 'Using database already restored by DBA. Installing provided Recovery Key.'
     if (![string]::IsNullOrWhiteSpace($RestoreKeyFile)) {
         if (!(Test-Path $RestoreKeyFile)) { throw 'RestoreKeyFile does not exist.' }
         Copy-Item -Path $RestoreKeyFile -Destination $keyPath -Force
@@ -112,6 +133,7 @@ if ($Action -eq 'restore') {
         Set-Content -Path $keyPath -Value $RestoreKey.Trim() -NoNewline
     }
     if (!((Get-Content $keyPath -Raw).Trim().StartsWith('ark-recovery-v1.'))) { throw 'Provided Recovery Key must start with ark-recovery-v1.' }
+    Write-Host 'No new Recovery Key was generated during restore mode.'
 } elseif (!(Test-Path $keyPath) -or [string]::IsNullOrWhiteSpace((Get-Content $keyPath -Raw))) {
     $bytes = New-Object byte[] 48
     [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
@@ -192,19 +214,21 @@ Restart-WebAppPool -Name $AppPoolName
 
 $healthStatus = 'NotRun'
 $healthBody = ''
+$recoveryValidation = if ($Action -eq 'restore') { 'Pending health check' } else { 'Not applicable' }
 try {
     $health = Invoke-WebRequest -Uri "http://localhost:$Port/health" -UseBasicParsing -TimeoutSec 20
     $healthBody = $health.Content
     $parsed = $health.Content | ConvertFrom-Json
-    if ($parsed.status -eq 'Healthy') { $healthStatus = 'Healthy' } else { $healthStatus = "Unhealthy: $($parsed.status)" }
+    if ($parsed.status -eq 'Healthy') { $healthStatus = 'Healthy'; if ($Action -eq 'restore') { $recoveryValidation = 'Passed' } } else { $healthStatus = "Unhealthy: $($parsed.status)"; if ($Action -eq 'restore') { $recoveryValidation = 'Failed' } }
 } catch {
     $healthStatus = 'Failed'
     $healthBody = $_.Exception.Message
+    if ($Action -eq 'restore') { $recoveryValidation = 'Failed' }
 }
-Write-ArkanumReport -ReportPath $reportPath -HealthStatus $healthStatus -HealthBody $healthBody -BackupPath $backupPath
+Write-ArkanumReport -ReportPath $reportPath -HealthStatus $healthStatus -HealthBody $healthBody -BackupPath $backupPath -RecoveryValidation $recoveryValidation
 
 if ($healthStatus -ne 'Healthy') {
-    if ($Action -eq 'restore') { throw "The provided Recovery Key does not match this database. Report: $reportPath" }
+    if ($Action -eq 'restore') { throw "The provided Recovery Key does not match this database. The provided Arkanum Recovery Key does not match the restored database. Recoverable state requires both the SQL database backup and the matching Arkanum Recovery Key. No new Recovery Key was generated. Report: $reportPath" }
     Write-Warning "Arkanum installed but health validation did not pass. Report: $reportPath"
     Write-Warning "Rollback app files from backup if needed: $backupPath"
     Write-Warning "Rollback app files example: Copy-Item -Path '$backupPath\app\*' -Destination '$InstallPath' -Recurse -Force; Restart-WebAppPool -Name '$AppPoolName'"

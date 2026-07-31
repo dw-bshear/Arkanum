@@ -3,6 +3,8 @@ set -euo pipefail
 
 ARKANUM_PACKAGE_VERSION=${ARKANUM_PACKAGE_VERSION:-2026.0.6}
 ACTION=${ACTION:-auto}
+RESTORE_SOURCE=${RESTORE_SOURCE:-dba-restored-database}
+SQL_BACKUP_FILE=${SQL_BACKUP_FILE:-}
 INSTALL_DIR=${INSTALL_DIR:-/opt/arkanum}
 CONFIG_DIR=${CONFIG_DIR:-/etc/arkanum}
 DATA_DIR=${DATA_DIR:-/var/lib/arkanum}
@@ -27,8 +29,16 @@ info() {
 
 write_report() {
   install -d -o "${SERVICE_USER}" -g "${SERVICE_USER}" -m 750 "${LOG_DIR}" 2>/dev/null || install -d -m 750 "${LOG_DIR}"
+  local recovery_key_source="not provided"
+  if [ -n "${ARKANUM_RESTORE_KEY_FILE:-}" ]; then
+    recovery_key_source="file"
+  elif [ -n "${ARKANUM_RESTORE_KEY:-}" ]; then
+    recovery_key_source="pasted"
+  fi
+  local recovery_validation="${RECOVERY_VALIDATION:-NotRun}"
   {
     echo "Arkanum installer report"
+    echo "Restore report"
     echo "Product: Arkanum"
     echo "Package version: ${ARKANUM_PACKAGE_VERSION}"
     echo "Install action: ${ACTION}"
@@ -39,6 +49,11 @@ write_report() {
     echo "State file: ${STATE_FILE}"
     echo "Generated UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "Health URL: ${APP_URLS}/health"
+    echo "Restore source: ${RESTORE_SOURCE}"
+    echo "SQL backup file: ${SQL_BACKUP_FILE:-not provided}"
+    echo "Recovery Key source: ${recovery_key_source}"
+    echo "Recovery sentinel validation: ${recovery_validation}"
+    echo "No SQL passwords or Recovery Key values are written to this report."
   } > "${REPORT_FILE}"
   chown "${SERVICE_USER}:${SERVICE_USER}" "${REPORT_FILE}" 2>/dev/null || true
   chmod 640 "${REPORT_FILE}" 2>/dev/null || true
@@ -52,6 +67,10 @@ fi
 case "${ACTION}" in
   auto|install|upgrade|repair|side-by-side|restore) ;;
   *) fail "ACTION must be one of auto, install, upgrade, repair, side-by-side, restore." ;;
+esac
+case "${RESTORE_SOURCE}" in
+  dba-restored-database|sql-backup-file|attach-database-files) ;;
+  *) fail "RESTORE_SOURCE must be one of dba-restored-database, sql-backup-file, attach-database-files." ;;
 esac
 # Restore from database backup example: ACTION=restore ARKANUM_RESTORE_KEY_FILE=/path/to/master-key.txt or ARKANUM_RESTORE_KEY=ark-recovery-v1....
 
@@ -101,6 +120,10 @@ if [ "${ACTION}" = "auto" ]; then
   fi
 fi
 
+if [ "${ACTION}" = "restore" ]; then
+  REPORT_FILE="${LOG_DIR}/restore-report-${ARKANUM_PACKAGE_VERSION}.txt"
+fi
+
 if [ "${ACTION}" = "side-by-side" ]; then
   INSTALL_DIR="${INSTALL_DIR}-${ARKANUM_PACKAGE_VERSION}"
   CONFIG_DIR="${CONFIG_DIR}-${ARKANUM_PACKAGE_VERSION}"
@@ -117,6 +140,10 @@ fi
 
 if [ "${ACTION}" = "restore" ] && [ -z "${ARKANUM_RESTORE_KEY_FILE:-}" ] && [ -z "${ARKANUM_RESTORE_KEY:-}" ]; then
   fail "ACTION=restore requires ARKANUM_RESTORE_KEY_FILE or ARKANUM_RESTORE_KEY. Select Restore from database backup and provide the existing Arkanum Recovery Key."
+fi
+
+if [ "${ACTION}" = "restore" ] && [ "${RESTORE_SOURCE}" != "dba-restored-database" ]; then
+  fail "SQL backup and attach restore paths are staged for DBA workflow selection but not automated in this release. For this release, restore the SQL database first, then choose RESTORE_SOURCE=dba-restored-database."
 fi
 
 if ! id "${SERVICE_USER}" >/dev/null 2>&1; then
@@ -160,7 +187,9 @@ chmod -R go-w "${INSTALL_DIR}"
 
 MASTER_KEY_FILE="${CONFIG_DIR}/master-key"
 if [ "${ACTION}" = "restore" ]; then
-  info "Restore from database backup selected. Installing provided Arkanum Recovery Key at ${MASTER_KEY_FILE}."
+  info "Restore/recover existing Arkanum instance selected."
+  info "Restore source: ${RESTORE_SOURCE}"
+  info "Use database already restored by DBA. Installing provided Arkanum Recovery Key at ${MASTER_KEY_FILE}."
   umask 077
   if [ -n "${ARKANUM_RESTORE_KEY_FILE:-}" ]; then
     [ -s "${ARKANUM_RESTORE_KEY_FILE}" ] || fail "ARKANUM_RESTORE_KEY_FILE does not exist or is empty."
@@ -171,6 +200,7 @@ if [ "${ACTION}" = "restore" ]; then
   if ! grep -q '^ark-recovery-v1\.' "${MASTER_KEY_FILE}"; then
     fail "Provided Recovery Key must start with ark-recovery-v1."
   fi
+  info "No new Recovery Key was generated during restore mode."
 elif [ ! -s "${MASTER_KEY_FILE}" ]; then
   info "Generating site-wide Arkanum recovery/master key at ${MASTER_KEY_FILE}."
   umask 077
@@ -265,14 +295,23 @@ PY
 )
 HEALTH_STATUS=$?
 set -e
+RECOVERY_VALIDATION="Not applicable"
+if [ "${ACTION}" = "restore" ]; then
+  if [ "${HEALTH_STATUS}" -eq 0 ]; then
+    RECOVERY_VALIDATION="Passed"
+  else
+    RECOVERY_VALIDATION="Failed"
+  fi
+fi
 {
   echo "Post-install health status code: ${HEALTH_STATUS}"
   echo "${HEALTH_OUTPUT}"
+  echo "Recovery sentinel validation: ${RECOVERY_VALIDATION}"
 } >> "${REPORT_FILE}"
 
 if [ "${HEALTH_STATUS}" -ne 0 ]; then
   if [ "${ACTION}" = "restore" ]; then
-    echo "[FAIL] The provided Recovery Key does not match this database. Report: ${REPORT_FILE}" >&2
+    echo "[FAIL] The provided Recovery Key does not match this database. The provided Arkanum Recovery Key does not match the restored database. Recoverable state requires both the SQL database backup and the matching Arkanum Recovery Key. No new Recovery Key was generated. Report: ${REPORT_FILE}" >&2
     exit 7
   fi
   cat >&2 <<EOF
