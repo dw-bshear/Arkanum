@@ -8,6 +8,7 @@ public sealed class AdminUserService(LocalPasswordHasher passwordHasher)
 {
     public async Task<ArkanumUser> CreateLocalUserAsync(ArkanumDbContext db, string username, string password, IReadOnlyCollection<ArkanumRole> roles, string actorUserKey, DateTimeOffset now)
     {
+        var actor = NormalizeActor(actorUserKey);
         var normalized = username.Trim();
         if (string.IsNullOrWhiteSpace(normalized)) throw new ArgumentException("Username is required.", nameof(username));
         if (await db.Users.AnyAsync(u => u.Username == normalized)) throw new InvalidOperationException("A user with that username already exists.");
@@ -28,7 +29,7 @@ public sealed class AdminUserService(LocalPasswordHasher passwordHasher)
         db.AuditEvents.Add(new AuditEventEntity
         {
             Type = AuditEventType.UserEnabled,
-            ActorUserKey = actorUserKey,
+            ActorUserKey = actor,
             Target = entity.Username,
             OccurredAt = now,
             Message = "Local user created and enabled by administrator."
@@ -69,5 +70,16 @@ public sealed class AdminUserService(LocalPasswordHasher passwordHasher)
             Message = $"Roles updated: {rolesCsv}."
         });
         await db.SaveChangesAsync();
+    }
+
+    private static string NormalizeActor(string actorUserKey)
+    {
+        var actor = actorUserKey.Trim();
+        if (string.IsNullOrWhiteSpace(actor) || string.Equals(actor, "anonymous", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new UnauthorizedAccessException("A valid administrator actor is required to create local users.");
+        }
+
+        return actor;
     }
 }
