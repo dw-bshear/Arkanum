@@ -27,12 +27,16 @@ public class IndexModel(ArkanumDbContext db) : PageModel
 
     private HashSet<ArkanumRole> CurrentRoles()
     {
+        if (User?.Identity?.IsAuthenticated != true) return [];
+
         var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role)
             .Select(c => Enum.TryParse<ArkanumRole>(c.Value, out var role) ? role : (ArkanumRole?)null)
             .OfType<ArkanumRole>()
             .ToHashSet();
-        return roles.Count == 0 ? [ArkanumRole.User] : roles;
+        return roles;
     }
 
-    private string ActorKey() => User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "anonymous";
+    private string ActorKey() => User?.Identity?.IsAuthenticated == true
+        ? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new UnauthorizedAccessException("Authenticated principal is missing a stable user key.")
+        : throw new UnauthorizedAccessException("Authenticated principal is required.");
 }

@@ -381,16 +381,24 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
 
     private Task LoadRolesAsync()
     {
+        if (User?.Identity?.IsAuthenticated != true)
+        {
+            CurrentRoles = [];
+            return Task.CompletedTask;
+        }
+
         var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role)
             .Select(c => Enum.TryParse<ArkanumRole>(c.Value, out var role) ? role : (ArkanumRole?)null)
             .OfType<ArkanumRole>()
             .Distinct()
             .ToArray();
-        CurrentRoles = roles.Length == 0 ? [ArkanumRole.User] : roles;
+        CurrentRoles = roles;
         return Task.CompletedTask;
     }
 
-    private string ActorKey() => User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "anonymous";
+    private string ActorKey() => User?.Identity?.IsAuthenticated == true
+        ? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new UnauthorizedAccessException("Authenticated principal is missing a stable user key.")
+        : throw new UnauthorizedAccessException("Authenticated principal is required.");
 }
 
 public sealed record SettingsFeatureLink(string Title, string Description, string Page, string Badge)
