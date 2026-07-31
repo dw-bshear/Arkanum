@@ -1,4 +1,5 @@
 using Arkanum.Web.Data;
+using Arkanum.Web.Domain;
 using Arkanum.Web.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -20,7 +21,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     .AddCookie(options => ArkanumCookiePolicy.Configure(options, builder.Configuration))
     .AddOpenIdConnect(FederatedAuthenticationService.OidcScheme, _ => { });
 builder.Services.AddSingleton<IConfigureOptions<OpenIdConnectOptions>, ArkanumOidcOptionsConfigurator>();
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("OperationalReadiness", policy => policy
+        .RequireAuthenticatedUser()
+        .RequireRole(nameof(ArkanumRole.Administrator), nameof(ArkanumRole.Auditor)));
+});
 builder.Services.AddScoped<FirstRunSetupService>();
 builder.Services.AddScoped<LocalPasswordHasher>();
 builder.Services.AddScoped<LocalAuthenticationService>();
@@ -128,16 +134,20 @@ using (var scope = app.Services.CreateScope())
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapGet("/health", async (ArkanumDbContext db, ArkanumHealthCheckService health, CancellationToken cancellationToken) =>
+app.MapGet("/health", () =>
+{
+    return Results.Ok(new ArkanumLivenessResponse("Alive", DateTimeOffset.UtcNow));
+});
+app.MapGet("/health/details", async (ArkanumDbContext db, ArkanumHealthCheckService health, CancellationToken cancellationToken) =>
 {
     var response = await health.CheckAsync(db, cancellationToken);
     return response.IsHealthy ? Results.Ok(response) : Results.Json(response, statusCode: StatusCodes.Status503ServiceUnavailable);
-});
+}).RequireAuthorization("OperationalReadiness");
 app.MapGet("/install-report", async (ArkanumDbContext db, InstallReportService reports, CancellationToken cancellationToken) =>
 {
     var report = await reports.BuildAsync(db, cancellationToken);
     return Results.Ok(report);
-});
+}).RequireAuthorization("OperationalReadiness");
 app.MapStaticAssets();
 app.MapRazorPages().WithStaticAssets().RequireAuthorization();
 app.Run();
@@ -155,3 +165,5 @@ static void TrySqlitePatch(ArkanumDbContext db, string sql)
 }
 
 public partial class Program { }
+
+public sealed record ArkanumLivenessResponse(string Status, DateTimeOffset CheckedAt);
