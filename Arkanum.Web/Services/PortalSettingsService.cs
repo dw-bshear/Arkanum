@@ -1,6 +1,7 @@
 using Arkanum.Web.Data;
 using Arkanum.Web.Domain;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace Arkanum.Web.Services;
@@ -334,7 +335,7 @@ public sealed class PortalSettingsService(SecretEncryptionService secretEncrypti
             .Where(s => SecretSettingKeys.Contains(s.SettingKey) && s.Value != string.Empty)
             .ToListAsync();
         var changed = false;
-        foreach (var setting in existingSecrets.Where(s => !IsProtectedSecret(s.Value)))
+        foreach (var setting in existingSecrets.Where(s => !TryUnprotectSecret(s.Value, out _)))
         {
             setting.Value = ProtectIfSecret(setting.SettingKey, setting.Value);
             setting.UpdatedAt = DateTimeOffset.UtcNow;
@@ -349,7 +350,8 @@ public sealed class PortalSettingsService(SecretEncryptionService secretEncrypti
 
     private string ProtectIfSecret(string key, string value)
     {
-        if (!SecretSettingKeys.Contains(key) || string.IsNullOrWhiteSpace(value) || IsProtectedSecret(value)) return value;
+        if (!SecretSettingKeys.Contains(key) || string.IsNullOrWhiteSpace(value)) return value;
+        if (TryUnprotectSecret(value, out _)) return value;
         var payload = secretEncryption.Encrypt(value);
         return ProtectedSettingPrefix + JsonSerializer.Serialize(payload);
     }
@@ -358,10 +360,38 @@ public sealed class PortalSettingsService(SecretEncryptionService secretEncrypti
     {
         if (!SecretSettingKeys.Contains(key) || string.IsNullOrWhiteSpace(value)) return value;
         if (!IsProtectedSecret(value)) return value;
-        var payloadJson = value[ProtectedSettingPrefix.Length..];
-        var payload = JsonSerializer.Deserialize<EncryptedSecretPayload>(payloadJson) ?? throw new InvalidOperationException("Encrypted portal setting payload is malformed.");
-        return secretEncryption.Decrypt(payload);
+        return TryUnprotectSecret(value, out var plaintext) ? plaintext : value;
     }
 
     private static bool IsProtectedSecret(string value) => value.StartsWith(ProtectedSettingPrefix, StringComparison.Ordinal);
+
+    private bool TryUnprotectSecret(string value, out string plaintext)
+    {
+        plaintext = string.Empty;
+        if (!IsProtectedSecret(value)) return false;
+        try
+        {
+            var payloadJson = value[ProtectedSettingPrefix.Length..];
+            var payload = JsonSerializer.Deserialize<EncryptedSecretPayload>(payloadJson);
+            if (payload is null || !string.Equals(payload.Algorithm, "AES-256-GCM", StringComparison.Ordinal)) return false;
+            plaintext = secretEncryption.Decrypt(payload);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+        catch (CryptographicException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
 }

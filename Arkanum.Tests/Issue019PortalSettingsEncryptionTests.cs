@@ -72,6 +72,24 @@ public class Issue019PortalSettingsEncryptionTests
     }
 
     [Fact]
+    public async Task LegacyPlaintextSecretBeginningWithReservedPrefixIsProtectedInsteadOfBreakingReads()
+    {
+        await using var db = CreateDb(nameof(LegacyPlaintextSecretBeginningWithReservedPrefixIsProtectedInsteadOfBreakingReads));
+        const string legacyValue = "arkanum-secret:v1:legacy-prefix-collision-secret";
+        db.PortalSettings.Add(new PortalSettingEntity { SettingKey = PortalSettingKeys.MailPassword, Value = legacyValue, UpdatedByUserKey = "legacy" });
+        await db.SaveChangesAsync();
+        var service = Service();
+
+        var settings = await service.GetAllAsync(db);
+        var rawStored = await RawValueAsync(db, PortalSettingKeys.MailPassword);
+
+        Assert.Equal(legacyValue, settings[PortalSettingKeys.MailPassword]);
+        Assert.StartsWith("arkanum-secret:v1:", rawStored);
+        Assert.NotEqual(legacyValue, rawStored);
+        Assert.DoesNotContain("legacy-prefix-collision-secret", rawStored);
+    }
+
+    [Fact]
     public void SettingsUiDoesNotRenderSavedSecretValuesBackToBrowser()
     {
         var root = ProjectRoot();
