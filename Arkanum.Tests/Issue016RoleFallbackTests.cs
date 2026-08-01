@@ -108,7 +108,7 @@ public sealed class Issue016RoleFallbackTests
         var model = new SettingsIndexModel(
             db,
             new DashboardService(),
-            new PortalSettingsService(),
+            TestPortalSettingsServiceFactory.Create(),
             new AdminUserService(new LocalPasswordHasher()),
             new DirectoryLdapImportService(),
             new VaultExportService(crypto))
@@ -185,6 +185,7 @@ public sealed class Issue016RoleFallbackTests
             }
         };
     }
+
 
     private static string ProjectRoot()
     {

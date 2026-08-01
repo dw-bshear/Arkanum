@@ -11,7 +11,7 @@ public class Phase1InstallReadinessTests
     {
         await using var db = CreateDb(nameof(HealthCheckReportsHealthyWhenDatabaseDefaultsAndMasterKeyAreAvailable));
         await db.Database.EnsureCreatedAsync();
-        await new PortalSettingsService().EnsureDefaultsAsync(db);
+        await TestPortalSettingsServiceFactory.Create().EnsureDefaultsAsync(db);
         var service = new ArkanumHealthCheckService(new StaticMasterKeyProvider("phase1-health-test-master-key-material"));
 
         var result = await service.CheckAsync(db);
@@ -28,7 +28,7 @@ public class Phase1InstallReadinessTests
     {
         await using var db = CreateDb(nameof(HealthCheckReportsUnhealthyWhenMasterKeyIsMissing));
         await db.Database.EnsureCreatedAsync();
-        await new PortalSettingsService().EnsureDefaultsAsync(db);
+        await TestPortalSettingsServiceFactory.Create().EnsureDefaultsAsync(db);
         var service = new ArkanumHealthCheckService(new MissingMasterKeyProvider());
 
         var result = await service.CheckAsync(db);
@@ -73,6 +73,7 @@ public class Phase1InstallReadinessTests
         Assert.Contains("Windows installation package", guide);
         Assert.Contains("Linux installation package", guide);
     }
+
 
     private static string ProjectRoot()
     {

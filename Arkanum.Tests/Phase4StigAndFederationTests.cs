@@ -25,7 +25,7 @@ public class Phase4StigAndFederationTests
     public async Task FederationSettingsPersistOidcReadinessWithoutLoggingClientSecret()
     {
         await using var db = CreateDb(nameof(FederationSettingsPersistOidcReadinessWithoutLoggingClientSecret));
-        var service = new PortalSettingsService();
+        var service = TestPortalSettingsServiceFactory.Create();
         await service.EnsureDefaultsAsync(db);
 
         await service.SaveFederationAsync(db, "oidc", "https://login.example.local/realms/arkanum", "arkanum-web", "super-secret-client-value", "openid profile email groups", string.Empty, string.Empty, true, "admin-key");
@@ -45,7 +45,7 @@ public class Phase4StigAndFederationTests
     public async Task FederationSettingsValidateSamlReadinessShape()
     {
         await using var db = CreateDb(nameof(FederationSettingsValidateSamlReadinessShape));
-        var service = new PortalSettingsService();
+        var service = TestPortalSettingsServiceFactory.Create();
         await service.EnsureDefaultsAsync(db);
 
         await service.SaveFederationAsync(db, "SAML", string.Empty, string.Empty, null, string.Empty, "https://idp.example.local/metadata.xml", "https://arkanum.example.local/saml", true, "admin-key");
@@ -60,7 +60,7 @@ public class Phase4StigAndFederationTests
     public async Task InstallReportIncludesComplianceMappingsAndFederationReadinessWithoutSecrets()
     {
         await using var db = CreateDb(nameof(InstallReportIncludesComplianceMappingsAndFederationReadinessWithoutSecrets));
-        var settingsService = new PortalSettingsService();
+        var settingsService = TestPortalSettingsServiceFactory.Create();
         await settingsService.EnsureDefaultsAsync(db);
         await settingsService.SaveFederationAsync(db, "OIDC", "https://login.example.local", "arkanum-web", "do-not-report-this-secret", "openid profile email", string.Empty, string.Empty, true, "admin-key");
         var reportService = new InstallReportService(
@@ -96,7 +96,7 @@ public class Phase4StigAndFederationTests
     public async Task FederatedOidcPrincipalMapsOnlyToActiveNonLocalArkanumUsers()
     {
         await using var db = CreateDb(nameof(FederatedOidcPrincipalMapsOnlyToActiveNonLocalArkanumUsers));
-        var service = new FederatedAuthenticationService(new PortalSettingsService());
+        var service = new FederatedAuthenticationService(TestPortalSettingsServiceFactory.Create());
         db.Users.Add(new AppUserEntity
         {
             ExternalId = "oidc-subject-1",
@@ -131,7 +131,7 @@ public class Phase4StigAndFederationTests
     public async Task FederatedOidcPrincipalCannotImpersonateLocalEmergencyAdmin()
     {
         await using var db = CreateDb(nameof(FederatedOidcPrincipalCannotImpersonateLocalEmergencyAdmin));
-        var service = new FederatedAuthenticationService(new PortalSettingsService());
+        var service = new FederatedAuthenticationService(TestPortalSettingsServiceFactory.Create());
         db.Users.Add(new AppUserEntity
         {
             ExternalId = "local-admin-subject",
@@ -198,6 +198,7 @@ public class Phase4StigAndFederationTests
             .Options;
         return new ArkanumDbContext(options);
     }
+
 
     private static string ProjectRoot()
     {

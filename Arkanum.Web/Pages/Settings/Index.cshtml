@@ -73,7 +73,7 @@
                 <label>Port<input name="LdapPort" value="@Model.Ldap.Port" placeholder="389" /></label>
                 <label>Search base DN<input name="LdapBaseDn" value="@Model.Ldap.BaseDn" placeholder="dc=example,dc=local" /></label>
                 <label>Bind DN / read account<input name="LdapBindDn" value="@Model.Ldap.BindDn" placeholder="uid=reader,ou=people,dc=example,dc=local" /></label>
-                <label>Bind DN password<input name="LdapBindPassword" type="password" value="@Model.Ldap.BindPassword" autocomplete="new-password" placeholder="Password for the read account" /></label>
+                <label>Bind DN password<input name="LdapBindPassword" type="password" autocomplete="new-password" placeholder="@(Model.Ldap.HasBindPassword ? "Password already saved; leave blank to keep it" : "Password for the read account")" /></label>
                 <label>User search filter<input name="LdapUserFilter" value="@Model.Ldap.UserFilter" placeholder="(objectClass=person)" /></label>
                 <label>Login attribute<input name="LdapLoginAttribute" value="@Model.Ldap.LoginAttribute" placeholder="uid" /></label>
                 <label>Display-name attribute<input name="LdapDisplayNameAttribute" value="@Model.Ldap.DisplayNameAttribute" placeholder="displayName" /></label>

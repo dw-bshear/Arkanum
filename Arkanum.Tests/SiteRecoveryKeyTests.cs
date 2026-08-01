@@ -42,7 +42,7 @@ public class SiteRecoveryKeyTests
     {
         await using var db = CreateDb(nameof(Health_check_reports_database_key_match_using_site_recovery_sentinel));
         await db.Database.EnsureCreatedAsync();
-        await new PortalSettingsService().EnsureDefaultsAsync(db);
+        await TestPortalSettingsServiceFactory.Create().EnsureDefaultsAsync(db);
         var key = "ark-recovery-v1.health-site-key-material-for-tests";
         await new SiteRecoveryKeyService(new StaticMasterKeyProvider(key)).EnsureRecoverySentinelAsync(db, DateTimeOffset.UtcNow);
 
@@ -53,6 +53,7 @@ public class SiteRecoveryKeyTests
         Assert.False(unhealthy.IsHealthy);
         Assert.Contains(unhealthy.Checks, check => check.Name == "recovery-key" && check.Status == "Unhealthy");
     }
+
 
     private static ArkanumDbContext CreateDb(string name)
     {

@@ -11,7 +11,7 @@ public class Iteration010DirectorySyncSettingsTests
     public async Task Ldap_sync_interval_setting_is_persisted()
     {
         await using var db = CreateDb();
-        var service = new PortalSettingsService();
+        var service = TestPortalSettingsServiceFactory.Create();
 
         await service.SaveLdapSyncAsync(db, new LdapSyncSettings("12h"), "admin-key");
         var settings = await service.GetAllAsync(db);
@@ -51,7 +51,7 @@ public class Iteration010DirectorySyncSettingsTests
     public async Task Sql_server_connection_settings_are_persisted_without_requiring_password_reentry()
     {
         await using var db = CreateDb();
-        var service = new PortalSettingsService();
+        var service = TestPortalSettingsServiceFactory.Create();
 
         await service.SaveSqlServerAsync(db, "sql.example.local", "1433", "ArkanumReview", "arkanum_app", "initial-password", true, true, "admin-key");
         await service.SaveSqlServerAsync(db, "sql2.example.local", "11433", "ArkanumProd", "arkanum_runtime", string.Empty, false, true, "admin-key");
@@ -95,6 +95,7 @@ public class Iteration010DirectorySyncSettingsTests
         db.Database.EnsureCreated();
         return db;
     }
+
 
     private static string ProjectRoot()
     {

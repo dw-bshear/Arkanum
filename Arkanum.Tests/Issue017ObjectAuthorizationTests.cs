@@ -137,7 +137,7 @@ public sealed class Issue017ObjectAuthorizationTests
         return new Arkanum.Web.Pages.Settings.IndexModel(
             db,
             new DashboardService(),
-            new PortalSettingsService(),
+            TestPortalSettingsServiceFactory.Create(),
             new AdminUserService(new LocalPasswordHasher()),
             new DirectoryLdapImportService(),
             new VaultExportService(crypto));
@@ -206,6 +206,7 @@ public sealed class Issue017ObjectAuthorizationTests
             foreach (var value in values) _data[value.Key] = value.Value;
         }
     }
+
 
     private static string ProjectRoot()
     {

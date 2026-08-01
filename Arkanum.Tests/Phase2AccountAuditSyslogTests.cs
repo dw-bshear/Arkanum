@@ -76,7 +76,7 @@ public class Phase2AccountAuditSyslogTests
     public async Task SettingsChangesCreateAuditEventWithoutLoggingValues()
     {
         await using var db = CreateDb(nameof(SettingsChangesCreateAuditEventWithoutLoggingValues));
-        var settings = new PortalSettingsService();
+        var settings = TestPortalSettingsServiceFactory.Create();
         await settings.EnsureDefaultsAsync(db);
 
         await settings.SaveSyslogAsync(db, new SyslogSettings("syslog.internal", "514", "UDP", true), "admin-key");
@@ -109,6 +109,7 @@ public class Phase2AccountAuditSyslogTests
         Assert.DoesNotContain("\n", message);
         Assert.DoesNotContain("\r", message);
     }
+
 
     private static ArkanumDbContext CreateDb(string name)
     {

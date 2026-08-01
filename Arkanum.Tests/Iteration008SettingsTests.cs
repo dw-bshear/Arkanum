@@ -12,7 +12,7 @@ public class Iteration008SettingsTests
     public async Task Portal_settings_defaults_and_dashboard_text_can_be_saved()
     {
         await using var db = CreateDb();
-        var service = new PortalSettingsService();
+        var service = TestPortalSettingsServiceFactory.Create();
 
         var defaults = await service.GetDashboardTextAsync(db);
         await service.SaveDashboardTextAsync(db, "Custom vault headline", "Custom vault description", "admin-key");
@@ -28,7 +28,7 @@ public class Iteration008SettingsTests
     public async Task Ldap_mail_and_syslog_settings_are_persisted()
     {
         await using var db = CreateDb();
-        var service = new PortalSettingsService();
+        var service = TestPortalSettingsServiceFactory.Create();
 
         await service.SaveLdapAsync(db, new LdapSettings("ldap.local", "389", "dc=lab,dc=local", "uid=reader,ou=people,dc=lab,dc=local", "reader-password", "(objectClass=person)", "uid", "displayName", "mail"), "admin-key");
         await service.SaveMailAsync(db, new MailServerSettings("smtp.local", "587", true, "arkanum@email.com", "Arkanum"), "admin-key");
@@ -125,6 +125,7 @@ public class Iteration008SettingsTests
         db.Database.EnsureCreated();
         return db;
     }
+
 
     private static string ProjectRoot()
     {

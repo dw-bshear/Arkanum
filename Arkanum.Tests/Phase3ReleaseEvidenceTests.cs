@@ -15,7 +15,7 @@ public class Phase3ReleaseEvidenceTests
     {
         await using var db = CreateDb(nameof(InstallReportSummarizesHealthCountsAndSecurityControlsWithoutSecrets));
         await db.Database.EnsureCreatedAsync();
-        await new PortalSettingsService().EnsureDefaultsAsync(db);
+        await TestPortalSettingsServiceFactory.Create().EnsureDefaultsAsync(db);
         db.Users.Add(new AppUserEntity { Username = "admin", DisplayName = "Admin", Source = UserSource.Local, DirectoryPresent = true, AppAccessEnabled = true, PasswordHash = "hash", RolesCsv = "Administrator,User" });
         db.Vaults.Add(new VaultEntity { Name = "Ops", Description = "Ops vault", CreatedByUserKey = "admin", CreatedAt = DateTimeOffset.UtcNow });
         db.AuditEvents.Add(new AuditEventEntity { Type = AuditEventType.LoginSucceeded, ActorUserKey = "admin", Target = "admin", OccurredAt = DateTimeOffset.UtcNow, Message = "Local login succeeded." });
@@ -42,6 +42,7 @@ public class Phase3ReleaseEvidenceTests
         Assert.DoesNotContain("CorrectHorse!2026", serialized);
         Assert.DoesNotContain("\"passwordHash\"", serialized, StringComparison.OrdinalIgnoreCase);
     }
+
 
     private static ArkanumDbContext CreateDb(string name)
     {

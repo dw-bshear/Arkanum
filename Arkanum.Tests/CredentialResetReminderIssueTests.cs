@@ -12,10 +12,10 @@ public class CredentialResetReminderIssueTests
     {
         await using var db = CreateDb(nameof(ReminderServiceHonorsEnabledSettingAndDoesNotMarkItemsWhenDisabled));
         var (_, item) = await SeedDueCredentialAsync(db, "member", "member@email.com", "User", "Core router", "cipher-disabled");
-        await new PortalSettingsService().EnsureDefaultsAsync(db);
+        await TestPortalSettingsServiceFactory.Create().EnsureDefaultsAsync(db);
         await SetSettingAsync(db, PortalSettingKeys.CredentialResetReminderEnabled, "false");
         var sender = new RecordingEmailSender();
-        var service = new CredentialResetReminderService(sender, new PortalSettingsService());
+        var service = new CredentialResetReminderService(sender, TestPortalSettingsServiceFactory.Create());
 
         var result = await service.SendDueRemindersAsync(db, new DateTimeOffset(2026, 8, 3, 9, 0, 0, TimeSpan.Zero));
 
@@ -34,11 +34,11 @@ public class CredentialResetReminderIssueTests
         await SeedDueCredentialAsync(db, "member", "member@email.com", "User", "VPN breakglass", "cipher-vpn", vaultName: "Network");
         await SeedDueCredentialAsync(db, "admin", "admin@email.com", "Administrator,User", "Domain admin", "cipher-admin", vaultName: "Ops");
         await SeedDueCredentialAsync(db, "noemail", "", "User", "Email-less login", "cipher-noemail", vaultName: "Ops");
-        await new PortalSettingsService().EnsureDefaultsAsync(db);
+        await TestPortalSettingsServiceFactory.Create().EnsureDefaultsAsync(db);
         await SetSettingAsync(db, PortalSettingKeys.CredentialResetReminderSubject, "Reset digest due {{DueDate}}");
         await SetSettingAsync(db, PortalSettingKeys.CredentialResetReminderBody, "Hello {{displayName}}\n{{CredentialList}}\nNo secrets here.");
         var sender = new RecordingEmailSender();
-        var service = new CredentialResetReminderService(sender, new PortalSettingsService());
+        var service = new CredentialResetReminderService(sender, TestPortalSettingsServiceFactory.Create());
 
         var result = await service.SendDueRemindersAsync(db, now);
 
@@ -128,6 +128,7 @@ public class CredentialResetReminderIssueTests
             .Options;
         return new ArkanumDbContext(options);
     }
+
 
     private static string ProjectRoot()
     {

@@ -366,7 +366,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         DashboardText = new DashboardTextSettings(settings[PortalSettingKeys.DashboardHeroTitle], settings[PortalSettingKeys.DashboardHeroDescription]);
         DashboardHeroTitle = DashboardText.HeroTitle;
         DashboardHeroDescription = DashboardText.HeroDescription;
-        Ldap = PortalSettingsService.ToLdap(settings);
+        Ldap = PortalSettingsService.ToLdap(settings) with { BindPassword = string.Empty };
         LdapSync = PortalSettingsService.ToLdapSync(settings);
         LdapSyncInterval = LdapSync.Interval;
         Mail = PortalSettingsService.ToMail(settings);

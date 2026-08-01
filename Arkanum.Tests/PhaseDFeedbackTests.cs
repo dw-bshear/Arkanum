@@ -62,9 +62,9 @@ public class PhaseDFeedbackTests
             ResetNotificationDate = DateOnly.FromDateTime(now.DateTime)
         });
         await db.SaveChangesAsync();
-        await new PortalSettingsService().EnsureDefaultsAsync(db);
+        await TestPortalSettingsServiceFactory.Create().EnsureDefaultsAsync(db);
         var sender = new RecordingEmailSender();
-        var service = new CredentialResetReminderService(sender, new PortalSettingsService());
+        var service = new CredentialResetReminderService(sender, TestPortalSettingsServiceFactory.Create());
 
         var result = await service.SendDueRemindersAsync(db, now);
 
@@ -144,6 +144,7 @@ public class PhaseDFeedbackTests
             .Options;
         return new ArkanumDbContext(options);
     }
+
 
     private static string ProjectRoot()
     {

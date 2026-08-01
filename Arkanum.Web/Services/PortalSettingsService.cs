@@ -1,6 +1,7 @@
 using Arkanum.Web.Data;
 using Arkanum.Web.Domain;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Arkanum.Web.Services;
 
@@ -55,7 +56,7 @@ public static class PortalSettingKeys
 }
 
 public sealed record DashboardTextSettings(string HeroTitle, string HeroDescription);
-public sealed record LdapSettings(string Host, string Port, string BaseDn, string BindDn, string BindPassword, string UserFilter, string LoginAttribute, string DisplayNameAttribute, string EmailAttribute);
+public sealed record LdapSettings(string Host, string Port, string BaseDn, string BindDn, string BindPassword, string UserFilter, string LoginAttribute, string DisplayNameAttribute, string EmailAttribute, bool HasBindPassword = false);
 public sealed record LdapSyncSettings(string Interval);
 public sealed record MailServerSettings(string SmtpHost, string SmtpPort, bool UseTls, string FromAddress, string FromName, string Username = "", bool HasPassword = false);
 public sealed record NotificationTemplateSettings(string AllUsersSubject, string AllUsersBody, string VaultAccessSubject, string VaultAccessBody);
@@ -69,9 +70,21 @@ public sealed record FederationSettings(string Mode, string OidcAuthority, strin
     public bool ExternalIdentityConfigured => OidcConfigured || SamlConfigured;
 }
 
-public sealed class PortalSettingsService
+public sealed class PortalSettingsService(SecretEncryptionService secretEncryption)
 {
     public static readonly string[] ValidLdapSyncIntervals = ["30m", "12h", "1d"];
+
+    private const string ProtectedSettingPrefix = "arkanum-secret:v1:";
+
+    private static readonly HashSet<string> SecretSettingKeys =
+    [
+        PortalSettingKeys.LdapBindPassword,
+        PortalSettingKeys.MailPassword,
+        PortalSettingKeys.SqlServerPassword,
+        PortalSettingKeys.OidcClientSecret
+    ];
+
+    private readonly SecretEncryptionService secretEncryption = secretEncryption;
 
     private static readonly IReadOnlyDictionary<string, string> Defaults = new Dictionary<string, string>
     {
@@ -138,7 +151,8 @@ public sealed class PortalSettingsService
     public async Task<IReadOnlyDictionary<string, string>> GetAllAsync(ArkanumDbContext db)
     {
         await EnsureDefaultsAsync(db);
-        var values = await db.PortalSettings.AsNoTracking().ToDictionaryAsync(s => s.SettingKey, s => s.Value);
+        await ProtectExistingPlaintextSecretSettingsAsync(db);
+        var values = await db.PortalSettings.AsNoTracking().ToDictionaryAsync(s => s.SettingKey, s => UnprotectIfSecret(s.SettingKey, s.Value));
         return Defaults.ToDictionary(kvp => kvp.Key, kvp => values.GetValueOrDefault(kvp.Key, kvp.Value));
     }
 
@@ -157,18 +171,22 @@ public sealed class PortalSettingsService
         }, actorUserKey);
     }
 
-    public async Task SaveLdapAsync(ArkanumDbContext db, LdapSettings input, string actorUserKey) => await SetAsync(db, new Dictionary<string, string>
+    public async Task SaveLdapAsync(ArkanumDbContext db, LdapSettings input, string actorUserKey)
     {
-        [PortalSettingKeys.LdapHost] = input.Host.Trim(),
-        [PortalSettingKeys.LdapPort] = input.Port.Trim(),
-        [PortalSettingKeys.LdapBaseDn] = input.BaseDn.Trim(),
-        [PortalSettingKeys.LdapBindDn] = input.BindDn.Trim(),
-        [PortalSettingKeys.LdapBindPassword] = input.BindPassword.Trim(),
-        [PortalSettingKeys.LdapUserFilter] = input.UserFilter.Trim(),
-        [PortalSettingKeys.LdapLoginAttribute] = input.LoginAttribute.Trim(),
-        [PortalSettingKeys.LdapDisplayNameAttribute] = input.DisplayNameAttribute.Trim(),
-        [PortalSettingKeys.LdapEmailAttribute] = input.EmailAttribute.Trim()
-    }, actorUserKey);
+        var values = new Dictionary<string, string>
+        {
+            [PortalSettingKeys.LdapHost] = input.Host.Trim(),
+            [PortalSettingKeys.LdapPort] = input.Port.Trim(),
+            [PortalSettingKeys.LdapBaseDn] = input.BaseDn.Trim(),
+            [PortalSettingKeys.LdapBindDn] = input.BindDn.Trim(),
+            [PortalSettingKeys.LdapUserFilter] = input.UserFilter.Trim(),
+            [PortalSettingKeys.LdapLoginAttribute] = input.LoginAttribute.Trim(),
+            [PortalSettingKeys.LdapDisplayNameAttribute] = input.DisplayNameAttribute.Trim(),
+            [PortalSettingKeys.LdapEmailAttribute] = input.EmailAttribute.Trim()
+        };
+        if (!string.IsNullOrWhiteSpace(input.BindPassword)) values[PortalSettingKeys.LdapBindPassword] = input.BindPassword.Trim();
+        await SetAsync(db, values, actorUserKey);
+    }
 
     public async Task SaveLdapSyncAsync(ArkanumDbContext db, LdapSyncSettings input, string actorUserKey)
     {
@@ -262,7 +280,7 @@ public sealed class PortalSettingsService
         _ => "Local"
     };
 
-    public static LdapSettings ToLdap(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.LdapHost], settings[PortalSettingKeys.LdapPort], settings[PortalSettingKeys.LdapBaseDn], settings[PortalSettingKeys.LdapBindDn], settings[PortalSettingKeys.LdapBindPassword], settings[PortalSettingKeys.LdapUserFilter], settings[PortalSettingKeys.LdapLoginAttribute], settings[PortalSettingKeys.LdapDisplayNameAttribute], settings[PortalSettingKeys.LdapEmailAttribute]);
+    public static LdapSettings ToLdap(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.LdapHost], settings[PortalSettingKeys.LdapPort], settings[PortalSettingKeys.LdapBaseDn], settings[PortalSettingKeys.LdapBindDn], settings[PortalSettingKeys.LdapBindPassword], settings[PortalSettingKeys.LdapUserFilter], settings[PortalSettingKeys.LdapLoginAttribute], settings[PortalSettingKeys.LdapDisplayNameAttribute], settings[PortalSettingKeys.LdapEmailAttribute], !string.IsNullOrWhiteSpace(settings[PortalSettingKeys.LdapBindPassword]));
     public static LdapSyncSettings ToLdapSync(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.LdapSyncInterval]);
     public static MailServerSettings ToMail(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.MailSmtpHost], settings[PortalSettingKeys.MailSmtpPort], string.Equals(settings[PortalSettingKeys.MailUseTls], "true", StringComparison.OrdinalIgnoreCase), settings[PortalSettingKeys.MailFromAddress], settings[PortalSettingKeys.MailFromName], settings[PortalSettingKeys.MailUsername], !string.IsNullOrWhiteSpace(settings[PortalSettingKeys.MailPassword]));
     public static NotificationTemplateSettings ToNotificationTemplates(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.NotificationAllUsersSubject], settings[PortalSettingKeys.NotificationAllUsersBody], settings[PortalSettingKeys.NotificationVaultAccessSubject], settings[PortalSettingKeys.NotificationVaultAccessBody]);
@@ -281,19 +299,20 @@ public sealed class PortalSettingsService
 
     private static string NormalizeDailySendTime(string value) => TimeOnly.TryParse(value, out var parsed) ? parsed.ToString("HH:mm") : Defaults[PortalSettingKeys.CredentialResetReminderDailySendTime];
 
-    private static async Task SetAsync(ArkanumDbContext db, IReadOnlyDictionary<string, string> values, string actorUserKey)
+    private async Task SetAsync(ArkanumDbContext db, IReadOnlyDictionary<string, string> values, string actorUserKey)
     {
         var now = DateTimeOffset.UtcNow;
         foreach (var (key, value) in values)
         {
+            var storedValue = ProtectIfSecret(key, value);
             var setting = await db.PortalSettings.SingleOrDefaultAsync(s => s.SettingKey == key);
             if (setting is null)
             {
-                db.PortalSettings.Add(new PortalSettingEntity { SettingKey = key, Value = value, UpdatedAt = now, UpdatedByUserKey = actorUserKey });
+                db.PortalSettings.Add(new PortalSettingEntity { SettingKey = key, Value = storedValue, UpdatedAt = now, UpdatedByUserKey = actorUserKey });
             }
             else
             {
-                setting.Value = value;
+                setting.Value = storedValue;
                 setting.UpdatedAt = now;
                 setting.UpdatedByUserKey = actorUserKey;
             }
@@ -308,4 +327,41 @@ public sealed class PortalSettingsService
         });
         await db.SaveChangesAsync();
     }
+
+    private async Task ProtectExistingPlaintextSecretSettingsAsync(ArkanumDbContext db)
+    {
+        var existingSecrets = await db.PortalSettings
+            .Where(s => SecretSettingKeys.Contains(s.SettingKey) && s.Value != string.Empty)
+            .ToListAsync();
+        var changed = false;
+        foreach (var setting in existingSecrets.Where(s => !IsProtectedSecret(s.Value)))
+        {
+            setting.Value = ProtectIfSecret(setting.SettingKey, setting.Value);
+            setting.UpdatedAt = DateTimeOffset.UtcNow;
+            setting.UpdatedByUserKey = string.IsNullOrWhiteSpace(setting.UpdatedByUserKey) ? "system" : setting.UpdatedByUserKey;
+            changed = true;
+        }
+        if (changed)
+        {
+            await db.SaveChangesAsync();
+        }
+    }
+
+    private string ProtectIfSecret(string key, string value)
+    {
+        if (!SecretSettingKeys.Contains(key) || string.IsNullOrWhiteSpace(value) || IsProtectedSecret(value)) return value;
+        var payload = secretEncryption.Encrypt(value);
+        return ProtectedSettingPrefix + JsonSerializer.Serialize(payload);
+    }
+
+    private string UnprotectIfSecret(string key, string value)
+    {
+        if (!SecretSettingKeys.Contains(key) || string.IsNullOrWhiteSpace(value)) return value;
+        if (!IsProtectedSecret(value)) return value;
+        var payloadJson = value[ProtectedSettingPrefix.Length..];
+        var payload = JsonSerializer.Deserialize<EncryptedSecretPayload>(payloadJson) ?? throw new InvalidOperationException("Encrypted portal setting payload is malformed.");
+        return secretEncryption.Decrypt(payload);
+    }
+
+    private static bool IsProtectedSecret(string value) => value.StartsWith(ProtectedSettingPrefix, StringComparison.Ordinal);
 }
