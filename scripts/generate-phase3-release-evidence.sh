@@ -8,9 +8,10 @@ if [[ ! -d "$PUBLISH_DIR" ]]; then
   echo "Publish directory not found: $PUBLISH_DIR" >&2
   exit 2
 fi
-DOTNET_ROOT="${DOTNET_ROOT:-/home/mannie/.dotnet}"
-export DOTNET_ROOT
-export PATH="$DOTNET_ROOT:$PATH"
+if [[ -n "${DOTNET_ROOT:-}" ]]; then
+  export DOTNET_ROOT
+  export PATH="$DOTNET_ROOT:$PATH"
+fi
 
 MANIFEST="$OUT_DIR/arkanum-file-manifest.sha256"
 PACKAGE_INVENTORY="$OUT_DIR/arkanum-package-inventory.txt"
@@ -18,6 +19,7 @@ VULN_SCAN="$OUT_DIR/arkanum-vulnerability-scan.txt"
 OUTDATED_SCAN="$OUT_DIR/arkanum-outdated-scan.txt"
 SBOM_DIR="$OUT_DIR/sbom"
 SBOM="$SBOM_DIR/arkanum-cyclonedx-bom.xml"
+SBOM_MISSING="$SBOM_DIR/CYCLONEDX_MISSING.txt"
 LOCK_COPY_DIR="$OUT_DIR/package-locks"
 CHECKSUMS="$OUT_DIR/SHA256SUMS.txt"
 REPORT="$OUT_DIR/arkanum-release-evidence.txt"
@@ -49,7 +51,7 @@ else
   {
     echo "CycloneDX tool not found. Install with: dotnet tool install --global CycloneDX"
     echo "Package inventory fallback: $PACKAGE_INVENTORY"
-  } > "$SBOM"
+  } > "$SBOM_MISSING"
 fi
 
 (
@@ -66,12 +68,17 @@ fi
   echo "VulnerabilityScan=$VULN_SCAN"
   echo "OutdatedScan=$OUTDATED_SCAN"
   echo "CycloneDX=$SBOM"
+  if [[ -f "$SBOM_MISSING" ]]; then
+    echo "CycloneDXMissing=$SBOM_MISSING"
+  fi
   echo "PackageLocks=$LOCK_COPY_DIR"
   echo "Checksums=$CHECKSUMS"
   echo "FileCount=$(find "$PUBLISH_DIR" -type f | wc -l | tr -d ' ')"
   echo "ManifestSha256=$(sha256sum "$MANIFEST" | awk '{print $1}')"
   echo "PackageInventorySha256=$(sha256sum "$PACKAGE_INVENTORY" | awk '{print $1}')"
   echo "VulnerabilityScanSha256=$(sha256sum "$VULN_SCAN" | awk '{print $1}')"
-  echo "SbomSha256=$(sha256sum "$SBOM" | awk '{print $1}')"
+  if [[ -f "$SBOM" ]]; then
+    echo "SbomSha256=$(sha256sum "$SBOM" | awk '{print $1}')"
+  fi
 } > "$REPORT"
 echo "$REPORT"

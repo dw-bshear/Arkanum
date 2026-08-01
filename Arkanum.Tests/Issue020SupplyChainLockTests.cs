@@ -49,6 +49,9 @@ public class Issue020SupplyChainLockTests
         Assert.Contains("CycloneDX", script);
         Assert.Contains("packages.lock.json", script);
         Assert.Contains("SHA256SUMS.txt", script);
+        Assert.DoesNotContain("/home/mannie", script);
+        Assert.Contains("CYCLONEDX_MISSING", script);
+        Assert.DoesNotContain("> \"$SBOM\"", script);
     }
 
     [Fact]
