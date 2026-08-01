@@ -10,8 +10,10 @@ Use this checklist before moving an Arkanum release package into a disconnected 
 - SQL setup/migration scripts, when available.
 - Installation and backup documentation under `docs/`.
 - Release notes.
+- `packages.lock.json` files for every restored .NET project.
 - SHA-256 checksums.
-- SBOM, when release automation provides one.
+- SBOM in CycloneDX or SPDX format.
+- Vulnerability scan evidence for the exact release commit.
 
 ## Pre-transfer checks
 
@@ -26,10 +28,22 @@ Use this checklist before moving an Arkanum release package into a disconnected 
 
 ## Integrity checks
 
-Generate checksums before transfer:
+Use locked restore and vulnerability evidence before packaging:
 
 ```bash
-sha256sum Arkanum-*.zip Arkanum-*.tar.gz > SHA256SUMS.txt
+dotnet restore --locked-mode Arkanum.sln
+dotnet list Arkanum.sln package --vulnerable --include-transitive
+dotnet list Arkanum.sln package --outdated --include-transitive
+```
+
+For a disconnected build, pre-stage an approved offline NuGet cache or feed containing exactly the packages resolved in each `packages.lock.json`. Do not restore from the public internet inside the receiving network.
+
+Generate an SBOM and checksums before transfer:
+
+```bash
+# Use the release pipeline's approved CycloneDX or SPDX generator.
+# Example shape: dotnet CycloneDX Arkanum.sln --output artifacts/sbom
+sha256sum Arkanum-*.zip Arkanum-*.tar.gz artifacts/sbom/* > SHA256SUMS.txt
 ```
 
 Verify checksums after transfer using the receiving network's approved tool.
