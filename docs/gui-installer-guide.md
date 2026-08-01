@@ -50,19 +50,22 @@ The GUI prompts for:
 - data directory;
 - log directory;
 - service user;
-- listen URL;
+- HTTPS listen URL and certificate binding;
 - SQL Server host, port, database, username, and password;
-- SQL encryption/trust options;
+- SQL encryption and certificate validation options;
 - Recovery Key acknowledgment.
 
 The GUI invokes the packaged script installer with administrator elevation. If the target is a headless server or does not have Tkinter available, use the script installer directly:
 
 ```bash
 sudo env \
-  ARKANUM_SQL_CONNECTION='Server=tcp:<sql-host>,1433;Database=Arkanum;User Id=<user>;Password=<password>;Encrypt=True;TrustServerCertificate=True;' \
-  APP_URLS='http://127.0.0.1:5068' \
+  ARKANUM_SQL_CONNECTION='Server=tcp:<sql-host>,1433;Database=Arkanum;User Id=<user>;Password=<password>;Encrypt=True;TrustServerCertificate=False;' \
+  APP_URLS='https://127.0.0.1:5068' \
+  ARKANUM_HTTPS_CERTIFICATE_PATH='/etc/arkanum/tls/arkanum.pfx' \
   installers/linux/install-arkanum.sh
 ```
+
+For Linux HTTPS service binding, provide a trusted Kestrel PFX certificate with `ARKANUM_HTTPS_CERTIFICATE_PATH` and optional `ARKANUM_HTTPS_CERTIFICATE_PASSWORD`. If TLS is terminated by a reverse proxy, bind Arkanum only to an internal `http://127.0.0.1` URL behind that proxy.
 
 The Linux installer configures:
 
@@ -96,9 +99,9 @@ The Windows GUI prompts for:
 - ProgramData path;
 - IIS site name;
 - IIS application pool name;
-- HTTP port;
+- HTTPS binding, host name, certificate thumbprint, and port;
 - SQL Server host, port, database, username, and password;
-- SQL encryption/trust options;
+- SQL encryption and certificate validation options;
 - Recovery Key acknowledgment.
 
 The Windows installer configures:
@@ -106,8 +109,10 @@ The Windows installer configures:
 - published app files under `C:\Program Files\Arkanum\Web` by default;
 - runtime config/secrets/log folders under `C:\ProgramData\Arkanum` by default;
 - IIS application pool;
-- IIS site;
+- IIS site with an HTTPS binding;
 - `web.config` environment variables for SQL and recovery key material.
+
+Production Windows Server 2022 deployments should bind IIS to a trusted server certificate and enable TLS 1.2/1.3 at the OS/IIS layer. Production SQL Server connections should use `Encrypt=True;TrustServerCertificate=False;` with a certificate chain trusted by the application host; the trust bypass is for isolated development/testing only.
 
 ## Recovery Key presentation
 

@@ -39,7 +39,7 @@ cat <<'EOF'
 Arkanum package files were staged under /opt/arkanum.
 Run the GUI or script installer to configure SQL Server, service identity, recovery key, and systemd:
   python3 /usr/lib/arkanum/installers/linux/arkanum-gui-install.py
-  sudo env ARKANUM_SQL_CONNECTION='Server=tcp:<host>,1433;Database=Arkanum;User Id=<user>;Password=<password>;Encrypt=True;TrustServerCertificate=True;' /usr/lib/arkanum/installers/linux/install-arkanum.sh
+  sudo env ARKANUM_SQL_CONNECTION='Server=tcp:<host>,1433;Database=Arkanum;User Id=<user>;Password=<password>;Encrypt=True;TrustServerCertificate=False;' /usr/lib/arkanum/installers/linux/install-arkanum.sh
 EOF
 EOF_POSTINST
 chmod 755 "${STAGE_DIR}/DEBIAN/postinst"

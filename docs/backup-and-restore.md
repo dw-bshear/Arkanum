@@ -87,7 +87,7 @@ Linux CLI example:
 sudo env \
   ACTION=restore \
   RESTORE_SOURCE=dba-restored-database \
-  ARKANUM_SQL_CONNECTION='Server=tcp:<host>,1433;Database=Arkanum;User Id=<runtime-user>;Password=<password>;Encrypt=True;TrustServerCertificate=True;' \
+  ARKANUM_SQL_CONNECTION='Server=tcp:<host>,1433;Database=Arkanum;User Id=<runtime-user>;Password=<password>;Encrypt=True;TrustServerCertificate=False;' \
   ARKANUM_RESTORE_KEY_FILE='/path/to/master-key.txt' \
   installers/linux/install-arkanum.sh
 ```
@@ -98,7 +98,7 @@ Windows CLI example:
 .\installers\windows\Install-Arkanum.ps1 `
   -Action restore `
   -RestoreSource dba-restored-database `
-  -SqlConnectionString 'Server=tcp:<host>,1433;Database=Arkanum;User Id=<runtime-user>;Password=<password>;Encrypt=True;TrustServerCertificate=True;' `
+  -SqlConnectionString 'Server=tcp:<host>,1433;Database=Arkanum;User Id=<runtime-user>;Password=<password>;Encrypt=True;TrustServerCertificate=False;' `
   -RestoreKeyFile 'C:\SecureBackup\master-key.txt'
 ```
 
@@ -133,7 +133,7 @@ The installer also explains that recoverable state requires both the SQL databas
 After restore, validate:
 
 ```bash
-curl -fsS http://127.0.0.1:5068/health
+curl -fsS https://127.0.0.1:5068/health
 ```
 
 A healthy restore returns HTTP 200 and `status: Healthy`. An unhealthy restore returns HTTP 503 and component statuses that do not expose secrets.

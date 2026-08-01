@@ -130,9 +130,9 @@ public sealed class ArkanumOidcOptionsConfigurator(IServiceScopeFactory scopeFac
         options.ResponseMode = OpenIdConnectResponseMode.Query;
         options.SaveTokens = false;
         options.CorrelationCookie.SameSite = SameSiteMode.Lax;
-        options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
         options.NonceCookie.SameSite = SameSiteMode.Lax;
-        options.NonceCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.NonceCookie.SecurePolicy = CookieSecurePolicy.Always;
         options.GetClaimsFromUserInfoEndpoint = true;
         options.CallbackPath = "/signin-oidc";
         options.TokenValidationParameters = new TokenValidationParameters

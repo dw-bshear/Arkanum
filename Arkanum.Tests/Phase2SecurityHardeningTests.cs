@@ -49,7 +49,7 @@ public class Phase2SecurityHardeningTests
         Assert.Equal("Arkanum.Auth", options.Cookie.Name);
         Assert.True(options.Cookie.HttpOnly);
         Assert.Equal(SameSiteMode.Strict, options.Cookie.SameSite);
-        Assert.Equal(CookieSecurePolicy.SameAsRequest, options.Cookie.SecurePolicy);
+        Assert.Equal(CookieSecurePolicy.Always, options.Cookie.SecurePolicy);
         Assert.Equal(TimeSpan.FromMinutes(30), options.ExpireTimeSpan);
         Assert.True(options.SlidingExpiration);
     }

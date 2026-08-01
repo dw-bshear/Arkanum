@@ -18,7 +18,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/Error");
 });
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options => ArkanumCookiePolicy.Configure(options, builder.Configuration))
+    .AddCookie(options => ArkanumCookiePolicy.Configure(options, builder.Configuration, builder.Environment.EnvironmentName))
     .AddOpenIdConnect(FederatedAuthenticationService.OidcScheme, _ => { });
 builder.Services.AddSingleton<IConfigureOptions<OpenIdConnectOptions>, ArkanumOidcOptionsConfigurator>();
 builder.Services.AddAuthorization(options =>
@@ -81,8 +81,11 @@ app.UseArkanumSecurityHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
+    app.UseHsts();
     app.UseExceptionHandler("/Error");
 }
+
+app.UseHttpsRedirection();
 
 using (var scope = app.Services.CreateScope())
 {

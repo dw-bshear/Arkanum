@@ -20,7 +20,9 @@ DATA_DIR=${DATA_DIR:-/var/lib/arkanum}
 LOG_DIR=${LOG_DIR:-/var/log/arkanum}
 BACKUP_ROOT=${BACKUP_ROOT:-/var/backups/arkanum}
 SERVICE_USER=${SERVICE_USER:-arkanum}
-APP_URLS=${APP_URLS:-http://127.0.0.1:5068}
+APP_URLS=${APP_URLS:-https://127.0.0.1:5068}
+ARKANUM_HTTPS_CERTIFICATE_PATH=${ARKANUM_HTTPS_CERTIFICATE_PATH:-}
+ARKANUM_HTTPS_CERTIFICATE_PASSWORD=${ARKANUM_HTTPS_CERTIFICATE_PASSWORD:-}
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PACKAGE_ROOT=$(cd "${SCRIPT_DIR}/../.." && pwd)
 PACKAGE_DIR=${PACKAGE_DIR:-}
@@ -87,7 +89,7 @@ build_runtime_sql_connection() {
   if [ -z "${SQL_SERVER_HOST}" ] || [ -z "${DATABASE_NAME}" ] || [ -z "${RUNTIME_SQL_LOGIN}" ] || [ -z "${RUNTIME_SQL_PASSWORD}" ]; then
     fail "ARKANUM_SQL_CONNECTION or SQL_SERVER_HOST/DATABASE_NAME/RUNTIME_SQL_LOGIN/RUNTIME_SQL_PASSWORD is required for the runtime SQL connection."
   fi
-  ARKANUM_SQL_CONNECTION="Server=tcp:${SQL_SERVER_HOST},${SQL_SERVER_PORT};Database=${DATABASE_NAME};User Id=${RUNTIME_SQL_LOGIN};Password=${RUNTIME_SQL_PASSWORD};Encrypt=True;TrustServerCertificate=True;"
+  ARKANUM_SQL_CONNECTION="Server=tcp:${SQL_SERVER_HOST},${SQL_SERVER_PORT};Database=${DATABASE_NAME};User Id=${RUNTIME_SQL_LOGIN};Password=${RUNTIME_SQL_PASSWORD};Encrypt=True;TrustServerCertificate=False;"
   export ARKANUM_SQL_CONNECTION
 }
 
@@ -170,13 +172,17 @@ if [ "${DATABASE_SETUP_MODE}" = "auto" ]; then
   if [ "${ACTION}" = "restore" ]; then DATABASE_SETUP_MODE=restore-database; else DATABASE_SETUP_MODE=use-existing-database; fi
 fi
 build_runtime_sql_connection
+if [[ "${APP_URLS}" == *https://* ]]; then
+  [ -n "${ARKANUM_HTTPS_CERTIFICATE_PATH}" ] || fail "ARKANUM_HTTPS_CERTIFICATE_PATH is required when APP_URLS uses https. Provide a trusted Kestrel PFX certificate path or terminate TLS before Arkanum and use an internal http://127.0.0.1 URL."
+  [ -s "${ARKANUM_HTTPS_CERTIFICATE_PATH}" ] || fail "ARKANUM_HTTPS_CERTIFICATE_PATH does not exist or is empty."
+fi
 if [ -z "${ARKANUM_SQL_CONNECTION:-}" ]; then
   cat >&2 <<'EOF'
 [FAIL] ARKANUM_SQL_CONNECTION is required for Phase C installs and upgrades.
 
 Example:
   sudo env \
-    ARKANUM_SQL_CONNECTION='Server=tcp:sql01,1433;Database=Arkanum;User Id=arkanum_app;Password=...;Encrypt=True;TrustServerCertificate=True;' \
+    ARKANUM_SQL_CONNECTION='Server=tcp:sql01,1433;Database=Arkanum;User Id=arkanum_app;Password=...;Encrypt=True;TrustServerCertificate=False;' \
     ACTION=restore \
     ARKANUM_RESTORE_KEY_FILE=/path/to/master-key.txt \
     installers/linux/install-arkanum.sh
@@ -301,6 +307,14 @@ ASPNETCORE_ENVIRONMENT=Production
 ARKANUM_MASTER_KEY=$(cat "${MASTER_KEY_FILE}")
 ConnectionStrings__DefaultConnection=${ARKANUM_SQL_CONNECTION}
 EOF_ENV
+if [ -n "${ARKANUM_HTTPS_CERTIFICATE_PATH}" ]; then
+  {
+    echo "ASPNETCORE_Kestrel__Certificates__Default__Path=${ARKANUM_HTTPS_CERTIFICATE_PATH}"
+    if [ -n "${ARKANUM_HTTPS_CERTIFICATE_PASSWORD}" ]; then
+      echo "ASPNETCORE_Kestrel__Certificates__Default__Password=${ARKANUM_HTTPS_CERTIFICATE_PASSWORD}"
+    fi
+  } >> "${ENV_FILE}"
+fi
 chown root:"${SERVICE_USER}" "${ENV_FILE}"
 chmod 640 "${ENV_FILE}"
 
@@ -417,7 +431,7 @@ State manifest:
 
 Next checks:
   sudo systemctl status arkanum.service --no-pager
-  APP_URL=${APP_URLS/http:\/\/0.0.0.0/http:\/\/127.0.0.1} installers/linux/verify-arkanum.sh
+  APP_URL=${APP_URLS/0.0.0.0/127.0.0.1} installers/linux/verify-arkanum.sh
 
 Important recovery material:
   ${MASTER_KEY_FILE}

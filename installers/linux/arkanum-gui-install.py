@@ -59,7 +59,9 @@ class Wizard(tk.Tk):
             "data_dir": tk.StringVar(value="/var/lib/arkanum"),
             "log_dir": tk.StringVar(value="/var/log/arkanum"),
             "service_user": tk.StringVar(value="arkanum"),
-            "app_urls": tk.StringVar(value="http://127.0.0.1:5068"),
+            "app_urls": tk.StringVar(value="https://127.0.0.1:5068"),
+            "https_certificate_path": tk.StringVar(value=""),
+            "https_certificate_password": tk.StringVar(value=""),
             "sql_host": tk.StringVar(value=""),
             "sql_port": tk.StringVar(value="1433"),
             "sql_database": tk.StringVar(value="Arkanum"),
@@ -74,7 +76,7 @@ class Wizard(tk.Tk):
             "restore_key": tk.StringVar(value=""),
         }
         self.encrypt = tk.BooleanVar(value=True)
-        self.trust = tk.BooleanVar(value=True)
+        self.trust = tk.BooleanVar(value=False)
         self.generate_runtime_password = tk.BooleanVar(value=False)
         self.ack = tk.BooleanVar(value=False)
         self.command_text = tk.StringVar(value="")
@@ -137,9 +139,11 @@ class Wizard(tk.Tk):
             ("Log directory", "log_dir"),
             ("Service user", "service_user"),
             ("Listen URL", "app_urls"),
+            ("HTTPS certificate PFX path", "https_certificate_path"),
         ]:
             self._entry(frame, label, key)
-        ttk.Label(frame, text="Use http://0.0.0.0:5068 if the site should be reachable from other LAN clients.", wraplength=680).pack(anchor="w", pady=10)
+        self._entry(frame, "HTTPS certificate password", "https_certificate_password", show="*")
+        ttk.Label(frame, text="Use HTTPS with a trusted Kestrel PFX certificate, or terminate TLS before Arkanum and bind the service to an internal http://127.0.0.1 URL only.", wraplength=680).pack(anchor="w", pady=10)
         ttk.Label(frame, text="SQL backup file").pack(anchor="w", pady=(8, 0))
         ttk.Entry(frame, textvariable=self.vars["sql_backup_file"]).pack(fill="x")
         ttk.Label(frame, text="Recovery Key file").pack(anchor="w", pady=(8, 0))
@@ -167,7 +171,7 @@ class Wizard(tk.Tk):
         self._entry(frame, "Runtime app password", "runtime_sql_password", show="*")
         ttk.Checkbutton(frame, text="Generate runtime password", variable=self.generate_runtime_password).pack(anchor="w", pady=(10, 0))
         ttk.Checkbutton(frame, text="Encrypt SQL connection", variable=self.encrypt).pack(anchor="w", pady=(10, 0))
-        ttk.Checkbutton(frame, text="Trust SQL Server certificate", variable=self.trust).pack(anchor="w")
+        ttk.Checkbutton(frame, text="Trust SQL Server certificate (development/testing only)", variable=self.trust).pack(anchor="w")
         ttk.Button(frame, text="Build connection string", command=self.generate_command).pack(anchor="w", pady=12)
         return frame
 
@@ -246,6 +250,8 @@ class Wizard(tk.Tk):
             "LOG_DIR": self.vars["log_dir"].get().strip(),
             "SERVICE_USER": self.vars["service_user"].get().strip(),
             "APP_URLS": self.vars["app_urls"].get().strip(),
+            "ARKANUM_HTTPS_CERTIFICATE_PATH": self.vars["https_certificate_path"].get().strip(),
+            "ARKANUM_HTTPS_CERTIFICATE_PASSWORD": self.vars["https_certificate_password"].get(),
             "ARKANUM_SQL_CONNECTION": conn,
             "ARKANUM_RESTORE_KEY_FILE": self.vars["restore_key_file"].get().strip(),
             "ARKANUM_RESTORE_KEY": self.vars["restore_key"].get().strip(),

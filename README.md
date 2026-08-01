@@ -117,8 +117,8 @@ For SQL-backed review, provide a SQL Server connection string through environmen
 
 ```bash
 export ARKANUM_MASTER_KEY="replace-with-site-recovery-key"
-export ConnectionStrings__DefaultConnection="Server=tcp:sql01,1433;Database=Arkanum;User Id=arkanum_app;Password=...;Encrypt=True;TrustServerCertificate=True;"
-dotnet run --project Arkanum.Web --urls http://127.0.0.1:5068
+export ConnectionStrings__DefaultConnection="Server=tcp:sql01,1433;Database=Arkanum;User Id=arkanum_app;Password=...;Encrypt=True;TrustServerCertificate=False;"
+dotnet run --project Arkanum.Web --urls https://127.0.0.1:5068
 ```
 
 Do not commit real SQL passwords, LDAP bind passwords, recovery keys, databases, runtime config, or local publish output.

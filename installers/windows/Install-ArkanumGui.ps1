@@ -94,27 +94,31 @@ $restoreSource = New-Object System.Windows.Forms.ComboBox
 $restoreSource.DropDownStyle = 'DropDownList'
 [void]$restoreSource.Items.AddRange(@('Use database already restored by DBA', 'Restore from SQL backup file', 'Attach existing database files / DBA handoff'))
 $restoreSource.SelectedIndex = 0
-$restoreSource.Location = New-Object System.Drawing.Point(220, 264)
+$restoreSource.Location = New-Object System.Drawing.Point(220, 344)
 $restoreSource.Size = New-Object System.Drawing.Size(360, 24)
 $installPath = New-TextBox 'C:\Program Files\Arkanum\Web' 220 64 470
 $programData = New-TextBox 'C:\ProgramData\Arkanum' 220 104 470
 $siteName = New-TextBox 'Arkanum' 220 144 250
 $appPool = New-TextBox 'ArkanumAppPool' 220 184 250
-$port = New-TextBox '5068' 220 224 120
-$sqlBackupFile = New-TextBox '' 220 304 470
-$restoreKeyFile = New-TextBox '' 220 344 470
-$restoreKey = New-TextBox '' 220 384 470 $true
+$port = New-TextBox '443' 220 224 120
+$httpsHostName = New-TextBox '' 220 264 250
+$httpsCertificateThumbprint = New-TextBox '' 220 304 470
+$sqlBackupFile = New-TextBox '' 220 384 470
+$restoreKeyFile = New-TextBox '' 220 424 470
+$restoreKey = New-TextBox '' 220 464 470 $true
 foreach ($pair in @(
     @('Install action', $action, 24),
     @('Install path', $installPath, 64),
     @('ProgramData path', $programData, 104),
     @('IIS site name', $siteName, 144),
     @('IIS app pool', $appPool, 184),
-    @('HTTP port', $port, 224),
-    @('Restore database source', $restoreSource, 264),
-    @('SQL backup file', $sqlBackupFile, 304),
-    @('Recovery Key file', $restoreKeyFile, 344),
-    @('Paste Recovery Key', $restoreKey, 384)
+    @('HTTPS port', $port, 224),
+    @('HTTPS host name', $httpsHostName, 264),
+    @('HTTPS cert thumbprint', $httpsCertificateThumbprint, 304),
+    @('Restore database source', $restoreSource, 344),
+    @('SQL backup file', $sqlBackupFile, 384),
+    @('Recovery Key file', $restoreKeyFile, 424),
+    @('Paste Recovery Key', $restoreKey, 464)
 )) {
     $installTab.Controls.Add((New-Label $pair[0] 24 $pair[2])); $installTab.Controls.Add($pair[1])
 }
@@ -146,8 +150,8 @@ $encrypt.Checked = $true
 $encrypt.Location = New-Object System.Drawing.Point(220, 224)
 $encrypt.Size = New-Object System.Drawing.Size(240, 24)
 $trust = New-Object System.Windows.Forms.CheckBox
-$trust.Text = 'Trust SQL Server certificate'
-$trust.Checked = $true
+$trust.Text = 'Trust SQL Server certificate (development/testing only)'
+$trust.Checked = $false
 $trust.Location = New-Object System.Drawing.Point(220, 254)
 $trust.Size = New-Object System.Drawing.Size(240, 24)
 foreach ($pair in @(
@@ -235,6 +239,8 @@ function Build-CommandPreview {
         '-ProgramDataPath', "`"$($programData.Text)`"",
         '-SiteName', "`"$($siteName.Text)`"",
         '-Port', $port.Text,
+        '-HttpsHostName', "`"$($httpsHostName.Text)`"",
+        '-HttpsCertificateThumbprint', "`"$($httpsCertificateThumbprint.Text)`"",
         '-SqlConnectionString', "`"$conn`"",
         '-AppPoolName', "`"$($appPool.Text)`"",
         '-PackageVersion', '2026.0.6',
@@ -284,6 +290,8 @@ $run.Add_Click({
             ProgramDataPath = $programData.Text
             SiteName = $siteName.Text
             Port = [int]$port.Text
+            HttpsHostName = $httpsHostName.Text
+            HttpsCertificateThumbprint = $httpsCertificateThumbprint.Text
             SqlConnectionString = $conn
             AppPoolName = $appPool.Text
             PackageVersion = '2026.0.6'

@@ -70,7 +70,7 @@
         <form method="post" asp-page-handler="Ldap" class="card-form settings-wide-form">
             <div class="settings-form-grid">
                 <label>LDAP host or domain controller<input name="LdapHost" value="@Model.Ldap.Host" placeholder="ldap.example.local" /></label>
-                <label>Port<input name="LdapPort" value="@Model.Ldap.Port" placeholder="389" /></label>
+                <label>Port<input name="LdapPort" value="@Model.Ldap.Port" placeholder="636" /></label>
                 <label>Search base DN<input name="LdapBaseDn" value="@Model.Ldap.BaseDn" placeholder="dc=example,dc=local" /></label>
                 <label>Bind DN / read account<input name="LdapBindDn" value="@Model.Ldap.BindDn" placeholder="uid=reader,ou=people,dc=example,dc=local" /></label>
                 <label>Bind DN password<input name="LdapBindPassword" type="password" autocomplete="new-password" placeholder="@(Model.Ldap.HasBindPassword ? "Password already saved; leave blank to keep it" : "Password for the read account")" /></label>
@@ -79,6 +79,18 @@
                 <label>Display-name attribute<input name="LdapDisplayNameAttribute" value="@Model.Ldap.DisplayNameAttribute" placeholder="displayName" /></label>
                 <label>Email attribute<input name="LdapEmailAttribute" value="@Model.Ldap.EmailAttribute" placeholder="mail" /></label>
             </div>
+            <label>LDAP transport security
+                <select name="LdapSecurityMode">
+                    <option value="LDAPS" selected="@(Model.Ldap.SecurityMode == "LDAPS")">LDAPS / TLS-wrapped LDAP</option>
+                    <option value="StartTLS" selected="@(Model.Ldap.SecurityMode == "StartTLS")">StartTLS upgrade</option>
+                    <option value="Insecure" selected="@(Model.Ldap.SecurityMode == "Insecure")">Insecure LDAP for development/testing only</option>
+                </select>
+            </label>
+            <label class="check-row"><input name="LdapVerifyServerCertificate" type="checkbox" value="true" checked="@Model.Ldap.VerifyServerCertificate" /> Verify LDAP server certificate</label>
+            <input name="LdapVerifyServerCertificate" type="hidden" value="false" />
+            <label class="check-row"><input name="LdapAllowInsecureForDevelopment" type="checkbox" value="true" checked="@Model.Ldap.AllowInsecureForDevelopment" /> Allow insecure LDAP for development/testing only</label>
+            <input name="LdapAllowInsecureForDevelopment" type="hidden" value="false" />
+            <p class="form-help">Production directory sync should use LDAPS or StartTLS with certificate validation. Plain LDAP requires an explicit development/testing acknowledgment.</p>
             <button class="primary-action" type="submit">Save LDAP settings</button>
         </form>
         <div class="settings-overview mt-3">
@@ -122,9 +134,9 @@
             </div>
             <label class="check-row"><input name="SqlServerEncrypt" type="checkbox" value="true" checked="@Model.SqlServer.Encrypt" /> Encrypt SQL connection</label>
             <input name="SqlServerEncrypt" type="hidden" value="false" />
-            <label class="check-row"><input name="SqlServerTrustServerCertificate" type="checkbox" value="true" checked="@Model.SqlServer.TrustServerCertificate" /> Trust server certificate</label>
+            <label class="check-row"><input name="SqlServerTrustServerCertificate" type="checkbox" value="true" checked="@Model.SqlServer.TrustServerCertificate" /> Trust server certificate for development/testing only</label>
             <input name="SqlServerTrustServerCertificate" type="hidden" value="false" />
-            <p class="form-help">Initial installation still needs a separate setup workflow: create the database, apply schema, create/verify least-privilege runtime credentials, then restart Arkanum with the active connection string.</p>
+            <p class="form-help">Initial installation still needs a separate setup workflow: create the database, apply schema, create/verify least-privilege runtime credentials, install a trusted SQL Server certificate, then restart Arkanum with the active connection string.</p>
             <button class="primary-action" type="submit">Save SQL Server settings</button>
         </form>
     </section>

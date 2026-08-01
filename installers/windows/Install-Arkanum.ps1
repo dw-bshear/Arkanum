@@ -3,7 +3,9 @@ param(
     [string]$InstallPath = 'C:\Program Files\Arkanum\Web',
     [string]$ProgramDataPath = 'C:\ProgramData\Arkanum',
     [string]$SiteName = 'Arkanum',
-    [int]$Port = 5068,
+    [int]$Port = 443,
+    [string]$HttpsHostName = '',
+    [string]$HttpsCertificateThumbprint = '',
     [string]$SqlConnectionString = '',
     [string]$AppPoolName = 'ArkanumAppPool',
     [string]$PackageVersion = '2026.0.6',
@@ -49,7 +51,8 @@ function Write-ArkanumReport {
         "App pool name: $AppPoolName",
         "State file: $script:StatePath",
         "Generated UTC: $((Get-Date).ToUniversalTime().ToString('s'))Z",
-        "Health URL: http://localhost:$Port/health",
+        "Health URL: https://$($script:HealthHost):$Port/health",
+        'HTTPS binding: required for production; configure IIS TLS 1.2/1.3 and a trusted server certificate.',
         "Backup path: $BackupPath",
         "Database setup mode: $DatabaseSetupMode",
         "Runtime SQL login: $RuntimeSqlLogin",
@@ -78,7 +81,7 @@ function Build-ArkanumRuntimeSqlConnectionString {
     if ([string]::IsNullOrWhiteSpace($SqlServerHost) -or [string]::IsNullOrWhiteSpace($DatabaseName) -or [string]::IsNullOrWhiteSpace($RuntimeSqlLogin) -or [string]::IsNullOrWhiteSpace($RuntimeSqlPassword)) {
         throw 'SqlConnectionString or SQL Server host/database/runtime login/runtime password is required.'
     }
-    return "Server=tcp:$SqlServerHost,$SqlServerPort;Database=$DatabaseName;User Id=$RuntimeSqlLogin;Password=$RuntimeSqlPassword;Encrypt=True;TrustServerCertificate=True;"
+    return "Server=tcp:$SqlServerHost,$SqlServerPort;Database=$DatabaseName;User Id=$RuntimeSqlLogin;Password=$RuntimeSqlPassword;Encrypt=True;TrustServerCertificate=False;"
 }
 
 function Invoke-ArkanumSqlProvisioning {
@@ -136,6 +139,14 @@ if ($DatabaseSetupMode -eq 'auto') {
 }
 if ($GenerateRuntimePassword -and [string]::IsNullOrWhiteSpace($RuntimeSqlPassword)) { $RuntimeSqlPassword = New-ArkanumRuntimePassword }
 $SqlConnectionString = Build-ArkanumRuntimeSqlConnectionString
+if ([string]::IsNullOrWhiteSpace($HttpsCertificateThumbprint)) {
+    throw 'HttpsCertificateThumbprint is required for the production HTTPS binding.'
+}
+$httpsCertificate = Get-Item "Cert:\LocalMachine\My\$HttpsCertificateThumbprint" -ErrorAction SilentlyContinue
+if ($null -eq $httpsCertificate) {
+    throw "HTTPS certificate was not found in Cert:\LocalMachine\My for thumbprint $HttpsCertificateThumbprint."
+}
+$script:HealthHost = if ([string]::IsNullOrWhiteSpace($HttpsHostName)) { 'localhost' } else { $HttpsHostName }
 
 if ($Action -eq 'side-by-side') {
     $InstallPath = "$InstallPath-$PackageVersion"
@@ -249,12 +260,28 @@ $webConfig = @"
 "@
 Set-Content -Path (Join-Path $InstallPath 'web.config') -Value $webConfig -Encoding UTF8
 
+$sslFlags = if ([string]::IsNullOrWhiteSpace($HttpsHostName)) { 0 } else { 1 }
+$bindingInformation = if ([string]::IsNullOrWhiteSpace($HttpsHostName)) { "*:$($Port):" } else { "*:$($Port):$HttpsHostName" }
 if (!(Test-Path "IIS:\Sites\$SiteName")) {
-    New-Website -Name $SiteName -Port $Port -PhysicalPath $InstallPath -ApplicationPool $AppPoolName | Out-Null
+    New-Website -Name $SiteName -Port $Port -HostHeader $HttpsHostName -PhysicalPath $InstallPath -ApplicationPool $AppPoolName | Out-Null
 } else {
     Set-ItemProperty "IIS:\Sites\$SiteName" -Name physicalPath -Value $InstallPath
     Set-ItemProperty "IIS:\Sites\$SiteName" -Name applicationPool -Value $AppPoolName
 }
+$existingHttpBinding = Get-WebBinding -Name $SiteName -Protocol 'http' -ErrorAction SilentlyContinue | Where-Object { $_.bindingInformation -eq $bindingInformation } | Select-Object -First 1
+if ($null -ne $existingHttpBinding) {
+    Remove-WebBinding -Name $SiteName -Protocol 'http' -Port $Port -HostHeader $HttpsHostName
+}
+$existingHttpsBinding = Get-WebBinding -Name $SiteName -Protocol 'https' -ErrorAction SilentlyContinue | Where-Object { $_.bindingInformation -eq $bindingInformation } | Select-Object -First 1
+if ($null -eq $existingHttpsBinding) {
+    New-WebBinding -Name $SiteName -Protocol 'https' -Port $Port -HostHeader $HttpsHostName -SslFlags $sslFlags | Out-Null
+}
+$bindingPath = if ([string]::IsNullOrWhiteSpace($HttpsHostName)) { "IIS:\SslBindings\0.0.0.0!$Port" } else { "IIS:\SslBindings\0.0.0.0!$Port!$HttpsHostName" }
+if (Test-Path $bindingPath) {
+    Remove-Item $bindingPath -Force
+}
+$httpsCertificate | New-Item $bindingPath -SSLFlags $sslFlags | Out-Null
+Set-WebConfigurationProperty -Filter 'system.webServer/security/access' -Name sslFlags -Value 'Ssl' -PSPath "IIS:\Sites\$SiteName"
 
 $state = [ordered]@{
     product = 'Arkanum'
@@ -279,7 +306,7 @@ $healthStatus = 'NotRun'
 $healthBody = ''
 $recoveryValidation = if ($Action -eq 'restore') { 'Pending health check' } else { 'Not applicable' }
 try {
-    $health = Invoke-WebRequest -Uri "http://localhost:$Port/health" -UseBasicParsing -TimeoutSec 20
+    $health = Invoke-WebRequest -Uri "https://$($script:HealthHost):$Port/health" -UseBasicParsing -TimeoutSec 20
     $healthBody = $health.Content
     $parsed = $health.Content | ConvertFrom-Json
     if ($parsed.status -eq 'Healthy') { $healthStatus = 'Healthy'; if ($Action -eq 'restore') { $recoveryValidation = 'Passed' } } else { $healthStatus = "Unhealthy: $($parsed.status)"; if ($Action -eq 'restore') { $recoveryValidation = 'Failed' } }
@@ -301,5 +328,5 @@ if ($healthStatus -ne 'Healthy') {
 Write-Host "Arkanum $Action completed for version $PackageVersion."
 Write-Host "State manifest: $script:StatePath"
 Write-Host "Install report: $reportPath"
-Write-Host "Run installers\windows\Test-ArkanumInstall.ps1 -Url http://localhost:$Port/health"
+Write-Host "Run installers\windows\Test-ArkanumInstall.ps1 -Url https://$($script:HealthHost):$Port/health"
 Write-Host "Back up the SQL database and the site-wide recovery/master key together: $keyPath"

@@ -53,6 +53,9 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
     [BindProperty] public string? LdapLoginAttribute { get; set; }
     [BindProperty] public string? LdapDisplayNameAttribute { get; set; }
     [BindProperty] public string? LdapEmailAttribute { get; set; }
+    [BindProperty] public string? LdapSecurityMode { get; set; }
+    [BindProperty] public bool LdapVerifyServerCertificate { get; set; }
+    [BindProperty] public bool LdapAllowInsecureForDevelopment { get; set; }
     [BindProperty] public string? LdapSyncInterval { get; set; }
 
     [BindProperty] public string? MailSmtpHost { get; set; }
@@ -125,7 +128,7 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
     {
         await LoadRolesAsync();
         if (!CanManageFeatureVisibility) return Forbid();
-        await portalSettings.SaveLdapAsync(db, new LdapSettings(LdapHost ?? string.Empty, LdapPort ?? string.Empty, LdapBaseDn ?? string.Empty, LdapBindDn ?? string.Empty, LdapBindPassword ?? string.Empty, LdapUserFilter ?? string.Empty, LdapLoginAttribute ?? string.Empty, LdapDisplayNameAttribute ?? string.Empty, LdapEmailAttribute ?? string.Empty), ActorKey());
+        await portalSettings.SaveLdapAsync(db, new LdapSettings(LdapHost ?? string.Empty, LdapPort ?? string.Empty, LdapBaseDn ?? string.Empty, LdapBindDn ?? string.Empty, LdapBindPassword ?? string.Empty, LdapUserFilter ?? string.Empty, LdapLoginAttribute ?? string.Empty, LdapDisplayNameAttribute ?? string.Empty, LdapEmailAttribute ?? string.Empty, false, LdapSecurityMode ?? "LDAPS", LdapVerifyServerCertificate, LdapAllowInsecureForDevelopment), ActorKey());
         TempData["Status"] = "LDAP settings saved.";
         return RedirectToSettingsTab("directory");
     }
@@ -367,6 +370,9 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         DashboardHeroTitle = DashboardText.HeroTitle;
         DashboardHeroDescription = DashboardText.HeroDescription;
         Ldap = PortalSettingsService.ToLdap(settings) with { BindPassword = string.Empty };
+        LdapSecurityMode = Ldap.SecurityMode;
+        LdapVerifyServerCertificate = Ldap.VerifyServerCertificate;
+        LdapAllowInsecureForDevelopment = Ldap.AllowInsecureForDevelopment;
         LdapSync = PortalSettingsService.ToLdapSync(settings);
         LdapSyncInterval = LdapSync.Interval;
         Mail = PortalSettingsService.ToMail(settings);

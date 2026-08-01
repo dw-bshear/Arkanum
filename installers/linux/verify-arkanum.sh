@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-APP_URL=${APP_URL:-http://127.0.0.1:5068}
+APP_URL=${APP_URL:-https://127.0.0.1:5068}
 
 if command -v systemctl >/dev/null 2>&1; then
   systemctl is-active --quiet arkanum.service && echo "[OK] arkanum.service is active" || { echo "[FAIL] arkanum.service is not active" >&2; exit 1; }

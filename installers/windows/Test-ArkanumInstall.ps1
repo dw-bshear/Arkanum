@@ -1,5 +1,5 @@
 param(
-    [string]$Url = 'http://localhost:5068/health'
+    [string]$Url = 'https://localhost:443/health'
 )
 
 $ErrorActionPreference = 'Stop'

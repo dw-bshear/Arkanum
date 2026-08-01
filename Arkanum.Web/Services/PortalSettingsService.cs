@@ -19,6 +19,9 @@ public static class PortalSettingKeys
     public const string LdapLoginAttribute = "ldap.loginAttribute";
     public const string LdapDisplayNameAttribute = "ldap.displayNameAttribute";
     public const string LdapEmailAttribute = "ldap.emailAttribute";
+    public const string LdapSecurityMode = "ldap.securityMode";
+    public const string LdapVerifyServerCertificate = "ldap.verifyServerCertificate";
+    public const string LdapAllowInsecureForDevelopment = "ldap.allowInsecureForDevelopment";
     public const string LdapSyncInterval = "ldap.syncInterval";
     public const string MailSmtpHost = "mail.smtpHost";
     public const string MailSmtpPort = "mail.smtpPort";
@@ -57,7 +60,7 @@ public static class PortalSettingKeys
 }
 
 public sealed record DashboardTextSettings(string HeroTitle, string HeroDescription);
-public sealed record LdapSettings(string Host, string Port, string BaseDn, string BindDn, string BindPassword, string UserFilter, string LoginAttribute, string DisplayNameAttribute, string EmailAttribute, bool HasBindPassword = false);
+public sealed record LdapSettings(string Host, string Port, string BaseDn, string BindDn, string BindPassword, string UserFilter, string LoginAttribute, string DisplayNameAttribute, string EmailAttribute, bool HasBindPassword = false, string SecurityMode = "LDAPS", bool VerifyServerCertificate = true, bool AllowInsecureForDevelopment = false);
 public sealed record LdapSyncSettings(string Interval);
 public sealed record MailServerSettings(string SmtpHost, string SmtpPort, bool UseTls, string FromAddress, string FromName, string Username = "", bool HasPassword = false);
 public sealed record NotificationTemplateSettings(string AllUsersSubject, string AllUsersBody, string VaultAccessSubject, string VaultAccessBody);
@@ -92,7 +95,7 @@ public sealed class PortalSettingsService(SecretEncryptionService secretEncrypti
         [PortalSettingKeys.DashboardHeroTitle] = "Your starting point for vault work.",
         [PortalSettingKeys.DashboardHeroDescription] = "Open the vaults available to you and keep shared credentials organized without turning the landing page into an administration console.",
         [PortalSettingKeys.LdapHost] = string.Empty,
-        [PortalSettingKeys.LdapPort] = "389",
+        [PortalSettingKeys.LdapPort] = "636",
         [PortalSettingKeys.LdapBaseDn] = string.Empty,
         [PortalSettingKeys.LdapBindDn] = string.Empty,
         [PortalSettingKeys.LdapBindPassword] = string.Empty,
@@ -100,6 +103,9 @@ public sealed class PortalSettingsService(SecretEncryptionService secretEncrypti
         [PortalSettingKeys.LdapLoginAttribute] = "uid",
         [PortalSettingKeys.LdapDisplayNameAttribute] = "displayName",
         [PortalSettingKeys.LdapEmailAttribute] = "mail",
+        [PortalSettingKeys.LdapSecurityMode] = "LDAPS",
+        [PortalSettingKeys.LdapVerifyServerCertificate] = "true",
+        [PortalSettingKeys.LdapAllowInsecureForDevelopment] = "false",
         [PortalSettingKeys.LdapSyncInterval] = "12h",
         [PortalSettingKeys.MailSmtpHost] = string.Empty,
         [PortalSettingKeys.MailSmtpPort] = "587",
@@ -126,7 +132,7 @@ public sealed class PortalSettingsService(SecretEncryptionService secretEncrypti
         [PortalSettingKeys.SqlServerUser] = string.Empty,
         [PortalSettingKeys.SqlServerPassword] = string.Empty,
         [PortalSettingKeys.SqlServerEncrypt] = "true",
-        [PortalSettingKeys.SqlServerTrustServerCertificate] = "true",
+        [PortalSettingKeys.SqlServerTrustServerCertificate] = "false",
         [PortalSettingKeys.FederationMode] = "Local",
         [PortalSettingKeys.OidcAuthority] = string.Empty,
         [PortalSettingKeys.OidcClientId] = string.Empty,
@@ -183,7 +189,10 @@ public sealed class PortalSettingsService(SecretEncryptionService secretEncrypti
             [PortalSettingKeys.LdapUserFilter] = input.UserFilter.Trim(),
             [PortalSettingKeys.LdapLoginAttribute] = input.LoginAttribute.Trim(),
             [PortalSettingKeys.LdapDisplayNameAttribute] = input.DisplayNameAttribute.Trim(),
-            [PortalSettingKeys.LdapEmailAttribute] = input.EmailAttribute.Trim()
+            [PortalSettingKeys.LdapEmailAttribute] = input.EmailAttribute.Trim(),
+            [PortalSettingKeys.LdapSecurityMode] = NormalizeLdapSecurityMode(input.SecurityMode),
+            [PortalSettingKeys.LdapVerifyServerCertificate] = input.VerifyServerCertificate ? "true" : "false",
+            [PortalSettingKeys.LdapAllowInsecureForDevelopment] = input.AllowInsecureForDevelopment ? "true" : "false"
         };
         if (!string.IsNullOrWhiteSpace(input.BindPassword)) values[PortalSettingKeys.LdapBindPassword] = input.BindPassword.Trim();
         await SetAsync(db, values, actorUserKey);
@@ -281,7 +290,7 @@ public sealed class PortalSettingsService(SecretEncryptionService secretEncrypti
         _ => "Local"
     };
 
-    public static LdapSettings ToLdap(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.LdapHost], settings[PortalSettingKeys.LdapPort], settings[PortalSettingKeys.LdapBaseDn], settings[PortalSettingKeys.LdapBindDn], settings[PortalSettingKeys.LdapBindPassword], settings[PortalSettingKeys.LdapUserFilter], settings[PortalSettingKeys.LdapLoginAttribute], settings[PortalSettingKeys.LdapDisplayNameAttribute], settings[PortalSettingKeys.LdapEmailAttribute], !string.IsNullOrWhiteSpace(settings[PortalSettingKeys.LdapBindPassword]));
+    public static LdapSettings ToLdap(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.LdapHost], settings[PortalSettingKeys.LdapPort], settings[PortalSettingKeys.LdapBaseDn], settings[PortalSettingKeys.LdapBindDn], settings[PortalSettingKeys.LdapBindPassword], settings[PortalSettingKeys.LdapUserFilter], settings[PortalSettingKeys.LdapLoginAttribute], settings[PortalSettingKeys.LdapDisplayNameAttribute], settings[PortalSettingKeys.LdapEmailAttribute], !string.IsNullOrWhiteSpace(settings[PortalSettingKeys.LdapBindPassword]), NormalizeLdapSecurityMode(settings[PortalSettingKeys.LdapSecurityMode]), string.Equals(settings[PortalSettingKeys.LdapVerifyServerCertificate], "true", StringComparison.OrdinalIgnoreCase), string.Equals(settings[PortalSettingKeys.LdapAllowInsecureForDevelopment], "true", StringComparison.OrdinalIgnoreCase));
     public static LdapSyncSettings ToLdapSync(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.LdapSyncInterval]);
     public static MailServerSettings ToMail(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.MailSmtpHost], settings[PortalSettingKeys.MailSmtpPort], string.Equals(settings[PortalSettingKeys.MailUseTls], "true", StringComparison.OrdinalIgnoreCase), settings[PortalSettingKeys.MailFromAddress], settings[PortalSettingKeys.MailFromName], settings[PortalSettingKeys.MailUsername], !string.IsNullOrWhiteSpace(settings[PortalSettingKeys.MailPassword]));
     public static NotificationTemplateSettings ToNotificationTemplates(IReadOnlyDictionary<string, string> settings) => new(settings[PortalSettingKeys.NotificationAllUsersSubject], settings[PortalSettingKeys.NotificationAllUsersBody], settings[PortalSettingKeys.NotificationVaultAccessSubject], settings[PortalSettingKeys.NotificationVaultAccessBody]);
@@ -299,6 +308,13 @@ public sealed class PortalSettingsService(SecretEncryptionService secretEncrypti
         string.Equals(settings[PortalSettingKeys.RequireExternalMfa], "true", StringComparison.OrdinalIgnoreCase));
 
     private static string NormalizeDailySendTime(string value) => TimeOnly.TryParse(value, out var parsed) ? parsed.ToString("HH:mm") : Defaults[PortalSettingKeys.CredentialResetReminderDailySendTime];
+
+    private static string NormalizeLdapSecurityMode(string value) => value.Trim().ToUpperInvariant() switch
+    {
+        "STARTTLS" => "StartTLS",
+        "INSECURE" => "Insecure",
+        _ => "LDAPS"
+    };
 
     private async Task SetAsync(ArkanumDbContext db, IReadOnlyDictionary<string, string> values, string actorUserKey)
     {

@@ -46,13 +46,13 @@ Create/identify:
 Example connection string shape:
 
 ```text
-Server=tcp:sql01,1433;Database=Arkanum;User Id=arkanum_app;Password=...;Encrypt=True;TrustServerCertificate=True;
+Server=tcp:sql01,1433;Database=Arkanum;User Id=arkanum_app;Password=...;Encrypt=True;TrustServerCertificate=False;
 ```
 
-For a local lab SQL Server with untrusted certs, this may be acceptable for the test:
+For a local lab SQL Server without a trusted certificate, use an isolated development/test-only connection string and never reuse it as a production example:
 
 ```text
-Server=tcp:127.0.0.1,1433;Database=Arkanum;User Id=sa;Password=...;Encrypt=False;TrustServerCertificate=True;
+Server=tcp:127.0.0.1,1433;Database=Arkanum;User Id=sa;Password=...;Encrypt=False;TrustServerCertificate=False;
 ```
 
 ## 4. Install Arkanum
@@ -61,28 +61,32 @@ From the extracted package root:
 
 ```bash
 sudo env \
-  ARKANUM_SQL_CONNECTION='Server=tcp:<sql-host>,1433;Database=Arkanum;User Id=<user>;Password=<password>;Encrypt=True;TrustServerCertificate=True;' \
-  APP_URLS='http://127.0.0.1:5068' \
+  ARKANUM_SQL_CONNECTION='Server=tcp:<sql-host>,1433;Database=Arkanum;User Id=<user>;Password=<password>;Encrypt=True;TrustServerCertificate=False;' \
+  APP_URLS='https://127.0.0.1:5068' \
+  ARKANUM_HTTPS_CERTIFICATE_PATH='/etc/arkanum/tls/arkanum.pfx' \
   installers/linux/install-arkanum.sh
 ```
 
-To make Arkanum reachable from another machine on the test network, use:
+When `APP_URLS` uses `https://`, provide a trusted Kestrel PFX certificate with `ARKANUM_HTTPS_CERTIFICATE_PATH` and, when required, `ARKANUM_HTTPS_CERTIFICATE_PASSWORD`. If TLS terminates at a reverse proxy, bind Arkanum only to an internal URL such as `http://127.0.0.1:5068` behind that proxy.
+
+To make Arkanum reachable from another machine on the test network, use a trusted certificate for the service name and bind HTTPS to all interfaces:
 
 ```bash
-APP_URLS='http://0.0.0.0:5068'
+APP_URLS='https://0.0.0.0:5068'
+ARKANUM_HTTPS_CERTIFICATE_PATH='/etc/arkanum/tls/arkanum.pfx'
 ```
 
 Then connect to:
 
 ```text
-http://<ubuntu-test-machine-ip>:5068
+https://<ubuntu-test-machine-name>:5068
 ```
 
 ## 5. Verify install
 
 ```bash
 sudo systemctl status arkanum.service --no-pager
-APP_URL=http://127.0.0.1:5068 installers/linux/verify-arkanum.sh
+APP_URL=https://127.0.0.1:5068 installers/linux/verify-arkanum.sh
 ```
 
 Expected outcome:
@@ -97,7 +101,7 @@ Expected outcome:
 Open:
 
 ```text
-http://127.0.0.1:5068/Setup
+https://127.0.0.1:5068/Setup
 ```
 
 Create the first local administrator and confirm setup locks afterward.

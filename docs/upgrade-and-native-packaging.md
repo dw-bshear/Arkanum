@@ -129,8 +129,8 @@ Set-ExecutionPolicy -Scope Process Bypass
 10. After install, open:
 
 ```text
-http://localhost:5068/health
-http://localhost:5068/setup
+https://localhost:443/health
+https://localhost:443/setup
 ```
 
 11. Confirm the WebUI presents the Recovery Key and requires acknowledgment before first administrator creation.

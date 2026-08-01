@@ -1,5 +1,6 @@
 using Arkanum.Web.Data;
 using Arkanum.Web.Domain;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using System.DirectoryServices.Protocols;
 using System.Net;
@@ -8,8 +9,10 @@ namespace Arkanum.Web.Services;
 
 public sealed record DirectoryImportResult(int Imported, int Updated, int DisabledMissing);
 
-public sealed class DirectoryLdapImportService
+public sealed class DirectoryLdapImportService(IWebHostEnvironment? environment = null)
 {
+    private readonly string environmentName = environment?.EnvironmentName ?? "Production";
+
     public async Task<DirectoryImportResult> ImportAsync(ArkanumDbContext db, LdapSettings settings, string actorUserKey, DateTimeOffset now)
     {
         var records = SearchDirectory(settings);
@@ -69,11 +72,15 @@ public sealed class DirectoryLdapImportService
         return new DirectoryImportResult(imported, updated, missingUsers.Count);
     }
 
-    private static IReadOnlyList<DirectoryUserRecord> SearchDirectory(LdapSettings settings)
+    private IReadOnlyList<DirectoryUserRecord> SearchDirectory(LdapSettings settings)
     {
         if (string.IsNullOrWhiteSpace(settings.Host)) throw new InvalidOperationException("LDAP host is required before running directory sync.");
         if (string.IsNullOrWhiteSpace(settings.BaseDn)) throw new InvalidOperationException("LDAP search base DN is required before running directory sync.");
-        if (!int.TryParse(settings.Port, out var port)) port = 389;
+        if (!int.TryParse(settings.Port, out var port)) port = string.Equals(settings.SecurityMode, "LDAPS", StringComparison.OrdinalIgnoreCase) ? 636 : 389;
+        if (string.Equals(settings.SecurityMode, "Insecure", StringComparison.OrdinalIgnoreCase) && (!settings.AllowInsecureForDevelopment || !IsDevelopmentOrTesting()))
+        {
+            throw new InvalidOperationException("Insecure LDAP requires an explicit development/testing acknowledgment and is blocked outside Development/Testing.");
+        }
 
         using var connection = new LdapConnection(new LdapDirectoryIdentifier(settings.Host, port))
         {
@@ -81,6 +88,19 @@ public sealed class DirectoryLdapImportService
             Credential = new NetworkCredential(settings.BindDn, settings.BindPassword)
         };
         connection.SessionOptions.ProtocolVersion = 3;
+        connection.SessionOptions.SecureSocketLayer = string.Equals(settings.SecurityMode, "LDAPS", StringComparison.OrdinalIgnoreCase);
+        if (!settings.VerifyServerCertificate)
+        {
+            if (!settings.AllowInsecureForDevelopment || !IsDevelopmentOrTesting())
+            {
+                throw new InvalidOperationException("Disabling LDAP server certificate validation is blocked outside explicit Development/Testing mode.");
+            }
+            connection.SessionOptions.VerifyServerCertificate = (_, _) => true;
+        }
+        if (string.Equals(settings.SecurityMode, "StartTLS", StringComparison.OrdinalIgnoreCase))
+        {
+            connection.SessionOptions.StartTransportLayerSecurity(null);
+        }
         connection.Bind();
 
         var attrs = new[] { settings.LoginAttribute, settings.DisplayNameAttribute, settings.EmailAttribute, "entryUUID", "uid" }
@@ -98,6 +118,9 @@ public sealed class DirectoryLdapImportService
         }
         return users;
     }
+
+    private bool IsDevelopmentOrTesting() => string.Equals(environmentName, "Development", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(environmentName, "Testing", StringComparison.OrdinalIgnoreCase);
 
     private static string? Attr(SearchResultEntry entry, string name)
     {
