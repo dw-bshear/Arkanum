@@ -24,8 +24,8 @@ Arkanum is currently a trusted-server ASP.NET Core application backed by SQL Ser
 - LDAP/AD import settings and directory-sync foundation.
 - Imported directory users disabled by default until an administrator activates them.
 - Role-aware dashboard and access boundaries.
-- Audit events for logins, lockouts, settings changes, vault assignments, and secret reveal/copy actions.
-- Syslog-forwarding foundation and non-secret health/install-report endpoints.
+- Audit events for logins, lockouts, settings changes, vault assignments, and secret reveal/copy actions, with append-only application controls and hash chain integrity metadata.
+- TLS syslog, Windows Event Log, or approved SIEM forwarder audit-delivery paths with non-secret health/install-report endpoints.
 - Windows Server/IIS and Linux/systemd installer tracks in progress.
 
 ## Roles
@@ -47,6 +47,8 @@ Arkanum uses a trusted-server model:
 2. The Arkanum application server holds the runtime configuration and site recovery/master key inside the trusted boundary.
 3. Authorized reveal/copy actions decrypt protected values server-side and write audit events.
 4. Plaintext secrets should never be logged, exported in install reports, or committed to source control.
+
+Audit rows are application append-only and chained with SHA-256 integrity hashes. Production SQL Server deployments should add a database deny UPDATE/DELETE control for the runtime account on `AuditEvents`, then capture retention, archive/export/restore, and forwarding evidence in [`docs/audit-compliance-evidence.md`](docs/audit-compliance-evidence.md).
 
 ### Site-wide recovery
 

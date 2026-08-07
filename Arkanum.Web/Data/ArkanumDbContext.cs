@@ -19,12 +19,25 @@ public sealed class ArkanumDbContext(DbContextOptions<ArkanumDbContext> options)
     public DbSet<UserGroupMemberEntity> UserGroupMembers => Set<UserGroupMemberEntity>();
     public DbSet<UserGroupManagerEntity> UserGroupManagers => Set<UserGroupManagerEntity>();
 
+    public override int SaveChanges()
+    {
+        PrepareAuditEventsForSave();
+        return base.SaveChanges();
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        PrepareAuditEventsForSave();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppUserEntity>().HasKey(u => u.UserKey);
         modelBuilder.Entity<AppUserEntity>().HasIndex(u => u.Username).IsUnique();
         modelBuilder.Entity<AppUserEntity>().Property(u => u.RolesCsv).HasMaxLength(256);
         modelBuilder.Entity<AuditEventEntity>().HasKey(e => e.Id);
+        modelBuilder.Entity<AuditEventEntity>().HasIndex(e => e.Sequence).IsUnique();
         modelBuilder.Entity<VaultEntity>().HasKey(v => v.Id);
         modelBuilder.Entity<VaultFolderEntity>().HasKey(f => f.Id);
         modelBuilder.Entity<VaultFolderEntity>().HasIndex(f => new { f.VaultId, f.Name });
@@ -37,6 +50,37 @@ public sealed class ArkanumDbContext(DbContextOptions<ArkanumDbContext> options)
         modelBuilder.Entity<UserGroupEntity>().HasKey(g => g.Id);
         modelBuilder.Entity<UserGroupMemberEntity>().HasKey(m => new { m.GroupId, m.UserKey });
         modelBuilder.Entity<UserGroupManagerEntity>().HasKey(m => new { m.GroupId, m.UserKey });
+    }
+
+    private void PrepareAuditEventsForSave()
+    {
+        var auditEntries = ChangeTracker.Entries<AuditEventEntity>().ToArray();
+        var unsafeEntries = auditEntries.Where(entry => entry.State is EntityState.Modified or EntityState.Deleted).ToArray();
+        if (unsafeEntries.Length > 0)
+        {
+            throw new InvalidOperationException("Audit events are append-only. Update and delete operations are blocked by the application layer; production database accounts should also deny UPDATE and DELETE on AuditEvents.");
+        }
+
+        var added = auditEntries
+            .Where(entry => entry.State == EntityState.Added)
+            .Select(entry => entry.Entity)
+            .OrderBy(evt => evt.OccurredAt)
+            .ThenBy(evt => evt.Id, StringComparer.Ordinal)
+            .ToArray();
+        if (added.Length == 0) return;
+
+        var persisted = Set<AuditEventEntity>()
+            .AsNoTracking()
+            .OrderByDescending(evt => evt.Sequence)
+            .FirstOrDefault();
+        var sequence = persisted?.Sequence ?? 0;
+        var previousHash = persisted?.IntegrityHash ?? string.Empty;
+        foreach (var auditEvent in added)
+        {
+            sequence++;
+            AuditEventIntegrity.Stamp(auditEvent, sequence, previousHash);
+            previousHash = auditEvent.IntegrityHash;
+        }
     }
 }
 
@@ -66,6 +110,10 @@ public sealed class AuditEventEntity
     public DateTimeOffset OccurredAt { get; set; }
     public string Target { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
+    public long Sequence { get; set; }
+    public string PreviousIntegrityHash { get; set; } = string.Empty;
+    public string IntegrityHash { get; set; } = string.Empty;
+    public string IntegrityAlgorithm { get; set; } = AuditEventIntegrity.Algorithm;
 }
 
 public sealed class VaultEntity

@@ -364,15 +364,24 @@
             <a class="secondary-action" asp-page="/Audit/Index">Open Audit Logs</a>
         </article>
         <form method="post" asp-page-handler="Syslog" class="card-form settings-wide-form mt-3">
-            <h3>Syslog server</h3>
+            <h3>Audit forwarding</h3>
+            <p class="form-help">Use TLS syslog where possible. Windows Event Log and approved SIEM forwarder selections document inherited forwarding controls when the host or site agent owns delivery.</p>
             <div class="settings-form-grid">
-                <label>Syslog server<input name="SyslogHost" value="@Model.Syslog.Host" placeholder="syslog.example.local" /></label>
-                <label>Port<input name="SyslogPort" value="@Model.Syslog.Port" placeholder="514" /></label>
-                <label>Protocol<input name="SyslogProtocol" value="@Model.Syslog.Protocol" placeholder="UDP" /></label>
+                <label>Collector host<input name="SyslogHost" value="@Model.Syslog.Host" placeholder="syslog.example.local" /></label>
+                <label>Port<input name="SyslogPort" value="@Model.Syslog.Port" placeholder="6514" /></label>
+                <label>Approved forwarding path
+                    <select name="SyslogProtocol">
+                        <option value="TLS" selected="@(Model.Syslog.Protocol == "TLS")">TLS syslog</option>
+                        <option value="TCP+TLS" selected="@(Model.Syslog.Protocol == "TCP+TLS")">TCP+TLS syslog</option>
+                        <option value="UDP" selected="@(Model.Syslog.Protocol == "UDP")">UDP syslog (lab only)</option>
+                        <option value="WindowsEventLog" selected="@(Model.Syslog.Protocol == "WindowsEventLog")">Windows Event Log</option>
+                        <option value="SIEMForwarder" selected="@(Model.Syslog.Protocol == "SIEMForwarder")">approved SIEM forwarder</option>
+                    </select>
+                </label>
             </div>
-            <label class="check-row"><input name="SyslogEnabled" type="checkbox" value="true" checked="@Model.Syslog.Enabled" /> Enable syslog forwarding</label>
+            <label class="check-row"><input name="SyslogEnabled" type="checkbox" value="true" checked="@Model.Syslog.Enabled" /> Enable audit forwarding</label>
             <input name="SyslogEnabled" type="hidden" value="false" />
-            <button class="primary-action" type="submit">Save syslog settings</button>
+            <button class="primary-action" type="submit">Save audit forwarding settings</button>
         </form>
     </section>
 

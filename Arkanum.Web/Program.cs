@@ -47,7 +47,8 @@ builder.Services.AddScoped<CredentialResetReminderService>();
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.AddHostedService<CredentialResetReminderHostedService>();
 builder.Services.AddSingleton<StrongPasswordGenerator>();
-builder.Services.AddSingleton(new AuditRetentionPolicy(TimeSpan.FromDays(90)));
+builder.Services.AddSingleton(AuditRetentionPolicy.FromConfiguration(builder.Configuration));
+builder.Services.AddSingleton<AuditForwardingStatus>();
 builder.Services.AddScoped<SyslogAuditForwardingInterceptor>();
 builder.Services.AddScoped<SyslogAuditForwarder>();
 builder.Services.AddScoped<ArkanumHealthCheckService>();
@@ -102,6 +103,10 @@ using (var scope = app.Services.CreateScope())
         db.Database.ExecuteSqlRaw("IF COL_LENGTH('Vaults', 'RetiredAt') IS NULL ALTER TABLE [Vaults] ADD [RetiredAt] datetimeoffset NULL");
         db.Database.ExecuteSqlRaw("IF COL_LENGTH('Vaults', 'RetiredByUserKey') IS NULL ALTER TABLE [Vaults] ADD [RetiredByUserKey] nvarchar(max) NOT NULL CONSTRAINT DF_Vaults_RetiredByUserKey DEFAULT ''");
         db.Database.ExecuteSqlRaw("IF COL_LENGTH('Vaults', 'RetirementReason') IS NULL ALTER TABLE [Vaults] ADD [RetirementReason] nvarchar(max) NOT NULL CONSTRAINT DF_Vaults_RetirementReason DEFAULT ''");
+        db.Database.ExecuteSqlRaw("IF COL_LENGTH('AuditEvents', 'Sequence') IS NULL ALTER TABLE [AuditEvents] ADD [Sequence] bigint NOT NULL CONSTRAINT DF_AuditEvents_Sequence DEFAULT 0");
+        db.Database.ExecuteSqlRaw("IF COL_LENGTH('AuditEvents', 'PreviousIntegrityHash') IS NULL ALTER TABLE [AuditEvents] ADD [PreviousIntegrityHash] nvarchar(max) NOT NULL CONSTRAINT DF_AuditEvents_PreviousIntegrityHash DEFAULT ''");
+        db.Database.ExecuteSqlRaw("IF COL_LENGTH('AuditEvents', 'IntegrityHash') IS NULL ALTER TABLE [AuditEvents] ADD [IntegrityHash] nvarchar(max) NOT NULL CONSTRAINT DF_AuditEvents_IntegrityHash DEFAULT ''");
+        db.Database.ExecuteSqlRaw("IF COL_LENGTH('AuditEvents', 'IntegrityAlgorithm') IS NULL ALTER TABLE [AuditEvents] ADD [IntegrityAlgorithm] nvarchar(64) NOT NULL CONSTRAINT DF_AuditEvents_IntegrityAlgorithm DEFAULT 'SHA-256'");
     }
     if (string.IsNullOrWhiteSpace(connectionString))
     {
@@ -121,6 +126,10 @@ using (var scope = app.Services.CreateScope())
         TrySqlitePatch(db, "ALTER TABLE Vaults ADD COLUMN RetiredAt TEXT NULL");
         TrySqlitePatch(db, "ALTER TABLE Vaults ADD COLUMN RetiredByUserKey TEXT NOT NULL DEFAULT ''");
         TrySqlitePatch(db, "ALTER TABLE Vaults ADD COLUMN RetirementReason TEXT NOT NULL DEFAULT ''");
+        TrySqlitePatch(db, "ALTER TABLE AuditEvents ADD COLUMN Sequence INTEGER NOT NULL DEFAULT 0");
+        TrySqlitePatch(db, "ALTER TABLE AuditEvents ADD COLUMN PreviousIntegrityHash TEXT NOT NULL DEFAULT ''");
+        TrySqlitePatch(db, "ALTER TABLE AuditEvents ADD COLUMN IntegrityHash TEXT NOT NULL DEFAULT ''");
+        TrySqlitePatch(db, "ALTER TABLE AuditEvents ADD COLUMN IntegrityAlgorithm TEXT NOT NULL DEFAULT 'SHA-256'");
     }
     scope.ServiceProvider.GetRequiredService<DashboardService>().EnsureDefaultWidgetsAsync(db).GetAwaiter().GetResult();
     scope.ServiceProvider.GetRequiredService<PortalSettingsService>().EnsureDefaultsAsync(db).GetAwaiter().GetResult();

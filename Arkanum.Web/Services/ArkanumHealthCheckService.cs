@@ -10,7 +10,7 @@ public sealed record ArkanumHealthResponse(string Status, DateTimeOffset Checked
 
 public sealed record ArkanumHealthCheck(string Name, string Status, string Message);
 
-public sealed class ArkanumHealthCheckService(IMasterKeyProvider masterKeyProvider)
+public sealed class ArkanumHealthCheckService(IMasterKeyProvider masterKeyProvider, AuditForwardingStatus? auditForwardingStatus = null)
 {
     public const string CurrentSchemaVersion = "phase4-preview";
     private static readonly string[] RequiredSettingKeys =
@@ -33,6 +33,7 @@ public sealed class ArkanumHealthCheckService(IMasterKeyProvider masterKeyProvid
         await CheckSettingsAsync(db, checks, cancellationToken);
         CheckEncryptionKey(checks);
         await CheckRecoveryKeyAsync(db, checks, cancellationToken);
+        CheckAuditForwarding(checks);
 
         var status = checks.Any(check => check.Status == "Unhealthy") ? "Unhealthy" : "Healthy";
         return new ArkanumHealthResponse(status, DateTimeOffset.UtcNow, CurrentSchemaVersion, checks);
@@ -114,5 +115,20 @@ public sealed class ArkanumHealthCheckService(IMasterKeyProvider masterKeyProvid
         {
             checks.Add(new ArkanumHealthCheck("recovery-key", "Unhealthy", $"Site recovery key validation failed: {ex.GetType().Name}."));
         }
+    }
+
+    private void CheckAuditForwarding(ICollection<ArkanumHealthCheck> checks)
+    {
+        var lastFailure = auditForwardingStatus?.LastFailure;
+        if (lastFailure is null)
+        {
+            checks.Add(new ArkanumHealthCheck("audit-forwarding", "Healthy", "No audit forwarding failures have been recorded for this application process."));
+            return;
+        }
+
+        checks.Add(new ArkanumHealthCheck(
+            "audit-forwarding",
+            "Unhealthy",
+            $"Last audit forwarding failure used {lastFailure.Protocol} and failed with {lastFailure.ErrorType}. Audit event identifiers and message contents are intentionally omitted."));
     }
 }
