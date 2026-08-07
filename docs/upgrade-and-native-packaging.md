@@ -29,9 +29,50 @@ Set-ExecutionPolicy -Scope Process Bypass
 .\installers\windows\Install-ArkanumGui.ps1
 ```
 
-## Phase C.2 — upgrade and patch mode
+## Phase C.2 — full vs update package model
 
-The script installers now support these actions:
+Release assets are now split into first-time **full** packages and existing-install **update** packages:
+
+```text
+Arkanum-2026.0.6-full-windows-x64.zip
+Arkanum-2026.0.6-update-windows-x64.zip
+Arkanum-2026.0.6-full-linux-x64.tar.gz
+Arkanum-2026.0.6-update-linux-x64.tar.gz
+```
+
+Use this decision table for controlled environments:
+
+| Task | Asset and action |
+| --- | --- |
+| First install on a new server | Full package, `install` or `auto` |
+| Existing install upgrade | Update package, `upgrade` or `auto` |
+| Rebuild from backup | Full package, `restore` with SQL database backup + matching Arkanum Recovery Key |
+| Side-by-side test | Full package, `side-by-side` |
+| Repair current application files | Update package for the current install, or full package when rebuilding |
+
+Each package includes `package-manifest.json` with `packageKind`, `version`, `platform`, `requiresExistingInstall`, and preservation metadata. Update packages are intentionally existing-install-only: they detect the installed state and installed version, preserve configuration, preserve Recovery Key/master-key material, preserve database connectivity settings, preserve service binding settings, create a pre-upgrade backup/report, then run health validation.
+
+Run preflight before the maintenance window:
+
+```powershell
+.\installers\windows\Install-Arkanum.ps1 -PackageKind update -PreflightOnly
+```
+
+```bash
+sudo PACKAGE_KIND=update PREFLIGHT_ONLY=true installers/linux/install-arkanum.sh
+```
+
+Expected preflight/report fields include:
+
+```text
+Current version:
+Target version:
+Package kind:
+Backup destination:
+No SQL passwords or Recovery Key values are written to this report.
+```
+
+The script installers support these actions:
 
 ```text
 auto
@@ -39,9 +80,10 @@ install
 upgrade
 repair
 side-by-side
+restore
 ```
 
-`auto` detects an existing installation by checking for `install-state.json` or existing app files.
+`auto` detects an existing installation by checking for `install-state.json` or existing app files. In an update package, `auto` becomes an upgrade and fails before changing files if no existing installation, Recovery Key, or database connection state is found.
 
 State manifests are written here:
 

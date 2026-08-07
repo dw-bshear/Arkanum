@@ -8,6 +8,7 @@ use installers/linux/install-arkanum.sh directly.
 """
 from __future__ import annotations
 
+import json
 import os
 import shlex
 import subprocess
@@ -20,6 +21,13 @@ APP_TITLE = "Arkanum Linux Setup"
 SCRIPT_DIR = Path(__file__).resolve().parent
 PACKAGE_ROOT = SCRIPT_DIR.parent.parent
 CLI_INSTALLER = SCRIPT_DIR / "install-arkanum.sh"
+MANIFEST_PATH = PACKAGE_ROOT / "package-manifest.json"
+PACKAGE_KIND = "auto"
+if MANIFEST_PATH.exists():
+    try:
+        PACKAGE_KIND = json.loads(MANIFEST_PATH.read_text(encoding="utf-8")).get("packageKind", "auto") or "auto"
+    except json.JSONDecodeError:
+        PACKAGE_KIND = "auto"
 
 
 def shell_quote(value: str) -> str:
@@ -87,7 +95,7 @@ class Wizard(tk.Tk):
         root = ttk.Frame(self, padding=16)
         root.pack(fill="both", expand=True)
         ttk.Label(root, text="Arkanum Setup", font=("TkDefaultFont", 18, "bold")).pack(anchor="w")
-        ttk.Label(root, text="Guided Linux installer for the packaged Arkanum release.").pack(anchor="w", pady=(0, 12))
+        ttk.Label(root, text=f"Guided Linux installer for the packaged Arkanum {PACKAGE_KIND} release.").pack(anchor="w", pady=(0, 12))
         notebook = ttk.Notebook(root)
         notebook.pack(fill="both", expand=True)
         notebook.add(self._paths_page(notebook), text="Install paths")
@@ -208,11 +216,6 @@ class Wizard(tk.Tk):
         return frame
 
     def generate_command(self) -> str:
-        try:
-            conn = build_connection(self.vars, self.trust, self.encrypt)
-        except ValueError as exc:
-            messagebox.showerror(APP_TITLE, str(exc))
-            raise
         action_map = {
             "auto": "auto",
             "install": "install",
@@ -222,6 +225,14 @@ class Wizard(tk.Tk):
             "install side-by-side": "side-by-side",
         }
         selected_action = action_map.get(self.vars["install_action"].get(), "auto")
+        is_state_preserving_update = PACKAGE_KIND == "update" and selected_action in {"auto", "upgrade", "repair"}
+        conn = ""
+        if not is_state_preserving_update or self.vars["sql_host"].get().strip() or self.vars["sql_password"].get():
+            try:
+                conn = build_connection(self.vars, self.trust, self.encrypt)
+            except ValueError as exc:
+                messagebox.showerror(APP_TITLE, str(exc))
+                raise
         database_setup_map = {"Use existing database": "use-existing-database", "Create new database": "create-new-database"}
         selected_database_setup = database_setup_map.get(self.vars["database_setup_mode"].get(), self.vars["database_setup_mode"].get() or "use-existing-database")
         restore_source_map = {
@@ -244,6 +255,7 @@ class Wizard(tk.Tk):
             "RESTORE_SOURCE": selected_restore_source,
             "SQL_BACKUP_FILE": self.vars["sql_backup_file"].get().strip(),
             "ARKANUM_PACKAGE_VERSION": "2026.0.6",
+            "PACKAGE_KIND": PACKAGE_KIND,
             "INSTALL_DIR": self.vars["install_dir"].get().strip(),
             "CONFIG_DIR": self.vars["config_dir"].get().strip(),
             "DATA_DIR": self.vars["data_dir"].get().strip(),

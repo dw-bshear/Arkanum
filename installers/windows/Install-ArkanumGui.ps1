@@ -14,6 +14,16 @@ Add-Type -AssemblyName System.Drawing
 
 $script:PackageRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $script:CliInstaller = Join-Path $PSScriptRoot 'Install-Arkanum.ps1'
+$script:PackageKind = 'auto'
+$script:ManifestPath = Join-Path $script:PackageRoot 'package-manifest.json'
+if (Test-Path $script:ManifestPath) {
+    try {
+        $manifest = Get-Content $script:ManifestPath -Raw | ConvertFrom-Json
+        if (![string]::IsNullOrWhiteSpace($manifest.packageKind)) { $script:PackageKind = $manifest.packageKind }
+    } catch {
+        $script:PackageKind = 'auto'
+    }
+}
 
 function New-Label($text, $x, $y, $w = 180) {
     $label = New-Object System.Windows.Forms.Label
@@ -64,7 +74,7 @@ $form.Size = New-Object System.Drawing.Size(820, 690)
 $form.StartPosition = 'CenterScreen'
 
 $title = New-Object System.Windows.Forms.Label
-$title.Text = 'Arkanum Windows installation package'
+$title.Text = "Arkanum Windows $script:PackageKind package"
 $title.Font = New-Object System.Drawing.Font('Segoe UI', 15, [System.Drawing.FontStyle]::Bold)
 $title.Location = New-Object System.Drawing.Point(16, 12)
 $title.Size = New-Object System.Drawing.Size(760, 34)
@@ -229,8 +239,12 @@ function Get-RestoreSource {
 }
 
 function Build-CommandPreview {
-    $conn = Build-ConnectionString $sqlHost.Text $sqlPort.Text $sqlDb.Text $sqlUser.Text $sqlPassword.Text $encrypt.Checked $trust.Checked
     $selectedAction = Get-InstallerAction
+    $conn = ''
+    $isStatePreservingUpdate = ($script:PackageKind -eq 'update' -and ($selectedAction -eq 'auto' -or $selectedAction -eq 'upgrade' -or $selectedAction -eq 'repair'))
+    if (-not $isStatePreservingUpdate -or -not [string]::IsNullOrWhiteSpace($sqlHost.Text) -or -not [string]::IsNullOrWhiteSpace($sqlPassword.Text)) {
+        $conn = Build-ConnectionString $sqlHost.Text $sqlPort.Text $sqlDb.Text $sqlUser.Text $sqlPassword.Text $encrypt.Checked $trust.Checked
+    }
     $args = @(
         '-ExecutionPolicy', 'Bypass',
         '-File', "`"$script:CliInstaller`"",
@@ -241,9 +255,9 @@ function Build-CommandPreview {
         '-Port', $port.Text,
         '-HttpsHostName', "`"$($httpsHostName.Text)`"",
         '-HttpsCertificateThumbprint', "`"$($httpsCertificateThumbprint.Text)`"",
-        '-SqlConnectionString', "`"$conn`"",
         '-AppPoolName', "`"$($appPool.Text)`"",
         '-PackageVersion', '2026.0.6',
+        '-PackageKind', $script:PackageKind,
         '-Action', $selectedAction,
         '-DatabaseSetupMode', (Get-DatabaseSetupMode),
         '-SqlServerHost', "`"$($sqlHost.Text)`"",
@@ -259,7 +273,13 @@ function Build-CommandPreview {
         '-RestoreKeyFile', "`"$($restoreKeyFile.Text)`"",
         '-RestoreKey', "`"$($restoreKey.Text)`""
     )
+    if (-not [string]::IsNullOrWhiteSpace($conn)) {
+        $args += @('-SqlConnectionString', "`"$conn`"")
+    }
     $commandPreview.Text = 'powershell.exe ' + ($args -join ' ')
+    if ($isStatePreservingUpdate -and [string]::IsNullOrWhiteSpace($conn)) {
+        $commandPreview.Text += "`r`n`r`nUpdate package will preserve existing configuration, Recovery Key, database connection, and service binding settings."
+    }
     return $conn
 }
 
@@ -295,6 +315,7 @@ $run.Add_Click({
             SqlConnectionString = $conn
             AppPoolName = $appPool.Text
             PackageVersion = '2026.0.6'
+            PackageKind = $script:PackageKind
             Action = Get-InstallerAction
             DatabaseSetupMode = Get-DatabaseSetupMode
             SqlServerHost = $sqlHost.Text

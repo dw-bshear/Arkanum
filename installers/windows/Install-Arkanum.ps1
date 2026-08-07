@@ -9,6 +9,8 @@ param(
     [string]$SqlConnectionString = '',
     [string]$AppPoolName = 'ArkanumAppPool',
     [string]$PackageVersion = '2026.0.6',
+    [ValidateSet('full','update','auto')][string]$PackageKind = 'auto',
+    [switch]$PreflightOnly,
     # ValidateSet('install','upgrade','repair','side-by-side','restore') plus auto detection for GUI defaults.
     [ValidateSet('install','upgrade','repair','side-by-side','restore','auto')][string]$Action = 'auto',
     [ValidateSet('auto','use-existing-database','create-new-database','restore-database')][string]$DatabaseSetupMode = 'auto',
@@ -124,6 +126,17 @@ function Invoke-ArkanumSqlProvisioning {
     & sqlcmd -S $server -U $SetupSqlUsername -P $SetupSqlPassword -b -i $scriptPath -v DatabaseName=$DatabaseName RuntimeLogin=$RuntimeSqlLogin RuntimePassword=$RuntimeSqlPassword | ForEach-Object { Redact-ArkanumSecret $_ }
 }
 
+function Write-ArkanumPackagePreflight {
+    param([string]$InstalledVersion, [string]$BackupPathPreview)
+    Write-Host 'Arkanum update preflight'
+    Write-Host "Current version: $InstalledVersion"
+    Write-Host "Target version: $PackageVersion"
+    Write-Host "Package kind: $PackageKind"
+    Write-Host 'Update package will preserve existing configuration, Recovery Key, database connection, and service binding settings.'
+    Write-Host "Backup destination: $BackupPathPreview"
+    Write-Host 'No SQL passwords or Recovery Key values are written to this report.'
+}
+
 function Invoke-ArkanumSqlUpgradePreflight {
     if ($Action -ne 'upgrade') { return }
     $scriptPath = Join-Path $PSScriptRoot '..\sql\upgrade-preflight.sql'
@@ -138,7 +151,21 @@ function Invoke-ArkanumSqlUpgradePreflight {
 
 Import-Module WebAdministration
 
+$manifestPath = Join-Path $PackagePath 'package-manifest.json'
+if (Test-Path $manifestPath) {
+    try {
+        $packageManifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+        if ($PackageKind -eq 'auto' -and ![string]::IsNullOrWhiteSpace($packageManifest.packageKind)) { $PackageKind = $packageManifest.packageKind }
+        if (![string]::IsNullOrWhiteSpace($packageManifest.version)) { $PackageVersion = $packageManifest.version }
+    } catch { throw "Package manifest could not be read: $manifestPath" }
+}
+if ($PackageKind -eq 'auto') { $PackageKind = 'full' }
+
 $appDll = Join-Path $PackagePath 'Arkanum.Web.dll'
+if (!(Test-Path $appDll) -and (Test-Path (Join-Path $PackagePath 'app\Arkanum.Web.dll'))) {
+    $PackagePath = Join-Path $PackagePath 'app'
+    $appDll = Join-Path $PackagePath 'Arkanum.Web.dll'
+}
 if (!(Test-Path $appDll)) {
     throw "Published Arkanum.Web.dll was not found in PackagePath=$PackagePath. Run this from a published release package or pass -PackagePath."
 }
@@ -151,6 +178,22 @@ $script:StatePath = Join-Path $configDir 'install-state.json'
 $reportPath = Join-Path $logDir "upgrade-report-$PackageVersion.txt"
 
 $existingInstall = (Test-Path $script:StatePath) -or (Test-Path (Join-Path $InstallPath 'Arkanum.Web.dll'))
+$existingSqlConnectionPath = Join-Path $secretDir 'sql-connection.txt'
+$existingMasterKeyPath = Join-Path $secretDir 'master-key.txt'
+$installedVersion = 'unknown'
+if (Test-Path $script:StatePath) {
+    try { $installedVersion = (Get-Content $script:StatePath -Raw | ConvertFrom-Json).installedVersion } catch { $installedVersion = 'unknown' }
+}
+if ($PackageKind -eq 'update') {
+    if (-not $existingInstall) { throw 'Update package requires an existing Arkanum installation. Use the full package for first-time installation or restore.' }
+    if (-not (Test-Path $existingMasterKeyPath)) { throw 'Update package requires existing Recovery Key material. Update stopped before changing files.' }
+    if ([string]::IsNullOrWhiteSpace($SqlConnectionString) -and [string]::IsNullOrWhiteSpace($SqlServerHost) -and (Test-Path $existingSqlConnectionPath)) {
+        $SqlConnectionString = Get-Content $existingSqlConnectionPath -Raw
+    }
+    if ([string]::IsNullOrWhiteSpace($SqlConnectionString) -and -not (Test-Path $existingSqlConnectionPath)) { throw 'Update package requires existing database connectivity settings or an explicit replacement connection. Update stopped before changing files.' }
+    if ($Action -eq 'auto') { $Action = 'upgrade' }
+    if ($Action -ne 'upgrade' -and $Action -ne 'repair') { throw 'Update package can only run upgrade or repair actions against an existing installation.' }
+}
 if ($Action -eq 'auto') {
     if ($existingInstall) { $Action = 'upgrade' } else { $Action = 'install' }
 }
@@ -164,6 +207,12 @@ if ($DatabaseSetupMode -eq 'auto') {
 }
 if ($GenerateRuntimePassword -and [string]::IsNullOrWhiteSpace($RuntimeSqlPassword)) { $RuntimeSqlPassword = New-ArkanumRuntimePassword }
 $SqlConnectionString = Build-ArkanumRuntimeSqlConnectionString
+if ($PreflightOnly) {
+    $stamp = (Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss')
+    $previewBackup = Join-Path $backupRoot "$installedVersion-before-$PackageVersion-$stamp"
+    Write-ArkanumPackagePreflight -InstalledVersion $installedVersion -BackupPathPreview $previewBackup
+    return
+}
 if ([string]::IsNullOrWhiteSpace($HttpsCertificateThumbprint)) {
     throw 'HttpsCertificateThumbprint is required for the production HTTPS binding.'
 }
@@ -203,10 +252,6 @@ Invoke-ArkanumSqlUpgradePreflight
 
 $backupPath = ''
 if ($Action -in @('upgrade','repair')) {
-    $installedVersion = 'unknown'
-    if (Test-Path $script:StatePath) {
-        try { $installedVersion = (Get-Content $script:StatePath -Raw | ConvertFrom-Json).installedVersion } catch { $installedVersion = 'unknown' }
-    }
     $stamp = (Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss')
     $backupPath = Join-Path $backupRoot "$installedVersion-before-$PackageVersion-$stamp"
     New-Item -ItemType Directory -Force -Path $backupPath | Out-Null

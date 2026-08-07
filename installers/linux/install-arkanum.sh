@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ARKANUM_PACKAGE_VERSION=${ARKANUM_PACKAGE_VERSION:-2026.0.6}
+PACKAGE_KIND=${PACKAGE_KIND:-auto}
+PREFLIGHT_ONLY=${PREFLIGHT_ONLY:-false}
 ACTION=${ACTION:-auto}
 DATABASE_SETUP_MODE=${DATABASE_SETUP_MODE:-auto}
 SQL_SERVER_HOST=${SQL_SERVER_HOST:-}
@@ -103,6 +105,18 @@ build_runtime_sql_connection() {
   export ARKANUM_SQL_CONNECTION
 }
 
+write_package_preflight() {
+  local installed_version="$1"
+  local backup_preview="$2"
+  info "Arkanum update preflight"
+  info "Current version: ${installed_version}"
+  info "Target version: ${ARKANUM_PACKAGE_VERSION}"
+  info "Package kind: ${PACKAGE_KIND}"
+  info "Update package will preserve existing configuration, Recovery Key, database connection, and service binding settings."
+  info "Backup destination: ${backup_preview}"
+  info "No SQL passwords or Recovery Key values are written to this report."
+}
+
 Invoke-ArkanumSqlProvisioning() {
   if [ "${DATABASE_SETUP_MODE}" != "create-new-database" ]; then
     return
@@ -160,6 +174,10 @@ case "${RESTORE_SOURCE}" in
   *) fail "RESTORE_SOURCE must be one of dba-restored-database, sql-backup-file, attach-database-files." ;;
 esac
 # Restore from database backup example: ACTION=restore ARKANUM_RESTORE_KEY_FILE=/path/to/master-key.txt or ARKANUM_RESTORE_KEY=ark-recovery-v1....
+case "${PACKAGE_KIND}" in
+  auto|full|update) ;;
+  *) fail "PACKAGE_KIND must be one of auto, full, update." ;;
+esac
 
 if [ -z "${PACKAGE_DIR}" ]; then
   if [ -f "${PACKAGE_ROOT}/app/Arkanum.Web.dll" ]; then
@@ -180,6 +198,54 @@ if [ ! -f "${PACKAGE_DIR}/Arkanum.Web.dll" ]; then
   fail "Published Arkanum.Web.dll was not found in PACKAGE_DIR=${PACKAGE_DIR}. Run from an Arkanum Linux package or set PACKAGE_DIR to the published app folder."
 fi
 
+MANIFEST_FILE="${PACKAGE_ROOT}/package-manifest.json"
+if [ -f "${MANIFEST_FILE}" ]; then
+  if [ "${PACKAGE_KIND}" = "auto" ]; then
+    PACKAGE_KIND=$(python3 - <<PYMANIFEST
+import json
+print(json.load(open('${MANIFEST_FILE}')).get('packageKind','full'))
+PYMANIFEST
+)
+  fi
+  ARKANUM_PACKAGE_VERSION=$(python3 - <<PYMANIFEST
+import json
+print(json.load(open('${MANIFEST_FILE}')).get('version','${ARKANUM_PACKAGE_VERSION}'))
+PYMANIFEST
+)
+fi
+if [ "${PACKAGE_KIND}" = "auto" ]; then PACKAGE_KIND=full; fi
+
+EXISTING_INSTALL=false
+if [ -s "${STATE_FILE}" ] || [ -f "${INSTALL_DIR}/Arkanum.Web.dll" ]; then
+  EXISTING_INSTALL=true
+fi
+EXISTING_SQL_CONNECTION_FILE="${CONFIG_DIR}/sql-connection"
+EXISTING_MASTER_KEY_FILE="${CONFIG_DIR}/master-key"
+INSTALLED_VERSION="unknown"
+if [ -s "${STATE_FILE}" ]; then
+  INSTALLED_VERSION=$(python3 - <<PY
+import json
+try:
+    print(json.load(open('${STATE_FILE}')).get('installedVersion','unknown'))
+except Exception:
+    print('unknown')
+PY
+)
+fi
+if [ "${PACKAGE_KIND}" = "update" ]; then
+  [ "${EXISTING_INSTALL}" = true ] || fail "Update package requires an existing Arkanum installation. Use the full package for first-time installation or restore."
+  [ -s "${EXISTING_MASTER_KEY_FILE}" ] || fail "Update package requires existing Recovery Key material. Update stopped before changing files."
+  if [ -z "${ARKANUM_SQL_CONNECTION:-}" ] && [ -s "${EXISTING_SQL_CONNECTION_FILE}" ]; then
+    ARKANUM_SQL_CONNECTION=$(cat "${EXISTING_SQL_CONNECTION_FILE}")
+    export ARKANUM_SQL_CONNECTION
+  fi
+  [ -n "${ARKANUM_SQL_CONNECTION:-}" ] || fail "Update package requires existing database connectivity settings or an explicit replacement connection. Update stopped before changing files."
+  if [ "${ACTION}" = "auto" ]; then ACTION=upgrade; fi
+  if [ "${ACTION}" != "upgrade" ] && [ "${ACTION}" != "repair" ]; then
+    fail "Update package can only run upgrade or repair actions against an existing installation."
+  fi
+fi
+
 if [ "${GENERATE_RUNTIME_PASSWORD}" = "true" ] && [ -z "${RUNTIME_SQL_PASSWORD}" ]; then
   RUNTIME_SQL_PASSWORD=$(generate_runtime_password)
 fi
@@ -187,6 +253,11 @@ if [ "${DATABASE_SETUP_MODE}" = "auto" ]; then
   if [ "${ACTION}" = "restore" ]; then DATABASE_SETUP_MODE=restore-database; else DATABASE_SETUP_MODE=use-existing-database; fi
 fi
 build_runtime_sql_connection
+if [ "${PREFLIGHT_ONLY}" = "true" ]; then
+  BACKUP_PREVIEW="${BACKUP_ROOT}/${INSTALLED_VERSION}-before-${ARKANUM_PACKAGE_VERSION}-$(date -u +%Y%m%d%H%M%S)"
+  write_package_preflight "${INSTALLED_VERSION}" "${BACKUP_PREVIEW}"
+  exit 0
+fi
 if [[ "${APP_URLS}" == *https://* ]]; then
   [ -n "${ARKANUM_HTTPS_CERTIFICATE_PATH}" ] || fail "ARKANUM_HTTPS_CERTIFICATE_PATH is required when APP_URLS uses https. Provide a trusted Kestrel PFX certificate path or terminate TLS before Arkanum and use an internal http://127.0.0.1 URL."
   [ -s "${ARKANUM_HTTPS_CERTIFICATE_PATH}" ] || fail "ARKANUM_HTTPS_CERTIFICATE_PATH does not exist or is empty."
@@ -203,11 +274,6 @@ Example:
     installers/linux/install-arkanum.sh
 EOF
   exit 4
-fi
-
-EXISTING_INSTALL=false
-if [ -s "${STATE_FILE}" ] || [ -f "${INSTALL_DIR}/Arkanum.Web.dll" ]; then
-  EXISTING_INSTALL=true
 fi
 
 if [ "${ACTION}" = "auto" ]; then
@@ -260,17 +326,6 @@ install -d -o root -g root -m 750 "${BACKUP_ROOT}"
 
 BACKUP_DIR=""
 if [ "${ACTION}" = "upgrade" ] || [ "${ACTION}" = "repair" ]; then
-  INSTALLED_VERSION="unknown"
-  if [ -s "${STATE_FILE}" ]; then
-    INSTALLED_VERSION=$(python3 - <<PY
-import json
-try:
-    print(json.load(open('${STATE_FILE}')).get('installedVersion','unknown'))
-except Exception:
-    print('unknown')
-PY
-)
-  fi
   BACKUP_DIR="${BACKUP_ROOT}/${INSTALLED_VERSION}-before-${ARKANUM_PACKAGE_VERSION}-$(date -u +%Y%m%d%H%M%S)"
   info "Existing installation detected. Backing up app/config to ${BACKUP_DIR}."
   install -d -o root -g root -m 750 "${BACKUP_DIR}"

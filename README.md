@@ -93,6 +93,17 @@ See:
 - [`installers/windows/`](installers/windows/)
 - [`installers/linux/`](installers/linux/)
 
+Release packages use a full/update model with matching Windows and Linux naming:
+
+```text
+Arkanum-2026.0.6-full-windows-x64.zip
+Arkanum-2026.0.6-update-windows-x64.zip
+Arkanum-2026.0.6-full-linux-x64.tar.gz
+Arkanum-2026.0.6-update-linux-x64.tar.gz
+```
+
+Use full packages for first install, side-by-side testing, and restore workflows. Use update packages only against an existing installation; update mode preserves configuration, Recovery Key/master-key material, database connectivity settings, and service binding settings while creating a pre-upgrade backup/report.
+
 ## Local development
 
 ### Requirements
