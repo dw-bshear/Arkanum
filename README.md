@@ -53,6 +53,8 @@ Audit rows are application append-only and chained with SHA-256 integrity hashes
 
 Installer/runtime hardening separates the setup/migration identity from the least-privilege runtime SQL login, stores runtime secrets in protected files, and redacts installer output. See [`docs/installer-runtime-hardening.md`](docs/installer-runtime-hardening.md).
 
+RMF/STIG review support is documented as a deployment-boundary evidence package, not a product-level approval claim. Use [`docs/rmf-stig-evidence-matrix.md`](docs/rmf-stig-evidence-matrix.md) for the implemented/partial/inherited/planned/not-applicable control map and [`docs/offline-release-evidence-bundle.md`](docs/offline-release-evidence-bundle.md) for the review-ready offline release evidence bundle.
+
 ### Site-wide recovery
 
 Arkanum recovery is intentionally site-wide, not vault-specific:
@@ -167,6 +169,8 @@ Review `.gitignore` before adding new operational scripts or lab files.
 | [`docs/2026.0.6-feedback-release.md`](docs/2026.0.6-feedback-release.md) | Current feedback prerelease notes, installer restore mode, vault UX, reminders, and CSV export. |
 | [`docs/backup-and-restore.md`](docs/backup-and-restore.md) | SQL database + recovery/master-key restore model. |
 | [`docs/offline-package-checklist.md`](docs/offline-package-checklist.md) | Checklist for moving packages into controlled/disconnected networks. |
+| [`docs/offline-release-evidence-bundle.md`](docs/offline-release-evidence-bundle.md) | RMF/ATO review-ready offline evidence bundle contents and air-gapped update process. |
+| [`docs/rmf-stig-evidence-matrix.md`](docs/rmf-stig-evidence-matrix.md) | DoD/RMF/STIG deployment-boundary evidence matrix and inherited-control map. |
 | [`docs/phase1-installable-feedback-release.md`](docs/phase1-installable-feedback-release.md) | Installable feedback release goals and boundaries. |
 | [`docs/phase2-security-hardening.md`](docs/phase2-security-hardening.md) | Browser/security-header and error-handling hardening notes. |
 | [`docs/phase3-role-separation.md`](docs/phase3-role-separation.md) | Role model and least-privilege behavior. |
