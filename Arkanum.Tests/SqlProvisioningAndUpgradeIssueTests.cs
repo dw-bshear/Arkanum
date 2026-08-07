@@ -11,9 +11,14 @@ public class SqlProvisioningAndUpgradeIssueTests
         Assert.Contains("CREATE DATABASE", provision);
         Assert.Contains("CREATE LOGIN", provision);
         Assert.Contains("CREATE USER", provision);
-        Assert.Contains("ALTER ROLE [db_datareader] ADD MEMBER", provision);
-        Assert.Contains("ALTER ROLE [db_datawriter] ADD MEMBER", provision);
-        Assert.Contains("ALTER ROLE [db_ddladmin] ADD MEMBER", provision);
+        Assert.Contains("GRANT SELECT ON SCHEMA::[dbo]", provision);
+        Assert.Contains("GRANT INSERT ON SCHEMA::[dbo]", provision);
+        Assert.Contains("GRANT UPDATE ON SCHEMA::[dbo]", provision);
+        Assert.Contains("GRANT DELETE ON SCHEMA::[dbo]", provision);
+        Assert.Contains("DENY UPDATE ON OBJECT::[dbo].[AuditEvents]", provision);
+        Assert.DoesNotContain("db_ddladmin", provision, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("db_datawriter", provision, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("db_datareader", provision, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("sysadmin", provision, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("serveradmin", provision, StringComparison.OrdinalIgnoreCase);
     }

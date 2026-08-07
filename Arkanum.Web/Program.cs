@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
+ApplyFileBackedRuntimeConfiguration(builder.Configuration);
 
 builder.Services.AddRazorPages(options =>
 {
@@ -55,7 +56,7 @@ builder.Services.AddScoped<ArkanumHealthCheckService>();
 builder.Services.AddScoped<InstallReportService>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-var sqliteConnectionString = builder.Configuration.GetConnectionString("SqliteFallback") ?? "Data Source=/srv/blackbox/hermes/projects/arkanum/data/arkanum-dev.db";
+var sqliteConnectionString = builder.Configuration.GetConnectionString("SqliteFallback") ?? "Data Source=arkanum-dev.db";
 if (!string.IsNullOrWhiteSpace(connectionString))
 {
     builder.Services.AddDbContext<ArkanumDbContext>((sp, options) => options
@@ -70,7 +71,7 @@ else if (builder.Environment.IsEnvironment("Testing"))
 }
 else
 {
-    Directory.CreateDirectory(Path.GetDirectoryName(sqliteConnectionString.Replace("Data Source=", string.Empty)) ?? ".");
+    Directory.CreateDirectory(Path.GetDirectoryName(sqliteConnectionString.Replace("Data Source=", string.Empty, StringComparison.OrdinalIgnoreCase)) ?? ".");
     builder.Services.AddDbContext<ArkanumDbContext>((sp, options) => options
         .UseSqlite(sqliteConnectionString)
         .AddInterceptors(sp.GetRequiredService<SyslogAuditForwardingInterceptor>()));
@@ -91,46 +92,18 @@ app.UseHttpsRedirection();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ArkanumDbContext>();
-    db.Database.EnsureCreated();
-    if (!string.IsNullOrWhiteSpace(connectionString))
+    var providerName = db.Database.ProviderName ?? string.Empty;
+    var isSqlServer = providerName.Contains("SqlServer", StringComparison.OrdinalIgnoreCase);
+    var allowRuntimeSchemaManagement = app.Configuration.GetValue<bool>("Arkanum:AllowRuntimeSchemaManagement");
+    if (isSqlServer && allowRuntimeSchemaManagement && db.Database.IsRelational())
     {
-        db.Database.ExecuteSqlRaw("IF COL_LENGTH('Users', 'FailedLoginCount') IS NULL ALTER TABLE [Users] ADD [FailedLoginCount] int NOT NULL CONSTRAINT DF_Users_FailedLoginCount DEFAULT 0");
-        db.Database.ExecuteSqlRaw("IF COL_LENGTH('Users', 'LockoutEndAt') IS NULL ALTER TABLE [Users] ADD [LockoutEndAt] datetimeoffset NULL");
-        db.Database.ExecuteSqlRaw("IF OBJECT_ID('RecoveryStates', 'U') IS NULL CREATE TABLE [RecoveryStates] ([Id] nvarchar(64) NOT NULL CONSTRAINT PK_RecoveryStates PRIMARY KEY, [RecoveryKeyId] nvarchar(128) NOT NULL, [EncryptedSentinel] nvarchar(max) NOT NULL, [EncryptionAlgorithm] nvarchar(64) NOT NULL, [CreatedAt] datetimeoffset NOT NULL)");
-        db.Database.ExecuteSqlRaw("IF COL_LENGTH('VaultItems', 'ResetNotificationDate') IS NULL ALTER TABLE [VaultItems] ADD [ResetNotificationDate] date NULL");
-        db.Database.ExecuteSqlRaw("IF COL_LENGTH('VaultItems', 'ResetNotificationSentAt') IS NULL ALTER TABLE [VaultItems] ADD [ResetNotificationSentAt] datetimeoffset NULL");
-        db.Database.ExecuteSqlRaw("IF COL_LENGTH('Vaults', 'IsRetired') IS NULL ALTER TABLE [Vaults] ADD [IsRetired] bit NOT NULL CONSTRAINT DF_Vaults_IsRetired DEFAULT 0");
-        db.Database.ExecuteSqlRaw("IF COL_LENGTH('Vaults', 'RetiredAt') IS NULL ALTER TABLE [Vaults] ADD [RetiredAt] datetimeoffset NULL");
-        db.Database.ExecuteSqlRaw("IF COL_LENGTH('Vaults', 'RetiredByUserKey') IS NULL ALTER TABLE [Vaults] ADD [RetiredByUserKey] nvarchar(max) NOT NULL CONSTRAINT DF_Vaults_RetiredByUserKey DEFAULT ''");
-        db.Database.ExecuteSqlRaw("IF COL_LENGTH('Vaults', 'RetirementReason') IS NULL ALTER TABLE [Vaults] ADD [RetirementReason] nvarchar(max) NOT NULL CONSTRAINT DF_Vaults_RetirementReason DEFAULT ''");
-        db.Database.ExecuteSqlRaw("IF COL_LENGTH('AuditEvents', 'Sequence') IS NULL ALTER TABLE [AuditEvents] ADD [Sequence] bigint NOT NULL CONSTRAINT DF_AuditEvents_Sequence DEFAULT 0");
-        db.Database.ExecuteSqlRaw("IF COL_LENGTH('AuditEvents', 'PreviousIntegrityHash') IS NULL ALTER TABLE [AuditEvents] ADD [PreviousIntegrityHash] nvarchar(max) NOT NULL CONSTRAINT DF_AuditEvents_PreviousIntegrityHash DEFAULT ''");
-        db.Database.ExecuteSqlRaw("IF COL_LENGTH('AuditEvents', 'IntegrityHash') IS NULL ALTER TABLE [AuditEvents] ADD [IntegrityHash] nvarchar(max) NOT NULL CONSTRAINT DF_AuditEvents_IntegrityHash DEFAULT ''");
-        db.Database.ExecuteSqlRaw("IF COL_LENGTH('AuditEvents', 'IntegrityAlgorithm') IS NULL ALTER TABLE [AuditEvents] ADD [IntegrityAlgorithm] nvarchar(64) NOT NULL CONSTRAINT DF_AuditEvents_IntegrityAlgorithm DEFAULT 'SHA-256'");
+        db.Database.Migrate();
     }
-    if (string.IsNullOrWhiteSpace(connectionString))
+    else if (!isSqlServer)
     {
-        db.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS DashboardWidgets (WidgetKey TEXT NOT NULL CONSTRAINT PK_DashboardWidgets PRIMARY KEY, Title TEXT NOT NULL, Description TEXT NOT NULL, Enabled INTEGER NOT NULL, SortOrder INTEGER NOT NULL, RolesCsv TEXT NOT NULL)");
-        db.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS PortalSettings (SettingKey TEXT NOT NULL CONSTRAINT PK_PortalSettings PRIMARY KEY, Value TEXT NOT NULL, UpdatedAt TEXT NOT NULL, UpdatedByUserKey TEXT NOT NULL)");
-        db.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS RecoveryStates (Id TEXT NOT NULL CONSTRAINT PK_RecoveryStates PRIMARY KEY, RecoveryKeyId TEXT NOT NULL, EncryptedSentinel TEXT NOT NULL, EncryptionAlgorithm TEXT NOT NULL, CreatedAt TEXT NOT NULL)");
-        db.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS VaultMembers (VaultId TEXT NOT NULL, UserKey TEXT NOT NULL, CanInvite INTEGER NOT NULL, AddedByUserKey TEXT NOT NULL, AddedAt TEXT NOT NULL, CONSTRAINT PK_VaultMembers PRIMARY KEY (VaultId, UserKey))");
-        db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_VaultMembers_UserKey ON VaultMembers (UserKey)");
-        db.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS UserGroups (Id TEXT NOT NULL CONSTRAINT PK_UserGroups PRIMARY KEY, Name TEXT NOT NULL, Description TEXT NOT NULL, CreatedAt TEXT NOT NULL)");
-        db.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS UserGroupMembers (GroupId TEXT NOT NULL, UserKey TEXT NOT NULL, AddedByUserKey TEXT NOT NULL, AddedAt TEXT NOT NULL, CONSTRAINT PK_UserGroupMembers PRIMARY KEY (GroupId, UserKey))");
-        db.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS UserGroupManagers (GroupId TEXT NOT NULL, UserKey TEXT NOT NULL, AddedByUserKey TEXT NOT NULL, AddedAt TEXT NOT NULL, CONSTRAINT PK_UserGroupManagers PRIMARY KEY (GroupId, UserKey))");
-        TrySqlitePatch(db, "ALTER TABLE Users ADD COLUMN FailedLoginCount INTEGER NOT NULL DEFAULT 0");
-        TrySqlitePatch(db, "ALTER TABLE Users ADD COLUMN LockoutEndAt TEXT NULL");
-        TrySqlitePatch(db, "ALTER TABLE VaultItems ADD COLUMN ResetNotificationDate TEXT NULL");
-        TrySqlitePatch(db, "ALTER TABLE VaultItems ADD COLUMN ResetNotificationSentAt TEXT NULL");
-        TrySqlitePatch(db, "ALTER TABLE Vaults ADD COLUMN IsRetired INTEGER NOT NULL DEFAULT 0");
-        TrySqlitePatch(db, "ALTER TABLE Vaults ADD COLUMN RetiredAt TEXT NULL");
-        TrySqlitePatch(db, "ALTER TABLE Vaults ADD COLUMN RetiredByUserKey TEXT NOT NULL DEFAULT ''");
-        TrySqlitePatch(db, "ALTER TABLE Vaults ADD COLUMN RetirementReason TEXT NOT NULL DEFAULT ''");
-        TrySqlitePatch(db, "ALTER TABLE AuditEvents ADD COLUMN Sequence INTEGER NOT NULL DEFAULT 0");
-        TrySqlitePatch(db, "ALTER TABLE AuditEvents ADD COLUMN PreviousIntegrityHash TEXT NOT NULL DEFAULT ''");
-        TrySqlitePatch(db, "ALTER TABLE AuditEvents ADD COLUMN IntegrityHash TEXT NOT NULL DEFAULT ''");
-        TrySqlitePatch(db, "ALTER TABLE AuditEvents ADD COLUMN IntegrityAlgorithm TEXT NOT NULL DEFAULT 'SHA-256'");
+        db.Database.EnsureCreated();
     }
+
     scope.ServiceProvider.GetRequiredService<DashboardService>().EnsureDefaultWidgetsAsync(db).GetAwaiter().GetResult();
     scope.ServiceProvider.GetRequiredService<PortalSettingsService>().EnsureDefaultsAsync(db).GetAwaiter().GetResult();
     try
@@ -164,15 +137,19 @@ app.MapStaticAssets();
 app.MapRazorPages().WithStaticAssets().RequireAuthorization();
 app.Run();
 
-static void TrySqlitePatch(ArkanumDbContext db, string sql)
+static void ApplyFileBackedRuntimeConfiguration(IConfiguration configuration)
 {
-    try
+    var connectionStringFile = configuration["ConnectionStrings__DefaultConnection_FILE"] ?? Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection_FILE");
+    if (!string.IsNullOrWhiteSpace(connectionStringFile) && File.Exists(connectionStringFile))
     {
-        db.Database.ExecuteSqlRaw(sql);
+        configuration["ConnectionStrings:DefaultConnection"] = File.ReadAllText(connectionStringFile).Trim();
     }
-    catch (Exception ex) when (ex.Message.Contains("duplicate column", StringComparison.OrdinalIgnoreCase))
+
+    var masterKeyFile = configuration["ARKANUM_MASTER_KEY_FILE"] ?? Environment.GetEnvironmentVariable("ARKANUM_MASTER_KEY_FILE");
+    if (!string.IsNullOrWhiteSpace(masterKeyFile) && File.Exists(masterKeyFile))
     {
-        // Existing SQLite review databases may already have this prototype column.
+        Environment.SetEnvironmentVariable("ARKANUM_MASTER_KEY", File.ReadAllText(masterKeyFile).Trim());
+        configuration["Arkanum:MasterKeyFile"] = masterKeyFile;
     }
 }
 

@@ -2,6 +2,7 @@
 Arkanum SQL provisioning script.
 Run with a setup/admin SQL credential only during installation.
 Do not persist the setup/admin credential; persist only the runtime SQL connection string.
+Run arkanum-schema.sql with a setup/migration identity before granting runtime permissions.
 
 Expected sqlcmd variables:
   DatabaseName
@@ -36,11 +37,15 @@ IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N''$(RuntimeLo
 BEGIN
     CREATE USER ' + QUOTENAME(N'$(RuntimeLogin)') + N' FOR LOGIN ' + QUOTENAME(N'$(RuntimeLogin)') + N';
 END;
-ALTER ROLE [db_datareader] ADD MEMBER ' + QUOTENAME(N'$(RuntimeLogin)') + N';
-ALTER ROLE [db_datawriter] ADD MEMBER ' + QUOTENAME(N'$(RuntimeLogin)') + N';
-ALTER ROLE [db_ddladmin] ADD MEMBER ' + QUOTENAME(N'$(RuntimeLogin)') + N';
+PRINT ''Runtime least privilege: table-level DML grants only; no broad built-in database role membership.'';
+GRANT SELECT ON SCHEMA::[dbo] TO ' + QUOTENAME(N'$(RuntimeLogin)') + N';
+GRANT INSERT ON SCHEMA::[dbo] TO ' + QUOTENAME(N'$(RuntimeLogin)') + N';
+GRANT UPDATE ON SCHEMA::[dbo] TO ' + QUOTENAME(N'$(RuntimeLogin)') + N';
+GRANT DELETE ON SCHEMA::[dbo] TO ' + QUOTENAME(N'$(RuntimeLogin)') + N';
+DENY UPDATE ON OBJECT::[dbo].[AuditEvents] TO ' + QUOTENAME(N'$(RuntimeLogin)') + N';
+DENY DELETE ON OBJECT::[dbo].[AuditEvents] TO ' + QUOTENAME(N'$(RuntimeLogin)') + N';
 ';
 EXEC (@useDatabaseSql);
 GO
 
-PRINT 'Arkanum SQL provisioning completed: database and limited runtime login/user are ready.';
+PRINT 'Arkanum SQL provisioning completed: database and least-privilege runtime login/user are ready.';

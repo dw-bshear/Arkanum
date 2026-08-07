@@ -64,7 +64,7 @@ function Write-ArkanumReport {
         "Recovery sentinel validation: $RecoveryValidation",
         'No SQL passwords or Recovery Key values are written to this report.',
         "Post-install health status: $HealthStatus",
-        $HealthBody
+        (Redact-ArkanumSecret $HealthBody)
     )
     $lines | Set-Content -Path $ReportPath -Encoding UTF8
 }
@@ -74,6 +74,28 @@ function New-ArkanumRuntimePassword {
     $bytes = New-Object byte[] 32
     [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
     return [Convert]::ToBase64String($bytes).TrimEnd('=') + '!aA1'
+}
+
+function Redact-ArkanumSecret {
+    param([string]$Text)
+    if ([string]::IsNullOrEmpty($Text)) { return $Text }
+    $redacted = $Text
+    foreach ($secret in @($SetupSqlPassword, $RuntimeSqlPassword, $SqlConnectionString, $RestoreKey)) {
+        if (![string]::IsNullOrWhiteSpace($secret)) { $redacted = $redacted -replace [regex]::Escape($secret), '[REDACTED]' }
+    }
+    return ($redacted -replace '(Password=)[^;]+', '$1[REDACTED]')
+}
+
+function Protect-ArkanumSecretFile {
+    param([string]$Path)
+    $acl = Get-Acl $Path
+    $acl.SetAccessRuleProtection($true, $false)
+    $acl.Access | ForEach-Object { $acl.RemoveAccessRule($_) | Out-Null }
+    $appPoolIdentity = "IIS AppPool\$AppPoolName"
+    $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule('Administrators', 'FullControl', 'Allow')))
+    $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule('SYSTEM', 'FullControl', 'Allow')))
+    $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($appPoolIdentity, 'Read', 'Allow')))
+    Set-Acl -Path $Path -AclObject $acl
 }
 
 function Build-ArkanumRuntimeSqlConnectionString {
@@ -92,11 +114,14 @@ function Invoke-ArkanumSqlProvisioning {
     if ([string]::IsNullOrWhiteSpace($RuntimeSqlPassword)) { throw 'Create new database mode requires a runtime SQL password or -GenerateRuntimePassword.' }
     $scriptPath = Join-Path $PSScriptRoot '..\sql\provision-arkanum-sql.sql'
     if (!(Test-Path $scriptPath)) { throw "Missing SQL provisioning script: $scriptPath" }
+    $schemaPath = Join-Path $PSScriptRoot '..\sql\arkanum-schema.sql'
+    if (!(Test-Path $schemaPath)) { throw "Missing SQL schema script: $schemaPath" }
     $server = "tcp:$SqlServerHost,$SqlServerPort"
     Write-Host 'Database setup mode: create-new-database'
     Write-Host 'Creating Arkanum database and limited runtime SQL login/user. SQL setup credential persistence: not persisted.'
     Write-Host 'Persist only the runtime SQL connection after provisioning.'
-    & sqlcmd -S $server -U $SetupSqlUsername -P $SetupSqlPassword -b -i $scriptPath -v DatabaseName=$DatabaseName RuntimeLogin=$RuntimeSqlLogin RuntimePassword=$RuntimeSqlPassword | ForEach-Object { $_ -replace [regex]::Escape($SetupSqlPassword), '[REDACTED]' -replace [regex]::Escape($RuntimeSqlPassword), '[REDACTED]' }
+    & sqlcmd -S $server -U $SetupSqlUsername -P $SetupSqlPassword -b -i $schemaPath -v DatabaseName=$DatabaseName | ForEach-Object { Redact-ArkanumSecret $_ }
+    & sqlcmd -S $server -U $SetupSqlUsername -P $SetupSqlPassword -b -i $scriptPath -v DatabaseName=$DatabaseName RuntimeLogin=$RuntimeSqlLogin RuntimePassword=$RuntimeSqlPassword | ForEach-Object { Redact-ArkanumSecret $_ }
 }
 
 function Invoke-ArkanumSqlUpgradePreflight {
@@ -229,17 +254,21 @@ foreach ($target in $aclTargets) {
     Set-Acl -Path $target -AclObject $acl
 }
 
+$connectionStringPath = Join-Path $secretDir 'sql-connection.txt'
+Set-Content -Path $connectionStringPath -Value $SqlConnectionString -NoNewline
+Protect-ArkanumSecretFile -Path $keyPath
+Protect-ArkanumSecretFile -Path $connectionStringPath
+
 $configPath = Join-Path $configDir 'arkanum.runtime.json'
 $runtimeJson = @{
     ASPNETCORE_ENVIRONMENT = 'Production'
-    ConnectionStrings__DefaultConnection = $SqlConnectionString
-    MasterKeyPath = $keyPath
+    ARKANUM_MASTER_KEY_FILE = $keyPath
+    ConnectionStrings__DefaultConnection_FILE = $connectionStringPath
 } | ConvertTo-Json
 Set-Content -Path $configPath -Value $runtimeJson
 
-$masterKey = (Get-Content $keyPath -Raw).Trim()
-$escapedSqlConnectionString = [System.Security.SecurityElement]::Escape($SqlConnectionString)
-$escapedMasterKey = [System.Security.SecurityElement]::Escape($masterKey)
+$escapedKeyPath = [System.Security.SecurityElement]::Escape($keyPath)
+$escapedConnectionStringPath = [System.Security.SecurityElement]::Escape($connectionStringPath)
 
 $webConfig = @"
 <?xml version="1.0" encoding="utf-8"?>
@@ -251,8 +280,8 @@ $webConfig = @"
     <aspNetCore processPath="dotnet" arguments=".\Arkanum.Web.dll" stdoutLogEnabled="false" stdoutLogFile=".\logs\stdout" hostingModel="inprocess">
       <environmentVariables>
         <environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Production" />
-        <environmentVariable name="ARKANUM_MASTER_KEY" value="$escapedMasterKey" />
-        <environmentVariable name="ConnectionStrings__DefaultConnection" value="$escapedSqlConnectionString" />
+        <environmentVariable name="ARKANUM_MASTER_KEY_FILE" value="$escapedKeyPath" />
+        <environmentVariable name="ConnectionStrings__DefaultConnection_FILE" value="$escapedConnectionStringPath" />
       </environmentVariables>
     </aspNetCore>
   </system.webServer>

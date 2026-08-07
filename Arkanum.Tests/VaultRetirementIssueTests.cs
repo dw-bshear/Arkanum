@@ -65,7 +65,7 @@ public class VaultRetirementIssueTests
         var indexMarkup = File.ReadAllText(Path.Combine(root, "Arkanum.Web", "Pages", "Vaults", "Index.cshtml"));
         var indexModel = File.ReadAllText(Path.Combine(root, "Arkanum.Web", "Pages", "Vaults", "Index.cshtml.cs"));
         var detailsMarkup = File.ReadAllText(Path.Combine(root, "Arkanum.Web", "Pages", "Vaults", "Details.cshtml"));
-        var program = File.ReadAllText(Path.Combine(root, "Arkanum.Web", "Program.cs"));
+        var schema = File.ReadAllText(Path.Combine(root, "installers", "sql", "arkanum-schema.sql"));
 
         Assert.Contains("CanRetireVaults", indexModel);
         Assert.Contains("OnPostRetireAsync", indexModel);
@@ -75,8 +75,8 @@ public class VaultRetirementIssueTests
         Assert.Contains("asp-page-handler=\"Retire\"", indexMarkup);
         Assert.DoesNotContain("Hard delete vault", indexMarkup);
         Assert.Contains("retired vault", detailsMarkup, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("IsRetired", program);
-        Assert.Contains("RetiredAt", program);
+        Assert.Contains("IsRetired", schema);
+        Assert.Contains("RetiredAt", schema);
     }
 
     private static ArkanumDbContext CreateDb(string name)

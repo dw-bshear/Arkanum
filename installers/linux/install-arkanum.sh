@@ -38,6 +38,16 @@ info() {
   echo "[INFO] $*"
 }
 
+redact_secret() {
+  local text="$*"
+  for secret in "${SETUP_SQL_PASSWORD:-}" "${RUNTIME_SQL_PASSWORD:-}" "${ARKANUM_SQL_CONNECTION:-}" "${ARKANUM_RESTORE_KEY:-}"; do
+    if [ -n "${secret}" ]; then
+      text=${text//${secret}/[REDACTED]}
+    fi
+  done
+  printf '%s\n' "${text}" | sed -E 's/(Password=)[^;]+/\1[REDACTED]/g'
+}
+
 write_report() {
   install -d -o "${SERVICE_USER}" -g "${SERVICE_USER}" -m 750 "${LOG_DIR}" 2>/dev/null || install -d -m 750 "${LOG_DIR}"
   local recovery_key_source="not provided"
@@ -104,11 +114,16 @@ Invoke-ArkanumSqlProvisioning() {
   local script_path="${PACKAGE_ROOT}/installers/sql/provision-arkanum-sql.sql"
   [ -f "${script_path}" ] || script_path="${SCRIPT_DIR}/../sql/provision-arkanum-sql.sql"
   [ -f "${script_path}" ] || fail "Missing SQL provisioning script: ${script_path}"
+  local schema_path="${PACKAGE_ROOT}/installers/sql/arkanum-schema.sql"
+  [ -f "${schema_path}" ] || schema_path="${SCRIPT_DIR}/../sql/arkanum-schema.sql"
+  [ -f "${schema_path}" ] || fail "Missing SQL schema script: ${schema_path}"
   info "Database setup mode: create-new-database"
   info "Creating Arkanum database and limited runtime SQL login/user. SQL setup credential persistence: not persisted."
   info "Persist only the runtime SQL connection after provisioning."
+  sqlcmd -S "tcp:${SQL_SERVER_HOST},${SQL_SERVER_PORT}" -U "${SETUP_SQL_USERNAME}" -P "${SETUP_SQL_PASSWORD}" -b -i "${schema_path}" -v DatabaseName="${DATABASE_NAME}" \
+    | while IFS= read -r line; do redact_secret "$line"; done
   sqlcmd -S "tcp:${SQL_SERVER_HOST},${SQL_SERVER_PORT}" -U "${SETUP_SQL_USERNAME}" -P "${SETUP_SQL_PASSWORD}" -b -i "${script_path}" -v DatabaseName="${DATABASE_NAME}" RuntimeLogin="${RUNTIME_SQL_LOGIN}" RuntimePassword="${RUNTIME_SQL_PASSWORD}" \
-    | sed -e "s/${SETUP_SQL_PASSWORD//\//\\/}/[REDACTED]/g" -e "s/${RUNTIME_SQL_PASSWORD//\//\\/}/[REDACTED]/g"
+    | while IFS= read -r line; do redact_secret "$line"; done
 }
 
 Invoke-ArkanumSqlUpgradePreflight() {
@@ -124,7 +139,7 @@ Invoke-ArkanumSqlUpgradePreflight() {
   info "Runtime login permission preflight"
   info "SQL backup strongly recommended before upgrade."
   info "Failure categories: database reachability, schema mismatch, permission problem, recovery-key mismatch."
-  sqlcmd -b -i "${script_path}" | sed -E 's/(Password=)[^;]+/\1[REDACTED]/g'
+  sqlcmd -b -i "${script_path}" | while IFS= read -r line; do redact_secret "$line"; done
 }
 
 if [ "${EUID}" -ne 0 ]; then
@@ -300,12 +315,18 @@ fi
 chown root:"${SERVICE_USER}" "${MASTER_KEY_FILE}"
 chmod 640 "${MASTER_KEY_FILE}"
 
+SQL_CONNECTION_FILE="${CONFIG_DIR}/sql-connection"
+umask 077
+printf '%s\n' "${ARKANUM_SQL_CONNECTION}" > "${SQL_CONNECTION_FILE}"
+chown root:"${SERVICE_USER}" "${SQL_CONNECTION_FILE}"
+chmod 640 "${SQL_CONNECTION_FILE}"
+
 ENV_FILE="${CONFIG_DIR}/arkanum.env"
 info "Writing systemd environment file at ${ENV_FILE}."
 cat > "${ENV_FILE}" <<EOF_ENV
 ASPNETCORE_ENVIRONMENT=Production
-ARKANUM_MASTER_KEY=$(cat "${MASTER_KEY_FILE}")
-ConnectionStrings__DefaultConnection=${ARKANUM_SQL_CONNECTION}
+ARKANUM_MASTER_KEY_FILE=${MASTER_KEY_FILE}
+ConnectionStrings__DefaultConnection_FILE=${SQL_CONNECTION_FILE}
 EOF_ENV
 if [ -n "${ARKANUM_HTTPS_CERTIFICATE_PATH}" ]; then
   {

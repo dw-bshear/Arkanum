@@ -51,6 +51,8 @@ Arkanum uses a trusted-server model:
 
 Audit rows are application append-only and chained with SHA-256 integrity hashes. Production SQL Server deployments should add a database deny UPDATE/DELETE control for the runtime account on `AuditEvents`, then capture retention, archive/export/restore, and forwarding evidence in [`docs/audit-compliance-evidence.md`](docs/audit-compliance-evidence.md).
 
+Installer/runtime hardening separates the setup/migration identity from the least-privilege runtime SQL login, stores runtime secrets in protected files, and redacts installer output. See [`docs/installer-runtime-hardening.md`](docs/installer-runtime-hardening.md).
+
 ### Site-wide recovery
 
 Arkanum recovery is intentionally site-wide, not vault-specific:
