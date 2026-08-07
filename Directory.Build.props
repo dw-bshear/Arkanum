@@ -1,9 +1,9 @@
 <Project>
   <PropertyGroup>
-    <Version>2026.0.6</Version>
-    <AssemblyVersion>2026.0.6.0</AssemblyVersion>
-    <FileVersion>2026.0.6.0</FileVersion>
-    <InformationalVersion>2026.0.6-collapsed-vault-ux</InformationalVersion>
+    <Version>2026.1.0</Version>
+    <AssemblyVersion>2026.1.0.0</AssemblyVersion>
+    <FileVersion>2026.1.0.0</FileVersion>
+    <InformationalVersion>2026.1.0-first-release</InformationalVersion>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <RestoreLockedMode Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</RestoreLockedMode>
   </PropertyGroup>

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ARKANUM_PACKAGE_VERSION=${ARKANUM_PACKAGE_VERSION:-2026.0.6}
+ARKANUM_PACKAGE_VERSION=${ARKANUM_PACKAGE_VERSION:-2026.1.0}
 PACKAGE_KIND=${PACKAGE_KIND:-auto}
 PREFLIGHT_ONLY=${PREFLIGHT_ONLY:-false}
 ACTION=${ACTION:-auto}
@@ -431,7 +431,7 @@ state = {
   "logPath": "${LOG_DIR}",
   "serviceName": "arkanum.service",
   "databaseProvider": "SqlServer",
-  "packageChannel": "prerelease",
+  "packageChannel": "release",
   "backupPath": "${BACKUP_DIR}"
 }
 print(json.dumps(state, indent=2))

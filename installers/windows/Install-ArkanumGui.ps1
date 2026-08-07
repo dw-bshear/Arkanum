@@ -256,7 +256,7 @@ function Build-CommandPreview {
         '-HttpsHostName', "`"$($httpsHostName.Text)`"",
         '-HttpsCertificateThumbprint', "`"$($httpsCertificateThumbprint.Text)`"",
         '-AppPoolName', "`"$($appPool.Text)`"",
-        '-PackageVersion', '2026.0.6',
+        '-PackageVersion', '2026.1.0',
         '-PackageKind', $script:PackageKind,
         '-Action', $selectedAction,
         '-DatabaseSetupMode', (Get-DatabaseSetupMode),
@@ -314,7 +314,7 @@ $run.Add_Click({
             HttpsCertificateThumbprint = $httpsCertificateThumbprint.Text
             SqlConnectionString = $conn
             AppPoolName = $appPool.Text
-            PackageVersion = '2026.0.6'
+            PackageVersion = '2026.1.0'
             PackageKind = $script:PackageKind
             Action = Get-InstallerAction
             DatabaseSetupMode = Get-DatabaseSetupMode

@@ -7,10 +7,10 @@ Use this checklist before moving an Arkanum release package into a disconnected 
 Arkanum publishes separate full and update assets for each platform:
 
 ```text
-Arkanum-2026.0.6-full-windows-x64.zip
-Arkanum-2026.0.6-update-windows-x64.zip
-Arkanum-2026.0.6-full-linux-x64.tar.gz
-Arkanum-2026.0.6-update-linux-x64.tar.gz
+Arkanum-2026.1.0-full-windows-x64.zip
+Arkanum-2026.1.0-update-windows-x64.zip
+Arkanum-2026.1.0-full-linux-x64.tar.gz
+Arkanum-2026.1.0-update-linux-x64.tar.gz
 ```
 
 Use the full asset for first install, side-by-side testing, or restore from SQL database backup + matching Arkanum Recovery Key. Use the update asset only when Arkanum is already installed; it detects the existing install-state and preserves configuration, Recovery Key/master-key material, database connectivity settings, and service binding settings before backing up and replacing app files.

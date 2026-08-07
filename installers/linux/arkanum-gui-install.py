@@ -254,7 +254,7 @@ class Wizard(tk.Tk):
             "GENERATE_RUNTIME_PASSWORD": "true" if self.generate_runtime_password.get() else "false",
             "RESTORE_SOURCE": selected_restore_source,
             "SQL_BACKUP_FILE": self.vars["sql_backup_file"].get().strip(),
-            "ARKANUM_PACKAGE_VERSION": "2026.0.6",
+            "ARKANUM_PACKAGE_VERSION": "2026.1.0",
             "PACKAGE_KIND": PACKAGE_KIND,
             "INSTALL_DIR": self.vars["install_dir"].get().strip(),
             "CONFIG_DIR": self.vars["config_dir"].get().strip(),

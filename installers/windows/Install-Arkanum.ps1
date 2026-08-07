@@ -8,7 +8,7 @@ param(
     [string]$HttpsCertificateThumbprint = '',
     [string]$SqlConnectionString = '',
     [string]$AppPoolName = 'ArkanumAppPool',
-    [string]$PackageVersion = '2026.0.6',
+    [string]$PackageVersion = '2026.1.0',
     [ValidateSet('full','update','auto')][string]$PackageKind = 'auto',
     [switch]$PreflightOnly,
     # ValidateSet('install','upgrade','repair','side-by-side','restore') plus auto detection for GUI defaults.
@@ -369,7 +369,7 @@ $state = [ordered]@{
     siteName = $SiteName
     appPoolName = $AppPoolName
     databaseProvider = 'SqlServer'
-    packageChannel = 'prerelease'
+    packageChannel = 'release'
     backupPath = $backupPath
 }
 $state | ConvertTo-Json | Set-Content -Path $script:StatePath -Encoding UTF8
