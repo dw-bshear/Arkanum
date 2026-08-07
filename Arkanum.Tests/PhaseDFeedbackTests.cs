@@ -110,7 +110,7 @@ public class PhaseDFeedbackTests
         Assert.True(export.Content.Length > 100);
         using var zip = new ZipArchive(new MemoryStream(export.Content), ZipArchiveMode.Read);
         Assert.Contains(zip.Entries, e => e.FullName == "manifest.json");
-        Assert.Contains(zip.Entries, e => e.FullName == "credentials.csv.aes");
+        Assert.Contains(zip.Entries, e => e.FullName == "credentials.csv.aesgcm");
         Assert.DoesNotContain("PlainSecret!2026", Encoding.UTF8.GetString(export.Content));
         Assert.DoesNotContain("Firewall admin,fwadmin,PlainSecret!2026", Encoding.UTF8.GetString(export.Content));
         var audit = Assert.Single(await db.AuditEvents.ToListAsync());

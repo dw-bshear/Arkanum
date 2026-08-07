@@ -12,6 +12,11 @@ public sealed record VaultExportFile(string FileName, string ContentType, byte[]
 
 public sealed class VaultExportService(SecretEncryptionService encryptionService)
 {
+    private const string ExportAlgorithm = "AES-256-GCM/PBKDF2-SHA256";
+    private const int ExportEncryptionVersion = 1;
+    private const int ExportKdfIterations = 200_000;
+    private const string EncryptedCsvEntryName = "credentials.csv.aesgcm";
+
     public async Task<VaultExportFile> ExportVaultCsvZipAsync(ArkanumDbContext db, Guid vaultId, string actorUserKey, string passphrase, DateTimeOffset now, CancellationToken cancellationToken = default)
     {
         var vault = await db.Vaults.AsNoTracking().SingleAsync(v => v.Id == vaultId, cancellationToken);
@@ -48,6 +53,44 @@ public sealed class VaultExportService(SecretEncryptionService encryptionService
         return new VaultExportFile(fileName, "application/zip", content);
     }
 
+    public static string ValidateAndDecryptExportCsvZip(byte[] zipContent, string passphrase)
+    {
+        try
+        {
+            using var zip = new ZipArchive(new MemoryStream(zipContent), ZipArchiveMode.Read);
+            var manifestText = ReadEntry(zip, "manifest.json");
+            using var manifestJson = JsonDocument.Parse(manifestText);
+            var manifest = manifestJson.RootElement;
+            var encryptedEntry = manifest.GetProperty("encryptedEntry").GetString() ?? throw new InvalidOperationException("Export manifest is missing encrypted entry metadata.");
+            var algorithm = manifest.GetProperty("encryption").GetString();
+            var version = manifest.GetProperty("encryptionVersion").GetInt32();
+            if (!string.Equals(algorithm, ExportAlgorithm, StringComparison.Ordinal) || version != ExportEncryptionVersion)
+            {
+                throw new InvalidOperationException("Export encryption algorithm or version is not supported.");
+            }
+
+            var payloadText = ReadEntry(zip, encryptedEntry);
+            var associatedData = BuildAssociatedData(
+                manifest.GetProperty("product").GetString() ?? string.Empty,
+                manifest.GetProperty("exportedAtUtc").GetString() ?? string.Empty,
+                manifest.GetProperty("exportedBy").GetString() ?? string.Empty,
+                manifest.GetProperty("scope").GetString() ?? string.Empty,
+                manifest.GetProperty("itemCount").GetInt32(),
+                encryptedEntry,
+                algorithm!,
+                version);
+            return DecryptForExport(payloadText, passphrase, associatedData);
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is CryptographicException or FormatException or JsonException or InvalidDataException)
+        {
+            throw new InvalidOperationException("Export package integrity validation failed. The payload, manifest, or passphrase may be invalid.", ex);
+        }
+    }
+
     private async Task<List<ExportRow>> LoadRowsAsync(ArkanumDbContext db, IReadOnlyCollection<Guid> vaultIds, CancellationToken cancellationToken)
     {
         var rows = await db.VaultItems.AsNoTracking()
@@ -71,50 +114,98 @@ public sealed class VaultExportService(SecretEncryptionService encryptionService
     private static byte[] BuildZip(string scope, string actorUserKey, DateTimeOffset now, IReadOnlyList<ExportRow> rows, string passphrase)
     {
         using var stream = new MemoryStream();
-        var csv = ToCsv(rows);
-        var encryptedCsv = EncryptForExport(csv, passphrase);
+        var exportedAtUtc = now.UtcDateTime.ToString("O");
+        var associatedData = BuildAssociatedData("Arkanum", exportedAtUtc, actorUserKey, scope, rows.Count, EncryptedCsvEntryName, ExportAlgorithm, ExportEncryptionVersion);
+        var encryptedCsv = EncryptForExport(ToCsv(rows), passphrase, associatedData);
         using (var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {
             AddEntry(zip, "manifest.json", JsonSerializer.Serialize(new
             {
                 product = "Arkanum",
-                exportedAtUtc = now.UtcDateTime.ToString("O"),
+                exportedAtUtc,
                 exportedBy = actorUserKey,
                 scope,
                 includesSecretValues = true,
-                format = "csv.aes",
+                format = "csv.aesgcm",
                 itemCount = rows.Count,
-                encryption = "AES-256-CBC/PBKDF2-SHA256",
-                encryptedEntry = "credentials.csv.aes"
+                encryption = ExportAlgorithm,
+                encryptionVersion = ExportEncryptionVersion,
+                encryptedEntry = EncryptedCsvEntryName,
+                integrity = new
+                {
+                    algorithm = ExportAlgorithm,
+                    tagBytes = 16,
+                    authenticatedMetadata = new[] { "product", "exportedAtUtc", "exportedBy", "scope", "itemCount", "encryptedEntry", "encryption", "encryptionVersion" }
+                }
             }, new JsonSerializerOptions { WriteIndented = true }));
-            AddEntry(zip, "credentials.csv.aes", encryptedCsv);
+            AddEntry(zip, EncryptedCsvEntryName, encryptedCsv);
         }
         return stream.ToArray();
     }
 
-    private static string EncryptForExport(string plaintext, string passphrase)
+    private static string EncryptForExport(string plaintext, string passphrase, string associatedData)
     {
         if (string.IsNullOrWhiteSpace(passphrase)) throw new InvalidOperationException("Export passphrase is required.");
         var salt = RandomNumberGenerator.GetBytes(16);
-        var iv = RandomNumberGenerator.GetBytes(16);
-        using var derive = new Rfc2898DeriveBytes(passphrase, salt, 200_000, HashAlgorithmName.SHA256);
-        using var aes = Aes.Create();
-        aes.KeySize = 256;
-        aes.Mode = CipherMode.CBC;
-        aes.Padding = PaddingMode.PKCS7;
-        aes.Key = derive.GetBytes(32);
-        aes.IV = iv;
-        using var encryptor = aes.CreateEncryptor();
+        var nonce = RandomNumberGenerator.GetBytes(12);
+        using var derive = new Rfc2898DeriveBytes(passphrase, salt, ExportKdfIterations, HashAlgorithmName.SHA256);
+        var key = derive.GetBytes(32);
         var plainBytes = Encoding.UTF8.GetBytes(plaintext);
-        var cipher = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
+        var cipherBytes = new byte[plainBytes.Length];
+        var tag = new byte[16];
+        using var aes = new AesGcm(key, tag.Length);
+        aes.Encrypt(nonce, plainBytes, cipherBytes, tag, Encoding.UTF8.GetBytes(associatedData));
+        CryptographicOperations.ZeroMemory(key);
         return JsonSerializer.Serialize(new
         {
-            algorithm = "AES-256-CBC/PBKDF2-SHA256",
-            iterations = 200000,
+            algorithm = ExportAlgorithm,
+            version = ExportEncryptionVersion,
+            kdf = "PBKDF2-SHA256",
+            iterations = ExportKdfIterations,
             salt = Convert.ToBase64String(salt),
-            iv = Convert.ToBase64String(iv),
-            ciphertext = Convert.ToBase64String(cipher)
+            nonce = Convert.ToBase64String(nonce),
+            tag = Convert.ToBase64String(tag),
+            ciphertext = Convert.ToBase64String(cipherBytes)
         }, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    private static string DecryptForExport(string payload, string passphrase, string associatedData)
+    {
+        if (string.IsNullOrWhiteSpace(passphrase)) throw new InvalidOperationException("Export passphrase is required.");
+        using var json = JsonDocument.Parse(payload);
+        var root = json.RootElement;
+        if (!string.Equals(root.GetProperty("algorithm").GetString(), ExportAlgorithm, StringComparison.Ordinal) || root.GetProperty("version").GetInt32() != ExportEncryptionVersion)
+        {
+            throw new InvalidOperationException("Export encryption payload algorithm or version is not supported.");
+        }
+
+        var salt = Convert.FromBase64String(root.GetProperty("salt").GetString() ?? string.Empty);
+        var nonce = Convert.FromBase64String(root.GetProperty("nonce").GetString() ?? string.Empty);
+        var tag = Convert.FromBase64String(root.GetProperty("tag").GetString() ?? string.Empty);
+        var cipherBytes = Convert.FromBase64String(root.GetProperty("ciphertext").GetString() ?? string.Empty);
+        using var derive = new Rfc2898DeriveBytes(passphrase, salt, root.GetProperty("iterations").GetInt32(), HashAlgorithmName.SHA256);
+        var key = derive.GetBytes(32);
+        var plainBytes = new byte[cipherBytes.Length];
+        try
+        {
+            using var aes = new AesGcm(key, tag.Length);
+            aes.Decrypt(nonce, cipherBytes, tag, plainBytes, Encoding.UTF8.GetBytes(associatedData));
+            return Encoding.UTF8.GetString(plainBytes);
+        }
+        catch (CryptographicException ex)
+        {
+            throw new InvalidOperationException("Export package integrity validation failed. The payload, manifest, or passphrase may be invalid.", ex);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(key);
+            CryptographicOperations.ZeroMemory(plainBytes);
+        }
+    }
+
+    private static string BuildAssociatedData(string product, string exportedAtUtc, string exportedBy, string scope, int itemCount, string encryptedEntry, string encryption, int encryptionVersion)
+    {
+        return string.Join("\n", product, exportedAtUtc, exportedBy, scope, itemCount.ToString(System.Globalization.CultureInfo.InvariantCulture), encryptedEntry, encryption, encryptionVersion.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
     private static string ToCsv(IReadOnlyList<ExportRow> rows)
@@ -135,6 +226,13 @@ public sealed class VaultExportService(SecretEncryptionService encryptionService
         var entry = zip.CreateEntry(name, CompressionLevel.Optimal);
         using var writer = new StreamWriter(entry.Open(), Encoding.UTF8);
         writer.Write(content);
+    }
+
+    private static string ReadEntry(ZipArchive zip, string entryName)
+    {
+        var entry = zip.GetEntry(entryName) ?? throw new InvalidOperationException($"Export package is missing {entryName}.");
+        using var reader = new StreamReader(entry.Open(), Encoding.UTF8);
+        return reader.ReadToEnd();
     }
 
     private static string SafeFileName(string value)

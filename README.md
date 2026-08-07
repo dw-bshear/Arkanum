@@ -14,6 +14,7 @@ Arkanum is currently a trusted-server ASP.NET Core application backed by SQL Ser
 - Inline reveal/copy flow with masked placeholders until an authorized reveal/copy action is selected.
 - Per-entry reset notification dates for credential or secure-note review/change reminders.
 - Controlled CSV export for vault contents using encrypted ZIP payloads.
+- Vault export validation uses authenticated AES-GCM package encryption with a documented tamper-detection path in [`docs/vault-export-validation.md`](docs/vault-export-validation.md).
 - Server-side AES-256-GCM encryption for protected vault item content.
 - Site-wide recovery key model: all vaults recover together, or encrypted contents do not recover.
 - Installer restore mode for rebuilding a server from a SQL backup plus the matching Arkanum Recovery Key.
