@@ -86,7 +86,7 @@ The intended feedback/deployment tracks are:
 
 See:
 
-- [`docs/2026.1.0-release.md`](docs/2026.1.0-release.md)
+- [`docs/2026.1.1-release.md`](docs/2026.1.1-release.md)
 - [`docs/upgrade-and-native-packaging.md`](docs/upgrade-and-native-packaging.md)
 - [`docs/phase1-installable-feedback-release.md`](docs/phase1-installable-feedback-release.md)
 - [`docs/offline-package-checklist.md`](docs/offline-package-checklist.md)
@@ -96,10 +96,10 @@ See:
 Release packages use a full/update model with matching Windows and Linux naming:
 
 ```text
-Arkanum-2026.1.0-full-windows-x64.zip
-Arkanum-2026.1.0-update-windows-x64.zip
-Arkanum-2026.1.0-full-linux-x64.tar.gz
-Arkanum-2026.1.0-update-linux-x64.tar.gz
+Arkanum-2026.1.1-full-windows-x64.zip
+Arkanum-2026.1.1-update-windows-x64.zip
+Arkanum-2026.1.1-full-linux-x64.tar.gz
+Arkanum-2026.1.1-update-linux-x64.tar.gz
 ```
 
 Use full packages for first install, side-by-side testing, and restore workflows. Use update packages only against an existing installation; update mode preserves configuration, Recovery Key/master-key material, database connectivity settings, and service binding settings while creating a pre-upgrade backup/report.
@@ -178,6 +178,7 @@ Review `.gitignore` before adding new operational scripts or lab files.
 | Document | Purpose |
 | --- | --- |
 | [`docs/2026.1.0-release.md`](docs/2026.1.0-release.md) | First production release notes, installer restore mode, vault UX, reminders, CSV export, and full/update packages. |
+| [`docs/2026.1.1-release.md`](docs/2026.1.1-release.md) | Setup layout and wording polish; vault access moved below entry forms. |
 | [`docs/backup-and-restore.md`](docs/backup-and-restore.md) | SQL database + recovery/master-key restore model. |
 | [`docs/offline-package-checklist.md`](docs/offline-package-checklist.md) | Checklist for moving packages into controlled/disconnected networks. |
 | [`docs/offline-release-evidence-bundle.md`](docs/offline-release-evidence-bundle.md) | RMF/ATO review-ready offline evidence bundle contents and air-gapped update process. |

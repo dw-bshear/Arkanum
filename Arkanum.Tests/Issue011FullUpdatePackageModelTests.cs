@@ -69,10 +69,10 @@ public class Issue011FullUpdatePackageModelTests
         {
             Assert.Contains("full", doc, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("update", doc, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Arkanum-2026.1.0-full-windows-x64.zip", doc);
-            Assert.Contains("Arkanum-2026.1.0-update-windows-x64.zip", doc);
-            Assert.Contains("Arkanum-2026.1.0-full-linux-x64.tar.gz", doc);
-            Assert.Contains("Arkanum-2026.1.0-update-linux-x64.tar.gz", doc);
+            Assert.Contains("Arkanum-2026.1.1-full-windows-x64.zip", doc);
+            Assert.Contains("Arkanum-2026.1.1-update-windows-x64.zip", doc);
+            Assert.Contains("Arkanum-2026.1.1-full-linux-x64.tar.gz", doc);
+            Assert.Contains("Arkanum-2026.1.1-update-linux-x64.tar.gz", doc);
         }
 
         Assert.Contains("Run preflight before the maintenance window", guide);

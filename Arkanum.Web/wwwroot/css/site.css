@@ -175,6 +175,13 @@ p { color: var(--muted); }
 .compact-create-vault { margin-top: .75rem; position: absolute; right: 0; z-index: 5; width: min(420px, calc(100vw - 2rem)); max-width: none; }
 .section-heading h1 { font-size: clamp(2rem, 4vw, 3rem); }
 .card-form { display: grid; gap: .55rem; max-width: 560px; }
+.setup-form { max-width: none; width: 100%; gap: 1.5rem; }
+.setup-recovery-key-step { display: grid; gap: .85rem; min-width: 0; }
+.recovery-key-output { width: 100%; resize: vertical; overflow-wrap: anywhere; }
+.setup-recovery-key-step .action-row { display: flex; flex-wrap: wrap; gap: .75rem; }
+.setup-recovery-key-step .recovery-key-acknowledgment { display: flex; align-items: flex-start; gap: .75rem; }
+.setup-recovery-key-step .recovery-key-acknowledgment input { flex: 0 0 auto; margin-top: .25rem; }
+.first-admin-step { display: grid; gap: .55rem; max-width: 560px; }
 .card-form input { border: 1px solid var(--line); border-radius: .75rem; padding: .75rem; background: var(--bg); color: var(--text); }
 .notice { border-radius: .9rem; padding: .8rem 1rem; margin-bottom: 1rem; }
 .notice.success { color: var(--ok); border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent); background: color-mix(in srgb, var(--ok) 10%, transparent); }

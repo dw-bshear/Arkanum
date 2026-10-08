@@ -8,7 +8,7 @@ param(
     [string]$HttpsCertificateThumbprint = '',
     [string]$SqlConnectionString = '',
     [string]$AppPoolName = 'ArkanumAppPool',
-    [string]$PackageVersion = '2026.1.0',
+    [string]$PackageVersion = '2026.1.1',
     [ValidateSet('full','update','auto')][string]$PackageKind = 'auto',
     [switch]$PreflightOnly,
     # ValidateSet('install','upgrade','repair','side-by-side','restore') plus auto detection for GUI defaults.

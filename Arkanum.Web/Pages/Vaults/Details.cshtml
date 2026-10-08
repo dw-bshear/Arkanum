@@ -49,13 +49,13 @@
     </div>
 </section>
 <nav class="vault-section-nav" aria-label="Vault sections">
-    <a href="#vault-access"><span>1</span> Access</a>
-    <a href="#vault-contents"><span>2</span> Contents</a>
+    <a href="#vault-contents"><span>1</span> Contents</a>
     @if (Model.CanAddOrChangeVaultContents)
     {
-        <a href="#vault-add-entry"><span>3</span> Add entry</a>
-        <a href="#vault-add-note"><span>4</span> Add note</a>
+        <a href="#vault-add-entry"><span>2</span> Add entry</a>
+        <a href="#vault-add-note"><span>3</span> Add note</a>
     }
+    <a href="#vault-access"><span>@(Model.CanAddOrChangeVaultContents ? 4 : 2)</span> Access</a>
 </nav>
 
 @if (Model.IsReadOnlyAuditorView)
@@ -74,34 +74,6 @@
 }
 
 <div class="vault-workspace">
-    <article id="vault-access" class="feature-card access-card vault-section-card vault-section-access">
-        <div class="access-card-header">
-            <div>
-                <p class="eyebrow">Access</p>
-                <h2>Current access</h2>
-                <p>People who can open this vault.</p>
-            </div>
-            @if (Model.CanInviteUsers)
-            {
-                <details class="invite-user-disclosure">
-                    <summary class="secondary-action small">Invite user</summary>
-                    <form method="post" asp-page-handler="Invite" asp-route-id="@Model.Vault.Id" class="card-form compact-invite-form">
-                        <label asp-for="InviteUsername">Existing username</label>
-                        <input asp-for="InviteUsername" placeholder="name@email.com" />
-                        <span asp-validation-for="InviteUsername" class="text-danger"></span>
-                        <button class="primary-action" type="submit">Send invite</button>
-                    </form>
-                </details>
-            }
-        </div>
-        <ul class="access-list">
-            @foreach (var member in Model.Vault.Members)
-            {
-                <li><strong>@member.Username</strong><span>@(member.CanInvite ? "Can invite others" : "Vault member")</span></li>
-            }
-        </ul>
-    </article>
-
     <section id="vault-contents" class="feature-card credential-tree-card vault-section-card vault-section-contents">
         <div class="access-card-header">
             <div>
@@ -270,6 +242,33 @@
         <button class="primary-action" type="submit">Save secure note</button>
     </form>
     }
+    <article id="vault-access" class="feature-card access-card vault-section-card vault-section-access">
+        <div class="access-card-header">
+            <div>
+                <p class="eyebrow">Access</p>
+                <h2>Current access</h2>
+                <p>People who can open this vault.</p>
+            </div>
+            @if (Model.CanInviteUsers)
+            {
+                <details class="invite-user-disclosure">
+                    <summary class="secondary-action small">Invite user</summary>
+                    <form method="post" asp-page-handler="Invite" asp-route-id="@Model.Vault.Id" class="card-form compact-invite-form">
+                        <label asp-for="InviteUsername">Existing username</label>
+                        <input asp-for="InviteUsername" placeholder="name@email.com" />
+                        <span asp-validation-for="InviteUsername" class="text-danger"></span>
+                        <button class="primary-action" type="submit">Send invite</button>
+                    </form>
+                </details>
+            }
+        </div>
+        <ul class="access-list">
+            @foreach (var member in Model.Vault.Members)
+            {
+                <li><strong>@member.Username</strong><span>@(member.CanInvite ? "Can invite others" : "Vault member")</span></li>
+            }
+        </ul>
+    </article>
 </div>
 }
 @section Scripts { <partial name="_ValidationScriptsPartial" /> }
