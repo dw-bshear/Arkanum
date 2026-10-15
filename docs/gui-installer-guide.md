@@ -86,7 +86,7 @@ installers/windows/Install-Arkanum.ps1
 installers/windows/Test-ArkanumInstall.ps1
 ```
 
-Run PowerShell as Administrator, then from the extracted package root:
+Run **64-bit Windows PowerShell 5.1** as Administrator (not `pwsh`/PowerShell 7), then from the extracted package root:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
@@ -111,6 +111,8 @@ The Windows installer configures:
 - IIS application pool;
 - IIS site with an HTTPS binding;
 - `web.config` environment variables for SQL and recovery key material.
+
+Windows full and update packages include the Microsoft .NET 10 Hosting Bundle. The Windows wizard offers explicit consent for missing IIS features and Hosting Bundle installation, an optional offline Windows feature source, and acknowledgment of possible IIS service interruption. See `windows-server-2022-setup.md` before using a shared IIS server. Setup validates the bundle hash and Microsoft Authenticode signature and never downloads prerequisites on the target. Windows SQL setup and preflight use the packaged application command, not `sqlcmd`. Command previews omit passwords, connection strings, and pasted Recovery Keys.
 
 Production Windows Server 2022 deployments should bind IIS to a trusted server certificate and enable TLS 1.2/1.3 at the OS/IIS layer. Production SQL Server connections should use `Encrypt=True;TrustServerCertificate=False;` with a certificate chain trusted by the application host; the trust bypass is for isolated development/testing only.
 

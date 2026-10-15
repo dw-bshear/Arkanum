@@ -7,15 +7,17 @@ Use this checklist before moving an Arkanum release package into a disconnected 
 Arkanum publishes separate full and update assets for each platform:
 
 ```text
-Arkanum-2026.1.1-full-windows-x64.zip
-Arkanum-2026.1.1-update-windows-x64.zip
-Arkanum-2026.1.1-full-linux-x64.tar.gz
-Arkanum-2026.1.1-update-linux-x64.tar.gz
+Arkanum-2026.1.2-full-windows-x64.zip
+Arkanum-2026.1.2-update-windows-x64.zip
+Arkanum-2026.1.2-full-linux-x64.tar.gz
+Arkanum-2026.1.2-update-linux-x64.tar.gz
 ```
 
 Use the full asset for first install, side-by-side testing, or restore from SQL database backup + matching Arkanum Recovery Key. Use the update asset only when Arkanum is already installed; it detects the existing install-state and preserves configuration, Recovery Key/master-key material, database connectivity settings, and service binding settings before backing up and replacing app files.
 
 - Published Arkanum web application files.
+- Windows full/update packages: `prerequisites/hosting-bundle.json` plus the matching official Microsoft .NET 10 Hosting Bundle executable (verified SHA-512 at build and SHA-512/Authenticode at installation).
+- Application-provided database setup/check command and `app/setup/arkanum-schema.sql`; Windows does not require `sqlcmd`.
 - Windows installer scripts under `installers/windows/`.
 - Linux installer scripts under `installers/linux/`.
 - SQL setup/migration scripts, when available.
@@ -29,7 +31,9 @@ Use the full asset for first install, side-by-side testing, or restore from SQL 
 ## Pre-transfer checks
 
 - Confirm target OS: Windows Server 2022 or supported Linux distribution.
-- Confirm ASP.NET Core runtime/hosting bundle availability.
+- Windows: use elevated 64-bit Windows PowerShell 5.1, not PowerShell 7. See `windows-server-2022-setup.md` for explicit IIS/Hosting Bundle consent and offline Windows feature-source requirements.
+- Confirm bundled .NET 10 Hosting Bundle and Microsoft certificate trust/revocation validation policy are available offline. Linux requires an approved ASP.NET Core 10 runtime separately.
+- Arrange an IIS maintenance window before Hosting Bundle installation/repair; `/norestart` is not a guarantee against IIS service interruption.
 - Confirm SQL Server version and connectivity plan.
 - Confirm service account/app pool identity plan.
 - Confirm DNS/hostname and port/TLS plan.
@@ -74,7 +78,8 @@ Create or import secrets during installation on the target network.
 ## Post-install checks
 
 - Installer completed without errors.
-- `/health` returns HTTP 200 and `Healthy`.
+- `/health` returns HTTP 200 and `Alive` (liveness only).
+- Authenticated `/health/details` returns `Healthy`; database/key checks pass independently of liveness.
 - First administrator can sign in.
 - Admin can view Settings.
 - Admin can create/import users as appropriate.

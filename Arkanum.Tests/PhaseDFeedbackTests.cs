@@ -29,7 +29,9 @@ public class PhaseDFeedbackTests
         Assert.Contains("ValidateSet('install','upgrade','repair','side-by-side','restore','auto')", windows);
         Assert.Contains("RestoreKeyFile", windows);
         Assert.Contains("RestoreKey", windows);
-        Assert.Contains("The provided Recovery Key does not match this database", windows);
+        Assert.Contains("-Mode preflight -RuntimeConnection $SqlConnectionString -MasterKeyFile $preflightKey", windows);
+        Assert.Contains("Verified by database sentinel preflight", windows);
+        Assert.Contains("this does not establish a Recovery Key mismatch", windows);
         Assert.Contains("Restore from database backup", windowsGui);
         Assert.Contains("Recovery Key file", windowsGui);
         Assert.Contains("Paste Recovery Key", windowsGui);

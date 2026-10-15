@@ -28,6 +28,7 @@ Arkanum is currently a trusted-server ASP.NET Core application backed by SQL Ser
 - Audit events for logins, lockouts, settings changes, vault assignments, and secret reveal/copy actions, with append-only application controls and hash chain integrity metadata.
 - TLS syslog, Windows Event Log, or approved SIEM forwarder audit-delivery paths with non-secret health/install-report endpoints.
 - Windows Server/IIS and Linux/systemd installer tracks in progress.
+- Windows PowerShell 5.1 setup with consent-based IIS preparation and an offline Microsoft .NET 10 Hosting Bundle; no separate Windows `sqlcmd` installation.
 
 ## Roles
 
@@ -86,6 +87,8 @@ The intended feedback/deployment tracks are:
 
 See:
 
+- [`docs/windows-server-2022-setup.md`](docs/windows-server-2022-setup.md)
+- [`docs/2026.1.2-release.md`](docs/2026.1.2-release.md)
 - [`docs/2026.1.1-release.md`](docs/2026.1.1-release.md)
 - [`docs/upgrade-and-native-packaging.md`](docs/upgrade-and-native-packaging.md)
 - [`docs/phase1-installable-feedback-release.md`](docs/phase1-installable-feedback-release.md)
@@ -96,10 +99,10 @@ See:
 Release packages use a full/update model with matching Windows and Linux naming:
 
 ```text
-Arkanum-2026.1.1-full-windows-x64.zip
-Arkanum-2026.1.1-update-windows-x64.zip
-Arkanum-2026.1.1-full-linux-x64.tar.gz
-Arkanum-2026.1.1-update-linux-x64.tar.gz
+Arkanum-2026.1.2-full-windows-x64.zip
+Arkanum-2026.1.2-update-windows-x64.zip
+Arkanum-2026.1.2-full-linux-x64.tar.gz
+Arkanum-2026.1.2-update-linux-x64.tar.gz
 ```
 
 Use full packages for first install, side-by-side testing, and restore workflows. Use update packages only against an existing installation; update mode preserves configuration, Recovery Key/master-key material, database connectivity settings, and service binding settings while creating a pre-upgrade backup/report.
@@ -108,7 +111,7 @@ Use full packages for first install, side-by-side testing, and restore workflows
 
 ### Requirements
 
-- .NET SDK 9.0
+- .NET SDK 10.0.402 (pinned in `global.json`; .NET 10 LTS)
 - SQL Server for durable/review deployments
 - Optional: local SQLite fallback for lightweight review/dev flows
 
@@ -145,10 +148,11 @@ Do not commit real SQL passwords, LDAP bind passwords, recovery keys, databases,
 
 Arkanum exposes non-secret operational endpoints:
 
-- `GET /health`
+- `GET /health` (anonymous liveness only)
+- `GET /health/details` (authenticated Administrator/Auditor readiness)
 - `GET /install-report`
 
-`/health` returns HTTP 200 when healthy and HTTP 503 when unhealthy. It checks application responsiveness, database reachability, required settings, encryption-key availability, and recovery-key/database compatibility. It intentionally avoids returning connection strings, passwords, filesystem paths, stack traces, or plaintext secrets.
+`/health` returns HTTP 200 with status `Alive` when the web process responds; it does not establish database readiness or Recovery Key compatibility. `/health/details` checks database reachability, required settings, encryption-key availability, and recovery-key/database compatibility, returning HTTP 200 when healthy and HTTP 503 when unhealthy. These endpoints intentionally avoid returning connection strings, passwords, filesystem paths, stack traces, or plaintext secrets.
 
 `/install-report` summarizes health, counts, operational settings, federation readiness, and security-control evidence without exposing protected values.
 

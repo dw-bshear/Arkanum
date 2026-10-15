@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=${VERSION:-2026.1.1}
+VERSION=${VERSION:-2026.1.2}
 ARCH=${ARCH:-amd64}
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 APP_DIR=${APP_DIR:-${ROOT_DIR}/publish/arkanum-linux-x64}
@@ -26,7 +26,7 @@ Section: utils
 Priority: optional
 Architecture: ${ARCH}
 Maintainer: Arkanum Release Engineering <name@email.com>
-Depends: aspnetcore-runtime-9.0, python3, rsync, systemd
+Depends: aspnetcore-runtime-10.0, python3, rsync, systemd
 Description: Arkanum internal credential vault
  Arkanum is an internal credential vault with SQL Server storage and
  a site-wide recovery key model.

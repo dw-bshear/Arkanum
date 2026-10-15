@@ -148,8 +148,7 @@ public sealed class VaultExportService(SecretEncryptionService encryptionService
         if (string.IsNullOrWhiteSpace(passphrase)) throw new InvalidOperationException("Export passphrase is required.");
         var salt = RandomNumberGenerator.GetBytes(16);
         var nonce = RandomNumberGenerator.GetBytes(12);
-        using var derive = new Rfc2898DeriveBytes(passphrase, salt, ExportKdfIterations, HashAlgorithmName.SHA256);
-        var key = derive.GetBytes(32);
+        var key = Rfc2898DeriveBytes.Pbkdf2(passphrase, salt, ExportKdfIterations, HashAlgorithmName.SHA256, 32);
         var plainBytes = Encoding.UTF8.GetBytes(plaintext);
         var cipherBytes = new byte[plainBytes.Length];
         var tag = new byte[16];
@@ -183,8 +182,7 @@ public sealed class VaultExportService(SecretEncryptionService encryptionService
         var nonce = Convert.FromBase64String(root.GetProperty("nonce").GetString() ?? string.Empty);
         var tag = Convert.FromBase64String(root.GetProperty("tag").GetString() ?? string.Empty);
         var cipherBytes = Convert.FromBase64String(root.GetProperty("ciphertext").GetString() ?? string.Empty);
-        using var derive = new Rfc2898DeriveBytes(passphrase, salt, root.GetProperty("iterations").GetInt32(), HashAlgorithmName.SHA256);
-        var key = derive.GetBytes(32);
+        var key = Rfc2898DeriveBytes.Pbkdf2(passphrase, salt, root.GetProperty("iterations").GetInt32(), HashAlgorithmName.SHA256, 32);
         var plainBytes = new byte[cipherBytes.Length];
         try
         {

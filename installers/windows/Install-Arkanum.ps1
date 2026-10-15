@@ -1,3 +1,4 @@
+#requires -Version 5.1
 param(
     [string]$PackagePath = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path,
     [string]$InstallPath = 'C:\Program Files\Arkanum\Web',
@@ -8,9 +9,13 @@ param(
     [string]$HttpsCertificateThumbprint = '',
     [string]$SqlConnectionString = '',
     [string]$AppPoolName = 'ArkanumAppPool',
-    [string]$PackageVersion = '2026.1.1',
+    [string]$PackageVersion = '2026.1.2',
     [ValidateSet('full','update','auto')][string]$PackageKind = 'auto',
     [switch]$PreflightOnly,
+    [switch]$EnableIisFeatures,
+    [switch]$InstallHostingBundle,
+    [switch]$AllowIisServiceInterruption,
+    [string]$WindowsFeatureSource = '',
     # ValidateSet('install','upgrade','repair','side-by-side','restore') plus auto detection for GUI defaults.
     [ValidateSet('install','upgrade','repair','side-by-side','restore','auto')][string]$Action = 'auto',
     [ValidateSet('auto','use-existing-database','create-new-database','restore-database')][string]$DatabaseSetupMode = 'auto',
@@ -29,6 +34,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'Arkanum-Prerequisites.ps1')
+Assert-ArkanumWindowsHost
+$packageRoot = $PackagePath
+if ((Split-Path $PackagePath -Leaf) -eq 'app') { $packageRoot = Split-Path $PackagePath -Parent }
 
 function Write-ArkanumReport {
     param(
@@ -73,8 +82,7 @@ function Write-ArkanumReport {
 
 
 function New-ArkanumRuntimePassword {
-    $bytes = New-Object byte[] 32
-    [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+    $bytes = New-ArkanumRandomBytes 32
     return [Convert]::ToBase64String($bytes).TrimEnd('=') + '!aA1'
 }
 
@@ -101,11 +109,17 @@ function Protect-ArkanumSecretFile {
 }
 
 function Build-ArkanumRuntimeSqlConnectionString {
-    if (![string]::IsNullOrWhiteSpace($SqlConnectionString)) { return $SqlConnectionString }
+    if (![string]::IsNullOrWhiteSpace($SqlConnectionString)) {
+        try {
+            $builder = New-Object System.Data.SqlClient.SqlConnectionStringBuilder($SqlConnectionString)
+            if (!$builder.DataSource -or !$builder.InitialCatalog -or $builder.InitialCatalog -in @('master','model','msdb','tempdb') -or $builder.AttachDBFilename) { throw 'Invalid runtime target.' }
+            return $builder.ConnectionString
+        } catch { throw 'Invalid runtime SQL connection configuration. No changes were made.' }
+    }
     if ([string]::IsNullOrWhiteSpace($SqlServerHost) -or [string]::IsNullOrWhiteSpace($DatabaseName) -or [string]::IsNullOrWhiteSpace($RuntimeSqlLogin) -or [string]::IsNullOrWhiteSpace($RuntimeSqlPassword)) {
         throw 'SqlConnectionString or SQL Server host/database/runtime login/runtime password is required.'
     }
-    return "Server=tcp:$SqlServerHost,$SqlServerPort;Database=$DatabaseName;User Id=$RuntimeSqlLogin;Password=$RuntimeSqlPassword;Encrypt=True;TrustServerCertificate=False;"
+    return New-ArkanumSqlConnection -Server "tcp:$SqlServerHost,$SqlServerPort" -Database $DatabaseName -User $RuntimeSqlLogin -Password $RuntimeSqlPassword
 }
 
 function Invoke-ArkanumSqlProvisioning {
@@ -114,16 +128,11 @@ function Invoke-ArkanumSqlProvisioning {
         throw 'Create new database mode requires setup/admin SQL username and password. The setup/admin SQL credential is used only during provisioning and is not persisted.'
     }
     if ([string]::IsNullOrWhiteSpace($RuntimeSqlPassword)) { throw 'Create new database mode requires a runtime SQL password or -GenerateRuntimePassword.' }
-    $scriptPath = Join-Path $PSScriptRoot '..\sql\provision-arkanum-sql.sql'
-    if (!(Test-Path $scriptPath)) { throw "Missing SQL provisioning script: $scriptPath" }
-    $schemaPath = Join-Path $PSScriptRoot '..\sql\arkanum-schema.sql'
-    if (!(Test-Path $schemaPath)) { throw "Missing SQL schema script: $schemaPath" }
-    $server = "tcp:$SqlServerHost,$SqlServerPort"
-    Write-Host 'Database setup mode: create-new-database'
-    Write-Host 'Creating Arkanum database and limited runtime SQL login/user. SQL setup credential persistence: not persisted.'
-    Write-Host 'Persist only the runtime SQL connection after provisioning.'
-    & sqlcmd -S $server -U $SetupSqlUsername -P $SetupSqlPassword -b -i $schemaPath -v DatabaseName=$DatabaseName | ForEach-Object { Redact-ArkanumSecret $_ }
-    & sqlcmd -S $server -U $SetupSqlUsername -P $SetupSqlPassword -b -i $scriptPath -v DatabaseName=$DatabaseName RuntimeLogin=$RuntimeSqlLogin RuntimePassword=$RuntimeSqlPassword | ForEach-Object { Redact-ArkanumSecret $_ }
+    # The bundled helper uses setup\arkanum-schema.sql and provisions once, with scoped setup credentials.
+    $setupConnection = New-ArkanumSqlConnection -Server "tcp:$SqlServerHost,$SqlServerPort" -Database $DatabaseName -User $SetupSqlUsername -Password $SetupSqlPassword
+    try {
+        Invoke-ArkanumDatabaseCommand -DotnetPath $prerequisitePlan.Dotnet -AppDll $appDll -Mode provision -SetupConnection $setupConnection -RuntimeConnection $SqlConnectionString -RuntimeLogin $RuntimeSqlLogin -RuntimePassword $RuntimeSqlPassword
+    } finally { $setupConnection = $null; $SetupSqlPassword = $null }
 }
 
 function Write-ArkanumPackagePreflight {
@@ -138,20 +147,13 @@ function Write-ArkanumPackagePreflight {
 }
 
 function Invoke-ArkanumSqlUpgradePreflight {
-    if ($Action -ne 'upgrade') { return }
-    $scriptPath = Join-Path $PSScriptRoot '..\sql\upgrade-preflight.sql'
-    if (!(Test-Path $scriptPath)) { throw "Missing SQL upgrade preflight script: $scriptPath" }
-    Write-Host 'Database reachability preflight'
-    Write-Host 'Schema/version preflight'
-    Write-Host 'Runtime login permission preflight'
+    Write-Host 'Database reachability preflight; Schema/version preflight; Runtime login permission preflight'
     Write-Host 'SQL backup strongly recommended before upgrade.'
     Write-Host 'Failure categories: database reachability, schema mismatch, permission problem, recovery-key mismatch.'
-    & sqlcmd -b -i $scriptPath | ForEach-Object { $_ -replace '(Password=)[^;]+', '$1[REDACTED]' }
+    Invoke-ArkanumDatabaseCommand -DotnetPath $prerequisitePlan.Dotnet -AppDll $appDll -Mode preflight -RuntimeConnection $SqlConnectionString -MasterKeyFile $existingMasterKeyPath
 }
 
-Import-Module WebAdministration
-
-$manifestPath = Join-Path $PackagePath 'package-manifest.json'
+$manifestPath = Join-Path $packageRoot 'package-manifest.json'
 if (Test-Path $manifestPath) {
     try {
         $packageManifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
@@ -207,12 +209,6 @@ if ($DatabaseSetupMode -eq 'auto') {
 }
 if ($GenerateRuntimePassword -and [string]::IsNullOrWhiteSpace($RuntimeSqlPassword)) { $RuntimeSqlPassword = New-ArkanumRuntimePassword }
 $SqlConnectionString = Build-ArkanumRuntimeSqlConnectionString
-if ($PreflightOnly) {
-    $stamp = (Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss')
-    $previewBackup = Join-Path $backupRoot "$installedVersion-before-$PackageVersion-$stamp"
-    Write-ArkanumPackagePreflight -InstalledVersion $installedVersion -BackupPathPreview $previewBackup
-    return
-}
 if ([string]::IsNullOrWhiteSpace($HttpsCertificateThumbprint)) {
     throw 'HttpsCertificateThumbprint is required for the production HTTPS binding.'
 }
@@ -246,9 +242,74 @@ if ($Action -eq 'restore' -and $RestoreSource -ne 'dba-restored-database') {
     throw 'SQL backup and attach restore paths are staged for DBA workflow selection but not automated in this release. For this release, restore the SQL database first, then choose dba-restored-database.'
 }
 
+if ($DatabaseSetupMode -eq 'restore-database' -and $Action -ne 'restore') { throw 'Restore database mode requires -Action restore.' }
+if ($DatabaseSetupMode -eq 'create-new-database') {
+    if ($Action -ne 'install') { throw 'Provisioning is allowed only for a new installation.' }
+    if (!$SqlServerHost -or !$SetupSqlUsername -or !$SetupSqlPassword -or !$RuntimeSqlPassword) { throw 'Provisioning requires SQL host, setup/admin credentials, and runtime credentials.' }
+    if ($SqlConnectionString -ne (New-ArkanumSqlConnection -Server "tcp:$SqlServerHost,$SqlServerPort" -Database $DatabaseName -User $RuntimeSqlLogin -Password $RuntimeSqlPassword)) {
+        # Compare parsed fields rather than connection-string formatting.
+        $provided = New-Object System.Data.SqlClient.SqlConnectionStringBuilder($SqlConnectionString)
+        if ($provided.DataSource -ne "tcp:$SqlServerHost,$SqlServerPort" -or $provided.InitialCatalog -ne $DatabaseName -or $provided.UserID -ne $RuntimeSqlLogin -or $provided.Password -cne $RuntimeSqlPassword) { throw 'Provisioning/runtime connection settings do not agree.' }
+    }
+}
+if ($Action -in @('upgrade','repair') -and !(Test-Path -LiteralPath $existingMasterKeyPath)) { throw 'Existing Recovery Key is required for upgrade/repair.' }
+$preflightKey = if (Test-Path -LiteralPath $existingMasterKeyPath) { $existingMasterKeyPath } else { '' }
+if ($Action -eq 'restore') {
+    Write-Host 'Recoverable state requires both the SQL database backup and the matching Arkanum Recovery Key.'
+    if ($RestoreKeyFile) {
+        if (!(Test-Path -LiteralPath $RestoreKeyFile)) { throw 'RestoreKeyFile does not exist.' }
+        $RestoreKey = (Get-Content -LiteralPath $RestoreKeyFile -Raw).Trim()
+        $preflightKey = $RestoreKeyFile
+    }
+    if (!$RestoreKey.Trim().StartsWith('ark-recovery-v1.')) { throw 'Provided Recovery Key must start with ark-recovery-v1.' }
+}
+if (!(Test-Path -LiteralPath (Join-Path $PackagePath 'Arkanum.Web.runtimeconfig.json'))) { throw 'Bundled app runtime configuration missing.' }
+$prerequisitePlan = Get-ArkanumPrerequisitePlan -PackageRoot $packageRoot
+if ($PreflightOnly) {
+    Write-ArkanumPackagePreflight -InstalledVersion $installedVersion -BackupPathPreview $backupRoot
+    Write-Host "Missing IIS features: $($prerequisitePlan.MissingFeatures -join ', '); Hosting Bundle needed: $($prerequisitePlan.NeedsHosting)"
+    if ($prerequisitePlan.NeedsHosting -or @($prerequisitePlan.MissingFeatures).Count -gt 0) { throw 'Prerequisites missing. Read-only preflight made no changes.' }
+    if ($DatabaseSetupMode -eq 'create-new-database') { Write-Host 'Provisioning deferred: read-only preflight does not create or modify a database.'; return }
+    if ($Action -eq 'restore' -and !$RestoreKeyFile) { throw 'Read-only restore preflight requires -RestoreKeyFile; no temporary secret file is written.' }
+    Invoke-ArkanumDatabaseCommand -DotnetPath $prerequisitePlan.Dotnet -AppDll $appDll -Mode preflight -RuntimeConnection $SqlConnectionString -MasterKeyFile $preflightKey
+    return
+}
+try {
+    Invoke-ArkanumPrerequisites -Plan $prerequisitePlan -EnableIisFeatures:$EnableIisFeatures -InstallHostingBundle:$InstallHostingBundle -WindowsFeatureSource $WindowsFeatureSource -AllowIisServiceInterruption:$AllowIisServiceInterruption
+} catch {
+    if ($_.Exception.Data.Contains('ArkanumExitCode')) {
+        Write-Warning $_.Exception.Message
+        # GUI can catch this exception; standalone CLI returns the native restart code.
+        if ($MyInvocation.InvocationName -eq '&') { throw }
+        exit ([int]$_.Exception.Data['ArkanumExitCode'])
+    }
+    throw
+}
+$verifiedPlan = Get-ArkanumPrerequisitePlan -PackageRoot $packageRoot
+if (@($verifiedPlan.MissingFeatures).Count -gt 0 -or $verifiedPlan.NeedsHosting) { throw 'Prerequisites remain unavailable. Restart in a maintenance window and resume; app files unchanged.' }
+Import-Module WebAdministration
+$temporaryKeyDirectory = ''
+try {
+    if ($Action -eq 'restore' -and !$RestoreKeyFile) {
+        $temporaryKeyDirectory = Join-Path ([IO.Path]::GetTempPath()) ('arkanum-setup-' + [guid]::NewGuid().ToString('N'))
+        $security = New-Object Security.AccessControl.DirectorySecurity
+        $security.SetAccessRuleProtection($true,$false)
+        foreach ($sid in @('S-1-5-18','S-1-5-32-544')) {
+            $identity = New-Object Security.Principal.SecurityIdentifier($sid)
+            $rule = New-Object Security.AccessControl.FileSystemAccessRule($identity,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
+            $security.AddAccessRule($rule)
+        }
+        [IO.Directory]::CreateDirectory($temporaryKeyDirectory,$security) | Out-Null
+        $preflightKey = Join-Path $temporaryKeyDirectory 'recovery-key.txt'
+        [IO.File]::WriteAllText($preflightKey,$RestoreKey.Trim())
+    }
+    Invoke-ArkanumSqlProvisioning
+    Invoke-ArkanumDatabaseCommand -DotnetPath $prerequisitePlan.Dotnet -AppDll $appDll -Mode preflight -RuntimeConnection $SqlConnectionString -MasterKeyFile $preflightKey
+    $recoveryValidation = if ($Action -eq 'restore') { 'Verified by database sentinel preflight' } else { 'Not applicable' }
+} finally {
+    if ($temporaryKeyDirectory) { Remove-Item -LiteralPath $temporaryKeyDirectory -Recurse -Force }
+}
 New-Item -ItemType Directory -Force -Path $InstallPath, $secretDir, $configDir, $logDir, $backupRoot | Out-Null
-Invoke-ArkanumSqlProvisioning
-Invoke-ArkanumSqlUpgradePreflight
 
 $backupPath = ''
 if ($Action -in @('upgrade','repair')) {
@@ -279,8 +340,7 @@ if ($Action -eq 'restore') {
     if (!((Get-Content $keyPath -Raw).Trim().StartsWith('ark-recovery-v1.'))) { throw 'Provided Recovery Key must start with ark-recovery-v1.' }
     Write-Host 'No new Recovery Key was generated during restore mode.'
 } elseif (!(Test-Path $keyPath) -or [string]::IsNullOrWhiteSpace((Get-Content $keyPath -Raw))) {
-    $bytes = New-Object byte[] 48
-    [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+    $bytes = New-ArkanumRandomBytes 48
     'ark-recovery-v1.' + [Convert]::ToBase64String($bytes).TrimEnd('=') | Set-Content -Path $keyPath -NoNewline
 }
 
@@ -378,21 +438,21 @@ Restart-WebAppPool -Name $AppPoolName
 
 $healthStatus = 'NotRun'
 $healthBody = ''
-$recoveryValidation = if ($Action -eq 'restore') { 'Pending health check' } else { 'Not applicable' }
+
 try {
     $health = Invoke-WebRequest -Uri "https://$($script:HealthHost):$Port/health" -UseBasicParsing -TimeoutSec 20
     $healthBody = $health.Content
     $parsed = $health.Content | ConvertFrom-Json
-    if ($parsed.status -eq 'Healthy') { $healthStatus = 'Healthy'; if ($Action -eq 'restore') { $recoveryValidation = 'Passed' } } else { $healthStatus = "Unhealthy: $($parsed.status)"; if ($Action -eq 'restore') { $recoveryValidation = 'Failed' } }
+    if ($parsed.status -eq 'Alive' -or $parsed.status -eq 'Healthy') { $healthStatus = 'Healthy' } else { $healthStatus = "Unhealthy: $($parsed.status)" }
 } catch {
     $healthStatus = 'Failed'
     $healthBody = $_.Exception.Message
-    if ($Action -eq 'restore') { $recoveryValidation = 'Failed' }
+
 }
 Write-ArkanumReport -ReportPath $reportPath -HealthStatus $healthStatus -HealthBody $healthBody -BackupPath $backupPath -RecoveryValidation $recoveryValidation
 
 if ($healthStatus -ne 'Healthy') {
-    if ($Action -eq 'restore') { throw "The provided Recovery Key does not match this database. The provided Arkanum Recovery Key does not match the restored database. Recoverable state requires both the SQL database backup and the matching Arkanum Recovery Key. No new Recovery Key was generated. Report: $reportPath" }
+    if ($Action -eq 'restore') { throw "Application liveness check failed; this does not establish a Recovery Key mismatch. See report: $reportPath" }
     Write-Warning "Arkanum installed but health validation did not pass. Report: $reportPath"
     Write-Warning "Rollback app files from backup if needed: $backupPath"
     Write-Warning "Rollback app files example: Copy-Item -Path '$backupPath\app\*' -Destination '$InstallPath' -Recurse -Force; Restart-WebAppPool -Name '$AppPoolName'"

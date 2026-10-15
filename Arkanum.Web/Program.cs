@@ -6,6 +6,13 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
+// Dispatch before building the web host: setup never starts services, creates keys or seeds data.
+if (Arkanum.Web.Setup.DatabaseSetupCommand.IsRequested(args))
+{
+    Environment.ExitCode = await Arkanum.Web.Setup.DatabaseSetupCommand.RunAsync(args, Environment.GetEnvironmentVariable, Console.Out);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 ApplyFileBackedRuntimeConfiguration(builder.Configuration);
 

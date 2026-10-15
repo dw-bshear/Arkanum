@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
+
 import json
 import os
 import shutil
@@ -18,6 +20,12 @@ import tempfile
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Share exactly the same fail-closed validator with the online cache fetcher.
+_spec = importlib.util.spec_from_file_location("windows_prerequisites", Path(__file__).with_name("fetch-windows-prerequisites.py"))
+assert _spec is not None and _spec.loader is not None
+_prerequisites = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_prerequisites)
 
 ASSET_TEMPLATES = {
     ("full", "windows-x64"): "Arkanum-{version}-full-windows-x64.zip",
@@ -46,7 +54,7 @@ def copy_tree(src: Path, dst: Path) -> None:
     if not src.exists():
         raise FileNotFoundError(f"Required package input is missing: {src}")
     if src.is_dir():
-        shutil.copytree(src, dst, dirs_exist_ok=True)
+        shutil.copytree(src, dst, dirs_exist_ok=True, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
     else:
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
@@ -66,7 +74,11 @@ def write_manifest(stage: Path, version: str, package_kind: str, platform: str, 
     (stage / "package-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
 
-def stage_package(root: Path, publish_dir: Path, stage: Path, version: str, package_kind: str, platform: str, minimum_installed_version: str | None) -> None:
+def stage_package(root: Path, publish_dir: Path, stage: Path, version: str, package_kind: str, platform: str, minimum_installed_version: str | None, windows_prerequisites: Path | None = None) -> None:
+    if platform == "windows-x64":
+        directory = windows_prerequisites if windows_prerequisites is not None else root / "artifacts/prerequisites"
+        for source in _prerequisites.validate_cache(directory, root / "prerequisites/hosting-bundle.json"):
+            copy_tree(source, stage / "prerequisites" / source.name)
     app_dir = stage / "app"
     copy_tree(publish_dir, app_dir)
     copy_tree(root / "installers", stage / "installers")
@@ -87,7 +99,7 @@ def make_zip(stage: Path, out_path: Path) -> None:
 def make_tar(stage: Path, out_path: Path) -> None:
     with tarfile.open(out_path, "w:gz") as archive:
         for file_path in sorted(stage.rglob("*")):
-            archive.add(file_path, arcname=file_path.relative_to(stage).as_posix())
+            archive.add(file_path, arcname=file_path.relative_to(stage).as_posix(), recursive=False)
 
 
 def build_assets(args: argparse.Namespace) -> list[Path]:
@@ -105,7 +117,9 @@ def build_assets(args: argparse.Namespace) -> list[Path]:
         with tempfile.TemporaryDirectory(prefix="arkanum-package-") as tmp:
             stage = Path(tmp) / file_name.removesuffix(".zip").removesuffix(".tar.gz")
             stage.mkdir(parents=True)
-            stage_package(root, publish_dirs[platform], stage, args.version, package_kind, platform, args.minimum_installed_version)
+            prerequisite_dir = getattr(args, "windows_prerequisites", None)
+            stage_package(root, publish_dirs[platform], stage, args.version, package_kind, platform, args.minimum_installed_version,
+                          Path(prerequisite_dir).resolve() if prerequisite_dir is not None else None)
             if out_path.suffix == ".zip":
                 make_zip(stage, out_path)
             else:
@@ -124,6 +138,8 @@ def main() -> int:
     parser.add_argument("--windows-publish", default="publish/arkanum-windows-x64")
     parser.add_argument("--linux-publish", default="publish/arkanum-linux-x64")
     parser.add_argument("--out-dir", default="artifacts/release")
+    parser.add_argument("--windows-prerequisites", default="artifacts/prerequisites",
+                        help="Directory containing the real SHA512-validated Hosting Bundle and hosting-bundle.json")
     args = parser.parse_args()
     created = build_assets(args)
     for path in created:

@@ -9,6 +9,8 @@ Administrator.
 #>
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'Arkanum-Prerequisites.ps1')
+Assert-ArkanumWindowsHost
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
@@ -57,9 +59,7 @@ function Build-ConnectionString {
         throw 'SQL Server host, database, username, and password are required.'
     }
     if ([string]::IsNullOrWhiteSpace($SqlPort)) { $SqlPort = '1433' }
-    $encryptText = if ($Encrypt) { 'True' } else { 'False' }
-    $trustText = if ($TrustCert) { 'True' } else { 'False' }
-    return "Server=tcp:$SqlHost,$SqlPort;Database=$Database;User Id=$User;Password=$Password;Encrypt=$encryptText;TrustServerCertificate=$trustText;"
+    return New-ArkanumSqlConnection -Server "tcp:$SqlHost,$SqlPort" -Database $Database -User $User -Password $Password -Encrypt $Encrypt -TrustCertificate $TrustCert
 }
 
 Require-Admin
@@ -98,7 +98,7 @@ $databaseSetupMode = New-Object System.Windows.Forms.ComboBox
 $databaseSetupMode.DropDownStyle = 'DropDownList'
 [void]$databaseSetupMode.Items.AddRange(@('Use existing database', 'Create new database', 'Restore database'))
 $databaseSetupMode.SelectedIndex = 0
-$databaseSetupMode.Location = New-Object System.Drawing.Point(220, 424)
+$databaseSetupMode.Location = New-Object System.Drawing.Point(220, 244)
 $databaseSetupMode.Size = New-Object System.Drawing.Size(300, 24)
 $restoreSource = New-Object System.Windows.Forms.ComboBox
 $restoreSource.DropDownStyle = 'DropDownList'
@@ -134,13 +134,14 @@ foreach ($pair in @(
 }
 $installHelp = New-Object System.Windows.Forms.Label
 $installHelp.Text = 'Restore source currently supports the DBA-restored database path. SQL backup and attach restore paths are staged for DBA workflow selection but not automated in this release.'
-$installHelp.Location = New-Object System.Drawing.Point(24, 424)
+$installHelp.Location = New-Object System.Drawing.Point(24, 504)
 $installHelp.Size = New-Object System.Drawing.Size(700, 70)
 $installTab.Controls.Add($installHelp)
 
 $sqlTab = New-Object System.Windows.Forms.TabPage
 $sqlTab.Text = 'SQL Server'
 $tabs.Controls.Add($sqlTab)
+$sqlTab.AutoScroll = $true
 $sqlHost = New-TextBox '' 220 24 350
 $sqlPort = New-TextBox '1433' 220 64 120
 $sqlDb = New-TextBox 'Arkanum' 220 104 260
@@ -157,13 +158,13 @@ $generateRuntimePassword.Size = New-Object System.Drawing.Size(260, 24)
 $encrypt = New-Object System.Windows.Forms.CheckBox
 $encrypt.Text = 'Encrypt SQL connection'
 $encrypt.Checked = $true
-$encrypt.Location = New-Object System.Drawing.Point(220, 224)
+$encrypt.Location = New-Object System.Drawing.Point(220, 474)
 $encrypt.Size = New-Object System.Drawing.Size(240, 24)
 $trust = New-Object System.Windows.Forms.CheckBox
 $trust.Text = 'Trust SQL Server certificate (development/testing only)'
 $trust.Checked = $false
-$trust.Location = New-Object System.Drawing.Point(220, 254)
-$trust.Size = New-Object System.Drawing.Size(240, 24)
+$trust.Location = New-Object System.Drawing.Point(220, 504)
+$trust.Size = New-Object System.Drawing.Size(480, 24)
 foreach ($pair in @(
     @('SQL Server host', $sqlHost, 24),
     @('SQL Server port', $sqlPort, 64),
@@ -179,6 +180,28 @@ foreach ($pair in @(
     $sqlTab.Controls.Add((New-Label $pair[0] 24 $pair[2])); $sqlTab.Controls.Add($pair[1])
 }
 $sqlTab.Controls.Add($encrypt); $sqlTab.Controls.Add($trust); $sqlTab.Controls.Add($generateRuntimePassword)
+$installTab.AutoScroll = $true
+
+$prerequisiteTab = New-Object System.Windows.Forms.TabPage
+$prerequisiteTab.Text = 'Prerequisites and consent'
+$tabs.Controls.Add($prerequisiteTab)
+$enableIis = New-Object System.Windows.Forms.CheckBox
+$enableIis.Text = 'Allow enabling required Windows IIS features'
+$enableIis.Location = New-Object System.Drawing.Point(24, 24)
+$enableIis.Size = New-Object System.Drawing.Size(700, 30)
+$installHosting = New-Object System.Windows.Forms.CheckBox
+$installHosting.Text = 'Allow installing/repairing the verified offline .NET 10 Hosting Bundle'
+$installHosting.Location = New-Object System.Drawing.Point(24, 70)
+$installHosting.Size = New-Object System.Drawing.Size(700, 30)
+$allowInterruption = New-Object System.Windows.Forms.CheckBox
+$allowInterruption.Text = 'Maintenance window: allow Hosting Bundle to stop/restart ALL IIS sites'
+$allowInterruption.Location = New-Object System.Drawing.Point(24, 116)
+$allowInterruption.Size = New-Object System.Drawing.Size(700, 40)
+$warning = New-Label 'Microsoft installer may interrupt IIS despite /norestart. Restart Windows if requested, then rerun setup.' 24 166 700
+$warning.Size = New-Object System.Drawing.Size(700, 60)
+$featureSource = New-TextBox '' 24 276 650
+$prerequisiteTab.Controls.Add((New-Label 'Optional Windows feature source (e.g. mounted installation media)' 24 242 700))
+foreach ($control in @($enableIis,$installHosting,$allowInterruption,$warning,$featureSource)) { $prerequisiteTab.Controls.Add($control) }
 
 $recoveryTab = New-Object System.Windows.Forms.TabPage
 $recoveryTab.Text = 'Recovery Key'
@@ -241,44 +264,14 @@ function Get-RestoreSource {
 function Build-CommandPreview {
     $selectedAction = Get-InstallerAction
     $conn = ''
-    $isStatePreservingUpdate = ($script:PackageKind -eq 'update' -and ($selectedAction -eq 'auto' -or $selectedAction -eq 'upgrade' -or $selectedAction -eq 'repair'))
-    if (-not $isStatePreservingUpdate -or -not [string]::IsNullOrWhiteSpace($sqlHost.Text) -or -not [string]::IsNullOrWhiteSpace($sqlPassword.Text)) {
+    $isStatePreservingUpdate = ($script:PackageKind -eq 'update' -and $selectedAction -in @('auto','upgrade','repair'))
+    if ((Get-DatabaseSetupMode) -ne 'create-new-database' -and (!$isStatePreservingUpdate -or $sqlHost.Text -or $sqlPassword.Text)) {
         $conn = Build-ConnectionString $sqlHost.Text $sqlPort.Text $sqlDb.Text $sqlUser.Text $sqlPassword.Text $encrypt.Checked $trust.Checked
     }
-    $args = @(
-        '-ExecutionPolicy', 'Bypass',
-        '-File', "`"$script:CliInstaller`"",
-        '-PackagePath', "`"$script:PackageRoot\app`"",
-        '-InstallPath', "`"$($installPath.Text)`"",
-        '-ProgramDataPath', "`"$($programData.Text)`"",
-        '-SiteName', "`"$($siteName.Text)`"",
-        '-Port', $port.Text,
-        '-HttpsHostName', "`"$($httpsHostName.Text)`"",
-        '-HttpsCertificateThumbprint', "`"$($httpsCertificateThumbprint.Text)`"",
-        '-AppPoolName', "`"$($appPool.Text)`"",
-        '-PackageVersion', '2026.1.1',
-        '-PackageKind', $script:PackageKind,
-        '-Action', $selectedAction,
-        '-DatabaseSetupMode', (Get-DatabaseSetupMode),
-        '-SqlServerHost', "`"$($sqlHost.Text)`"",
-        '-SqlServerPort', $sqlPort.Text,
-        '-DatabaseName', "`"$($sqlDb.Text)`"",
-        '-SetupSqlUsername', "`"$($setupSqlUser.Text)`"",
-        '-SetupSqlPassword', "`"$($setupSqlPassword.Text)`"",
-        '-RuntimeSqlLogin', "`"$($runtimeSqlUser.Text)`"",
-        '-RuntimeSqlPassword', "`"$($runtimeSqlPassword.Text)`"",
-        '-GenerateRuntimePassword:' + $generateRuntimePassword.Checked,
-        '-RestoreSource', (Get-RestoreSource),
-        '-SqlBackupFile', "`"$($sqlBackupFile.Text)`"",
-        '-RestoreKeyFile', "`"$($restoreKeyFile.Text)`"",
-        '-RestoreKey', "`"$($restoreKey.Text)`""
-    )
-    if (-not [string]::IsNullOrWhiteSpace($conn)) {
-        $args += @('-SqlConnectionString', "`"$conn`"")
-    }
-    $commandPreview.Text = 'powershell.exe ' + ($args -join ' ')
-    if ($isStatePreservingUpdate -and [string]::IsNullOrWhiteSpace($conn)) {
-        $commandPreview.Text += "`r`n`r`nUpdate package will preserve existing configuration, Recovery Key, database connection, and service binding settings."
+    # Never render executable arguments or secret fields in the visible preview.
+    $commandPreview.Text = "Arkanum setup action: $selectedAction`r`nDatabase mode: $(Get-DatabaseSetupMode)`r`nAll SQL credentials, connection strings and Recovery Key values: [REDACTED]`r`nEnable IIS features: $($enableIis.Checked)`r`nInstall Hosting Bundle: $($installHosting.Checked)`r`nAllow IIS service interruption: $($allowInterruption.Checked)"
+    if ($isStatePreservingUpdate -and !$conn) {
+        $commandPreview.Text += "`r`nUpdate package will preserve existing configuration, Recovery Key, database connection, and service binding settings."
     }
     return $conn
 }
@@ -314,8 +307,12 @@ $run.Add_Click({
             HttpsCertificateThumbprint = $httpsCertificateThumbprint.Text
             SqlConnectionString = $conn
             AppPoolName = $appPool.Text
-            PackageVersion = '2026.1.1'
+            PackageVersion = '2026.1.2'
             PackageKind = $script:PackageKind
+            EnableIisFeatures = $enableIis.Checked
+            InstallHostingBundle = $installHosting.Checked
+            AllowIisServiceInterruption = $allowInterruption.Checked
+            WindowsFeatureSource = $featureSource.Text
             Action = Get-InstallerAction
             DatabaseSetupMode = Get-DatabaseSetupMode
             SqlServerHost = $sqlHost.Text

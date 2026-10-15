@@ -93,11 +93,15 @@ public sealed class Issue021ProductionTlsPostureTests
         var linuxManual = File.ReadAllText(Path.Combine(root, "docs", "linux-manual-install-package.md"));
         var backupRestore = File.ReadAllText(Path.Combine(root, "docs", "backup-and-restore.md"));
 
-        Assert.Contains("TrustServerCertificate=False", windowsInstaller);
+        var windowsHelpers = File.ReadAllText(Path.Combine(root, "installers", "windows", "Arkanum-Prerequisites.ps1"));
+        Assert.Contains("[bool]$Encrypt = $true", windowsHelpers);
+        Assert.Contains("[bool]$TrustCertificate = $false", windowsHelpers);
+        Assert.Contains("$builder['TrustServerCertificate'] = $TrustCertificate", windowsHelpers);
+        Assert.Contains("New-ArkanumSqlConnection", windowsInstaller);
         Assert.Contains("TrustServerCertificate=False", linuxInstaller);
         Assert.Contains("self.trust = tk.BooleanVar(value=False)", linuxGui);
         Assert.Contains("$trust.Checked = $false", windowsGui);
-        Assert.Contains("-HttpsCertificateThumbprint", windowsGui);
+        Assert.Contains("HttpsCertificateThumbprint = $httpsCertificateThumbprint.Text", windowsGui);
         Assert.Contains("ARKANUM_HTTPS_CERTIFICATE_PATH", linuxInstaller);
         Assert.Contains("ASPNETCORE_Kestrel__Certificates__Default__Path", linuxInstaller);
         Assert.Contains("https://$($script:HealthHost):$Port/health", windowsInstaller);
