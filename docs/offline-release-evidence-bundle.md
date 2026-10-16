@@ -2,6 +2,22 @@
 
 This guide defines the Arkanum evidence bundle expected for controlled, disconnected, and air-gapped review. The bundle is intended to support a customer RMF/ATO package with review-ready evidence; it is not a standalone accreditation or certification claim.
 
+## Version-specific security assessment attachments
+
+For the additive 2026.1.2 Security Evidence attachment, use the fail-closed
+`scripts/security_evidence.py` packager and the collection/validation contract in
+`docs/security-evidence-packager.md`. That format includes real scanner-generated
+CycloneDX JSON inventories, dated raw scan/test evidence, a meaningful assessment
+PDF, explicit findings/limitations, and immutable release/tooling identities.
+The original installer assets and release tag must remain unchanged.
+
+The older shell layout below is collection scaffolding only. `CYCLONEDX_MISSING.txt`,
+missing transcript/signing notes and package-list fallbacks are evidence gaps,
+not completed SBOMs, vulnerability assessments, native installation tests or
+signing evidence. Do not publish those placeholders as successful assessments.
+The older phase-3 script also creates its checksum file before its final report;
+use the new packager, which hashes the complete final tree, for this attachment.
+
 ## Bundle layout
 
 Create one evidence directory per release and keep artifact names stable enough for transfer administrators and assessors to compare across releases.

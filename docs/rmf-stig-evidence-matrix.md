@@ -2,6 +2,16 @@
 
 This matrix is a review-ready evidence map for a customer RMF/ATO package. It does not assert that Arkanum by itself has an approved baseline, a DISA approval, or a formal accreditation outcome. The product boundary is the Arkanum ASP.NET Core application, its installer scripts, release artifacts, and operating procedures. Platform, identity, database, logging, vulnerability-management, and network controls are documented as inherited when they belong to the deploying organization.
 
+For a particular release, these rows describe intended product capabilities, not
+completed control assessments. Use the version-specific evidence attachment's
+`reports/control-applicability-matrix.md` for concrete executed evidence and
+`implemented`, `partial`, `inherited`, `not-assessed`, or `not-applicable` status.
+In particular, the legacy evidence scripts and missing-tool placeholders do not
+prove SBOM, vulnerability, signing or operational acceptance completion. The
+2026.1.2 assessment preserves native Windows acceptance issue #28 and does not
+assign exact STIG rule IDs, a site baseline, CAT findings, or risk acceptance.
+The deploying ISSM/AO selects actual applicability and authorization boundaries.
+
 ## Deployment boundary and inherited baselines
 
 Arkanum should be evaluated as an application layered on inherited controls from:
