@@ -107,6 +107,10 @@ Arkanum-2026.1.2-update-linux-x64.tar.gz
 
 Use full packages for first install, side-by-side testing, and restore workflows. Use update packages only against an existing installation; update mode preserves configuration, Recovery Key/master-key material, database connectivity settings, and service binding settings while creating a pre-upgrade backup/report.
 
+## Versioning
+
+The current published/UI-review baseline is **2026.1.2**, from the historical calendar-prefixed family. Future releases use feature-based **MAJOR.MINOR.PATCH**, with **1.0.0 planned after design review, not released**. This documents policy only; it does not change application or installer behavior. See [`docs/versioning.md`](docs/versioning.md) for compatibility rules and the required legacy migration tests.
+
 ## Local development
 
 ### Requirements
