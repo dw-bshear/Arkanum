@@ -46,7 +46,7 @@ class PrerequisiteTests(unittest.TestCase):
             (self.root / directory / 'fixture.txt').write_text('test only')
         (self.cache / 'private.key').write_text('must not ship')
         args = argparse.Namespace(root=self.root, out_dir=self.root / 'out', windows_publish=self.root / 'win',
-                                  linux_publish=self.root / 'linux', version='test', minimum_installed_version=None,
+                                  linux_publish=self.root / 'linux', version='1.0.0', minimum_installed_version=None,
                                   windows_prerequisites=self.cache)
         assets = package.build_assets(args)
         for path in assets:

@@ -1,6 +1,6 @@
 # Windows Server 2022 setup
 
-Applies to the 2026.1.2 source/package contract. Existing published releases do not acquire these changes automatically.
+Applies to the 1.0.0 source/package contract. Existing published releases do not acquire these changes automatically.
 
 ## What the administrator supplies
 
@@ -76,7 +76,7 @@ python3 scripts/fetch-windows-prerequisites.py
 dotnet restore Arkanum.sln --locked-mode
 dotnet publish Arkanum.Web -c Release -r win-x64 --self-contained false -p:RestoreLockedMode=true -o publish/arkanum-windows-x64
 dotnet publish Arkanum.Web -c Release -r linux-x64 --self-contained false -p:RestoreLockedMode=true -o publish/arkanum-linux-x64
-python3 scripts/create-release-packages.py --version 2026.1.2 --windows-prerequisites artifacts/prerequisites
+python3 scripts/create-release-packages.py --version 1.0.0 --windows-prerequisites artifacts/prerequisites
 ```
 
 The package builder requires a hash-validated Hosting Bundle cache and includes it only in Windows assets. Binaries and build caches stay out of Git. Linux continues to require an approved ASP.NET Core 10 runtime and its existing SQL tool prerequisites; Windows automation does not imply Linux prerequisite automation.

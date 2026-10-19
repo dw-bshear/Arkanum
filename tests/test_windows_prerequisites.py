@@ -154,8 +154,10 @@ class WindowsPrerequisitesTests(unittest.TestCase):
         self.ps("""
         $source=Get-Content '""" + str(WINDOWS / 'Install-Arkanum.ps1') + """' -Raw
         $source=$source.Replace('. (Join-Path $PSScriptRoot ''Arkanum-Prerequisites.ps1'')','')
+        . '""" + str(WINDOWS / 'Arkanum-Version.ps1') + """'
+        $source=$source.Replace('. (Join-Path $PSScriptRoot ''Arkanum-Version.ps1'')','')
         $source=$source.Replace("`nAssert-ArkanumWindowsHost`n","`n")
-        function Test-Path { param($LiteralPath,$Path) $p=if($LiteralPath){$LiteralPath}else{$Path}; return ($p -match 'Arkanum.Web.(dll|runtimeconfig.json)$') }
+        function Test-Path { param($LiteralPath,$Path) $p=if($LiteralPath){$LiteralPath}else{$Path}; return ($p -match '^/package/Arkanum.Web.(dll|runtimeconfig.json)$') }
         function Get-Item { [pscustomobject]@{Thumbprint='certificate'} }
         function Get-ArkanumPrerequisitePlan { [pscustomobject]@{MissingFeatures=@(); NeedsHosting=$false; Dotnet='dotnet'} }
         function Import-Module {}

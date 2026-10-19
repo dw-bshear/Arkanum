@@ -1,3 +1,22 @@
+/* Source Sans 3, Adobe; SIL Open Font License 1.1.
+   Bundled unmodified from adobe-fonts/source-sans revision
+   87b37a2daaed80fcb8e8ccb0085c4d72ddade12e. See ../fonts/source-sans-3/LICENSE.md. */
+@font-face {
+  font-family: "Source Sans 3";
+  src: url('../fonts/source-sans-3/SourceSans3VF-Upright.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Sans 3";
+  src: url('../fonts/source-sans-3/SourceSans3VF-Italic.ttf') format('truetype');
+  font-style: italic;
+  font-weight: 200 900;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light dark;
   --bg: #f6f7fb;
@@ -34,7 +53,7 @@ html {
 body {
   background: radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 18%, transparent), transparent 38%), var(--bg);
   color: var(--text);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Source Sans 3", sans-serif;
   min-height: 100vh;
 }
 

@@ -88,6 +88,7 @@ The intended feedback/deployment tracks are:
 See:
 
 - [`docs/windows-server-2022-setup.md`](docs/windows-server-2022-setup.md)
+- [`docs/1.0.0-release.md`](docs/1.0.0-release.md)
 - [`docs/2026.1.2-release.md`](docs/2026.1.2-release.md)
 - [`docs/2026.1.1-release.md`](docs/2026.1.1-release.md)
 - [`docs/upgrade-and-native-packaging.md`](docs/upgrade-and-native-packaging.md)
@@ -99,17 +100,17 @@ See:
 Release packages use a full/update model with matching Windows and Linux naming:
 
 ```text
-Arkanum-2026.1.2-full-windows-x64.zip
-Arkanum-2026.1.2-update-windows-x64.zip
-Arkanum-2026.1.2-full-linux-x64.tar.gz
-Arkanum-2026.1.2-update-linux-x64.tar.gz
+Arkanum-1.0.0-full-windows-x64.zip
+Arkanum-1.0.0-update-windows-x64.zip
+Arkanum-1.0.0-full-linux-x64.tar.gz
+Arkanum-1.0.0-update-linux-x64.tar.gz
 ```
 
 Use full packages for first install, side-by-side testing, and restore workflows. Use update packages only against an existing installation; update mode preserves configuration, Recovery Key/master-key material, database connectivity settings, and service binding settings while creating a pre-upgrade backup/report.
 
 ## Versioning
 
-The current published/UI-review baseline is **2026.1.2**, from the historical calendar-prefixed family. Future releases use feature-based **MAJOR.MINOR.PATCH**, with **1.0.0 planned after design review, not released**. This documents policy only; it does not change application or installer behavior. See [`docs/versioning.md`](docs/versioning.md) for compatibility rules and the required legacy migration tests.
+The current release source is **1.0.0**, the authorized start of feature-based **MAJOR.MINOR.PATCH** with no annual increment. The installers explicitly recognize legacy **2026.1.2 -> 1.0.0** as an upgrade while rejecting real downgrades and unknown source families. Same-version repair preserves state. Older tags/releases/assets remain immutable, and their security evidence is not relabeled as 1.0.0 evidence. See [`docs/versioning.md`](docs/versioning.md) for supported paths, native package constraints, rollback and outstanding acceptance gates. Source preparation does not itself publish a release or establish native Windows acceptance.
 
 ## Local development
 
@@ -185,6 +186,7 @@ Review `.gitignore` before adding new operational scripts or lab files.
 
 | Document | Purpose |
 | --- | --- |
+| [`docs/1.0.0-release.md`](docs/1.0.0-release.md) | SemVer transition, preservation tests and remaining native acceptance boundaries. |
 | [`docs/2026.1.0-release.md`](docs/2026.1.0-release.md) | First production release notes, installer restore mode, vault UX, reminders, CSV export, and full/update packages. |
 | [`docs/2026.1.1-release.md`](docs/2026.1.1-release.md) | Setup layout and wording polish; vault access moved below entry forms. |
 | [`docs/backup-and-restore.md`](docs/backup-and-restore.md) | SQL database + recovery/master-key restore model. |
@@ -200,4 +202,4 @@ Review `.gitignore` before adding new operational scripts or lab files.
 
 ## Status
 
-Arkanum 2026.1.0 is the first production release line for controlled-network credential-vault deployments. Operators should still complete organization-specific security review, backup/restore validation, SQL Server/IIS hardening, and identity-provider validation before storing operational credentials.
+Arkanum 1.0.0 starts the feature-based version family; 2026.1.0 remains the historical first production release line. Operators must still complete organization-specific security review, backup/restore validation, native platform acceptance, SQL Server/IIS hardening, and identity-provider validation before storing operational credentials. Existing 2026.1.2 security assessment material does not assess the new release.

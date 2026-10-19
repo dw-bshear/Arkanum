@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ARKANUM_PACKAGE_VERSION=${ARKANUM_PACKAGE_VERSION:-2026.1.2}
+ARKANUM_PACKAGE_VERSION=${ARKANUM_PACKAGE_VERSION:-1.0.0}
 PACKAGE_KIND=${PACKAGE_KIND:-auto}
 PREFLIGHT_ONLY=${PREFLIGHT_ONLY:-false}
 ACTION=${ACTION:-auto}
@@ -22,6 +22,7 @@ DATA_DIR=${DATA_DIR:-/var/lib/arkanum}
 LOG_DIR=${LOG_DIR:-/var/log/arkanum}
 BACKUP_ROOT=${BACKUP_ROOT:-/var/backups/arkanum}
 SERVICE_USER=${SERVICE_USER:-arkanum}
+SERVICE_FILE=${SERVICE_FILE:-/etc/systemd/system/arkanum.service}
 APP_URLS=${APP_URLS:-https://127.0.0.1:5068}
 ARKANUM_HTTPS_CERTIFICATE_PATH=${ARKANUM_HTTPS_CERTIFICATE_PATH:-}
 ARKANUM_HTTPS_CERTIFICATE_PASSWORD=${ARKANUM_HTTPS_CERTIFICATE_PASSWORD:-}
@@ -141,19 +142,42 @@ Invoke-ArkanumSqlProvisioning() {
 }
 
 Invoke-ArkanumSqlUpgradePreflight() {
-  if [ "${ACTION}" != "upgrade" ]; then
+  if [ "${ACTION}" != "upgrade" ] && [ "${ACTION}" != "repair" ] && [ "${ACTION}" != "restore" ]; then
     return
   fi
-  command -v sqlcmd >/dev/null 2>&1 || fail "sqlcmd is required for SQL upgrade preflight."
-  local script_path="${PACKAGE_ROOT}/installers/sql/upgrade-preflight.sql"
-  [ -f "${script_path}" ] || script_path="${SCRIPT_DIR}/../sql/upgrade-preflight.sql"
-  [ -f "${script_path}" ] || fail "Missing SQL upgrade preflight script: ${script_path}"
   info "Database reachability preflight"
   info "Schema/version preflight"
   info "Runtime login permission preflight"
   info "SQL backup strongly recommended before upgrade."
   info "Failure categories: database reachability, schema mismatch, permission problem, recovery-key mismatch."
-  sqlcmd -b -i "${script_path}" | while IFS= read -r line; do redact_secret "$line"; done
+  # Shipped schema/permission/sentinel validation, not obsolete migration SQL.
+  # Provider diagnostics are suppressed because they can contain secrets.
+  (
+    export ARKANUM_MASTER_KEY_FILE="${EXISTING_MASTER_KEY_FILE}"
+    temporary_key=""
+    trap 'if [ -n "${temporary_key}" ]; then rm -f -- "${temporary_key}"; fi' EXIT
+    if [ "${ACTION}" = "restore" ]; then
+      if [ -n "${ARKANUM_RESTORE_KEY_FILE:-}" ]; then
+        [ -s "${ARKANUM_RESTORE_KEY_FILE}" ] || fail "ARKANUM_RESTORE_KEY_FILE does not exist or is empty."
+        ARKANUM_MASTER_KEY_FILE="${ARKANUM_RESTORE_KEY_FILE}"
+      else
+        [ -n "${ARKANUM_RESTORE_KEY:-}" ] || fail "ACTION=restore requires ARKANUM_RESTORE_KEY_FILE or ARKANUM_RESTORE_KEY."
+        umask 077
+        temporary_key=$(mktemp) || fail "Could not prepare Recovery Key preflight."
+        printf '%s\n' "${ARKANUM_RESTORE_KEY}" > "${temporary_key}" || fail "Could not prepare Recovery Key preflight."
+        ARKANUM_MASTER_KEY_FILE="${temporary_key}"
+      fi
+    fi
+    ARKANUM_MASTER_KEY= ARKANUM_RUNTIME_CONNECTION="${ARKANUM_SQL_CONNECTION}" \
+      dotnet "${PACKAGE_DIR}/Arkanum.Web.dll" --database-setup preflight >/dev/null 2>&1
+  ) || {
+    local preflight_status=$?
+    if [ "${ACTION}" = "restore" ] && [ "${preflight_status}" -eq 6 ]; then
+      fail "Database preflight failed: The provided Recovery Key does not match this database or its sentinel is missing. Recoverable state requires both the SQL database backup and the matching Arkanum Recovery Key. App files unchanged."
+    fi
+    fail "Database preflight failed: check connectivity, schema, permissions, and recovery-key mismatch. App files unchanged."
+  }
+  RECOVERY_VALIDATION="Verified by database sentinel preflight"
 }
 
 if [ "${EUID}" -ne 0 ]; then
@@ -199,19 +223,13 @@ if [ ! -f "${PACKAGE_DIR}/Arkanum.Web.dll" ]; then
 fi
 
 MANIFEST_FILE="${PACKAGE_ROOT}/package-manifest.json"
+MINIMUM_INSTALLED_VERSION=""
 if [ -f "${MANIFEST_FILE}" ]; then
+  MINIMUM_INSTALLED_VERSION=$(python3 "${SCRIPT_DIR}/arkanum_version.py" read "${MANIFEST_FILE}" minimumInstalledVersion) || fail "Invalid package manifest."
   if [ "${PACKAGE_KIND}" = "auto" ]; then
-    PACKAGE_KIND=$(python3 - <<PYMANIFEST
-import json
-print(json.load(open('${MANIFEST_FILE}')).get('packageKind','full'))
-PYMANIFEST
-)
+    PACKAGE_KIND=$(python3 "${SCRIPT_DIR}/arkanum_version.py" read "${MANIFEST_FILE}" packageKind) || fail "Invalid package manifest."
   fi
-  ARKANUM_PACKAGE_VERSION=$(python3 - <<PYMANIFEST
-import json
-print(json.load(open('${MANIFEST_FILE}')).get('version','${ARKANUM_PACKAGE_VERSION}'))
-PYMANIFEST
-)
+  ARKANUM_PACKAGE_VERSION=$(python3 "${SCRIPT_DIR}/arkanum_version.py" read "${MANIFEST_FILE}" version) || fail "Invalid package version."
 fi
 if [ "${PACKAGE_KIND}" = "auto" ]; then PACKAGE_KIND=full; fi
 
@@ -220,17 +238,14 @@ if [ -s "${STATE_FILE}" ] || [ -f "${INSTALL_DIR}/Arkanum.Web.dll" ]; then
   EXISTING_INSTALL=true
 fi
 EXISTING_SQL_CONNECTION_FILE="${CONFIG_DIR}/sql-connection"
+PRESERVE_SQL_CONNECTION_FILE=false
+if [ -z "${ARKANUM_SQL_CONNECTION:-}" ] && [ -s "${EXISTING_SQL_CONNECTION_FILE}" ]; then
+  PRESERVE_SQL_CONNECTION_FILE=true
+fi
 EXISTING_MASTER_KEY_FILE="${CONFIG_DIR}/master-key"
 INSTALLED_VERSION="unknown"
 if [ -s "${STATE_FILE}" ]; then
-  INSTALLED_VERSION=$(python3 - <<PY
-import json
-try:
-    print(json.load(open('${STATE_FILE}')).get('installedVersion','unknown'))
-except Exception:
-    print('unknown')
-PY
-)
+  INSTALLED_VERSION=$(python3 "${SCRIPT_DIR}/arkanum_version.py" read "${STATE_FILE}" installedVersion) || fail "Invalid install state; no changes made."
 fi
 if [ "${PACKAGE_KIND}" = "update" ]; then
   [ "${EXISTING_INSTALL}" = true ] || fail "Update package requires an existing Arkanum installation. Use the full package for first-time installation or restore."
@@ -246,19 +261,43 @@ if [ "${PACKAGE_KIND}" = "update" ]; then
   fi
 fi
 
+# Both full/update and GUI/CLI resolve here before provisioning or file changes.
+if [ "${ACTION}" = "auto" ]; then
+  if [ "${EXISTING_INSTALL}" = true ]; then ACTION=upgrade; else ACTION=install; fi
+fi
+python3 "${SCRIPT_DIR}/arkanum_version.py" validate "${ARKANUM_PACKAGE_VERSION}" || fail "Invalid package version."
+if [ "${EXISTING_INSTALL}" = true ] && [ "${ACTION}" != "side-by-side" ]; then
+  python3 "${SCRIPT_DIR}/arkanum_version.py" check "${INSTALLED_VERSION}" "${ARKANUM_PACKAGE_VERSION}" "${ACTION}" "${MINIMUM_INSTALLED_VERSION}" || fail "Version transition rejected before changing files."
+fi
+if [ "${ACTION}" = "upgrade" ] || [ "${ACTION}" = "repair" ]; then
+  [ "${EXISTING_INSTALL}" = true ] || fail "Upgrade/repair requires an existing installation."
+  [ -s "${EXISTING_MASTER_KEY_FILE}" ] || fail "Existing Recovery Key is required for upgrade/repair."
+  [ -s "${CONFIG_DIR}/arkanum.env" ] && [ -s "${SERVICE_FILE}" ] || fail "Existing systemd environment and service unit are required for upgrade/repair; restore missing configuration before continuing."
+  if [ -z "${ARKANUM_SQL_CONNECTION:-}" ] && [ -s "${EXISTING_SQL_CONNECTION_FILE}" ]; then
+    ARKANUM_SQL_CONNECTION=$(cat "${EXISTING_SQL_CONNECTION_FILE}")
+    export ARKANUM_SQL_CONNECTION
+  fi
+  [ "${DATABASE_SETUP_MODE}" != "create-new-database" ] || fail "Provisioning is allowed only for a new installation."
+fi
+REPORT_FILE="${LOG_DIR}/upgrade-report-${ARKANUM_PACKAGE_VERSION}.txt"
+
 if [ "${GENERATE_RUNTIME_PASSWORD}" = "true" ] && [ -z "${RUNTIME_SQL_PASSWORD}" ]; then
   RUNTIME_SQL_PASSWORD=$(generate_runtime_password)
 fi
 if [ "${DATABASE_SETUP_MODE}" = "auto" ]; then
   if [ "${ACTION}" = "restore" ]; then DATABASE_SETUP_MODE=restore-database; else DATABASE_SETUP_MODE=use-existing-database; fi
 fi
+if [ "${ACTION}" = "restore" ] && [ "${DATABASE_SETUP_MODE}" = "create-new-database" ]; then
+  fail "Restore cannot provision a new database; use the existing DBA-restored database."
+fi
 build_runtime_sql_connection
 if [ "${PREFLIGHT_ONLY}" = "true" ]; then
   BACKUP_PREVIEW="${BACKUP_ROOT}/${INSTALLED_VERSION}-before-${ARKANUM_PACKAGE_VERSION}-$(date -u +%Y%m%d%H%M%S)"
   write_package_preflight "${INSTALLED_VERSION}" "${BACKUP_PREVIEW}"
+  Invoke-ArkanumSqlUpgradePreflight
   exit 0
 fi
-if [[ "${APP_URLS}" == *https://* ]]; then
+if [[ "${APP_URLS}" == *https://* ]] && [ "${ACTION}" != "upgrade" ] && [ "${ACTION}" != "repair" ]; then
   [ -n "${ARKANUM_HTTPS_CERTIFICATE_PATH}" ] || fail "ARKANUM_HTTPS_CERTIFICATE_PATH is required when APP_URLS uses https. Provide a trusted Kestrel PFX certificate path or terminate TLS before Arkanum and use an internal http://127.0.0.1 URL."
   [ -s "${ARKANUM_HTTPS_CERTIFICATE_PATH}" ] || fail "ARKANUM_HTTPS_CERTIFICATE_PATH does not exist or is empty."
 fi
@@ -329,15 +368,24 @@ if [ "${ACTION}" = "upgrade" ] || [ "${ACTION}" = "repair" ]; then
   BACKUP_DIR="${BACKUP_ROOT}/${INSTALLED_VERSION}-before-${ARKANUM_PACKAGE_VERSION}-$(date -u +%Y%m%d%H%M%S)"
   info "Existing installation detected. Backing up app/config to ${BACKUP_DIR}."
   install -d -o root -g root -m 750 "${BACKUP_DIR}"
-  [ -d "${INSTALL_DIR}" ] && rsync -a "${INSTALL_DIR}/" "${BACKUP_DIR}/app/" || true
-  [ -d "${CONFIG_DIR}" ] && rsync -a --exclude 'master-key' "${CONFIG_DIR}/" "${BACKUP_DIR}/config/" || true
+  if [ -d "${INSTALL_DIR}" ]; then
+    rsync -a "${INSTALL_DIR}/" "${BACKUP_DIR}/app/" || fail "Application backup failed; app files unchanged."
+  fi
+  if [ -d "${CONFIG_DIR}" ]; then
+    rsync -a --exclude 'master-key' "${CONFIG_DIR}/" "${BACKUP_DIR}/config/" || fail "Configuration backup failed; app files unchanged."
+  fi
+  cp "${SERVICE_FILE}" "${BACKUP_DIR}/arkanum.service"
 fi
 
 info "Stopping arkanum.service if it exists."
 systemctl stop arkanum.service >/dev/null 2>&1 || true
 
 info "Copying published Arkanum application from ${PACKAGE_DIR} to ${INSTALL_DIR}."
-rsync -a --delete "${PACKAGE_DIR}/" "${INSTALL_DIR}/"
+if [ "${ACTION}" = "upgrade" ] || [ "${ACTION}" = "repair" ]; then
+  rsync -a --delete --exclude 'appsettings*.json' --exclude 'web.config' "${PACKAGE_DIR}/" "${INSTALL_DIR}/"
+else
+  rsync -a --delete "${PACKAGE_DIR}/" "${INSTALL_DIR}/"
+fi
 chown -R root:root "${INSTALL_DIR}"
 chmod -R go-w "${INSTALL_DIR}"
 
@@ -372,11 +420,16 @@ chmod 640 "${MASTER_KEY_FILE}"
 
 SQL_CONNECTION_FILE="${CONFIG_DIR}/sql-connection"
 umask 077
-printf '%s\n' "${ARKANUM_SQL_CONNECTION}" > "${SQL_CONNECTION_FILE}"
+if [ "${PRESERVE_SQL_CONNECTION_FILE}" != true ] || { [ "${ACTION}" != "upgrade" ] && [ "${ACTION}" != "repair" ]; }; then
+  printf '%s\n' "${ARKANUM_SQL_CONNECTION}" > "${SQL_CONNECTION_FILE}"
+fi
 chown root:"${SERVICE_USER}" "${SQL_CONNECTION_FILE}"
 chmod 640 "${SQL_CONNECTION_FILE}"
 
 ENV_FILE="${CONFIG_DIR}/arkanum.env"
+if [ "${ACTION}" = "upgrade" ] || [ "${ACTION}" = "repair" ]; then
+  info "Preserving existing systemd environment and service unit."
+else
 info "Writing systemd environment file at ${ENV_FILE}."
 cat > "${ENV_FILE}" <<EOF_ENV
 ASPNETCORE_ENVIRONMENT=Production
@@ -396,7 +449,7 @@ chmod 640 "${ENV_FILE}"
 
 DOTNET_BIN=$(command -v dotnet)
 info "Writing systemd unit /etc/systemd/system/arkanum.service."
-cat > /etc/systemd/system/arkanum.service <<EOF_SERVICE
+cat > "${SERVICE_FILE}" <<EOF_SERVICE
 [Unit]
 Description=Arkanum internal credential vault
 After=network-online.target
@@ -416,6 +469,7 @@ PrivateTmp=true
 [Install]
 WantedBy=multi-user.target
 EOF_SERVICE
+fi
 
 info "Writing install state manifest at ${STATE_FILE}."
 python3 - <<PY > "${STATE_FILE}"
@@ -457,7 +511,7 @@ try:
         body=response.read().decode('utf-8', 'replace')
     print(body)
     data=json.loads(body)
-    sys.exit(0 if str(data.get('status','')).lower() == 'healthy' else 2)
+    sys.exit(0 if str(data.get('status','')).lower() in ('alive', 'healthy') else 2)
 except Exception as exc:
     print(exc)
     sys.exit(3)
@@ -465,14 +519,7 @@ PY
 )
 HEALTH_STATUS=$?
 set -e
-RECOVERY_VALIDATION="Not applicable"
-if [ "${ACTION}" = "restore" ]; then
-  if [ "${HEALTH_STATUS}" -eq 0 ]; then
-    RECOVERY_VALIDATION="Passed"
-  else
-    RECOVERY_VALIDATION="Failed"
-  fi
-fi
+RECOVERY_VALIDATION="${RECOVERY_VALIDATION:-Not applicable}"
 {
   echo "Post-install health status code: ${HEALTH_STATUS}"
   echo "${HEALTH_OUTPUT}"
@@ -481,7 +528,7 @@ fi
 
 if [ "${HEALTH_STATUS}" -ne 0 ]; then
   if [ "${ACTION}" = "restore" ]; then
-    echo "[FAIL] The provided Recovery Key does not match this database. The provided Arkanum Recovery Key does not match the restored database. Recoverable state requires both the SQL database backup and the matching Arkanum Recovery Key. No new Recovery Key was generated. Report: ${REPORT_FILE}" >&2
+    echo "[FAIL] Application liveness validation failed after restore. Recovery Key was verified independently by database sentinel preflight; inspect service startup and connectivity. Report: ${REPORT_FILE}" >&2
     exit 7
   fi
   cat >&2 <<EOF
@@ -493,7 +540,7 @@ Rollback app files command example:
   sudo rsync -a ${BACKUP_DIR}/app/ ${INSTALL_DIR}/ && sudo systemctl restart arkanum.service
 EOF
 else
-  info "Health validation passed."
+  info "Application liveness validation passed; database/key readiness is independent."
 fi
 
 cat <<EOF

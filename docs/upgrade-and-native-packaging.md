@@ -1,10 +1,10 @@
 # Arkanum Phase C installer, upgrade, and native packaging guide
 
-Version: `2026.1.2`
+Version: `1.0.0`
 
 For the current Windows Server 2022 flow, see `windows-server-2022-setup.md`: elevated 64-bit Windows PowerShell 5.1, offline .NET 10 Hosting Bundle, explicit IIS preparation/maintenance consent, and application-provided SQL setup without Windows `sqlcmd`. MSI remains staging only. Existing published releases are not modified by these source changes.
 
-This release addresses the urgent Phase C path for a Windows x64 VMware Workstation test machine while preserving Linux parity.
+This is the current 1.0.0 operator guide. The historical Phase C headings identify the installer tracks, not a claim that native platform acceptance is complete. See `versioning.md` for the explicit 2026.1.2 -> 1.0.0 transition and independent schema/key checks.
 
 ## Phase C.1 — GUI installers
 
@@ -36,10 +36,10 @@ Set-ExecutionPolicy -Scope Process Bypass
 Release assets are now split into first-time **full** packages and existing-install **update** packages:
 
 ```text
-Arkanum-2026.1.2-full-windows-x64.zip
-Arkanum-2026.1.2-update-windows-x64.zip
-Arkanum-2026.1.2-full-linux-x64.tar.gz
-Arkanum-2026.1.2-update-linux-x64.tar.gz
+Arkanum-1.0.0-full-windows-x64.zip
+Arkanum-1.0.0-update-windows-x64.zip
+Arkanum-1.0.0-full-linux-x64.tar.gz
+Arkanum-1.0.0-update-linux-x64.tar.gz
 ```
 
 Use this decision table for controlled environments:
@@ -97,30 +97,30 @@ Linux:   /etc/arkanum/install-state.json
 Upgrade and repair actions create pre-change backups:
 
 ```text
-Windows: C:\ProgramData\Arkanum\backups\<old>-before-2026.1.2-<timestamp>
-Linux:   /var/backups/arkanum/<old>-before-2026.1.2-<timestamp>
+Windows: C:\ProgramData\Arkanum\backups\<old>-before-1.0.0-<timestamp>
+Linux:   /var/backups/arkanum/<old>-before-1.0.0-<timestamp>
 ```
 
 Upgrade reports are written here:
 
 ```text
-Windows: C:\ProgramData\Arkanum\logs\upgrade-report-2026.1.2.txt
-Linux:   /var/log/arkanum/upgrade-report-2026.1.2.txt
+Windows: C:\ProgramData\Arkanum\logs\upgrade-report-1.0.0.txt
+Linux:   /var/log/arkanum/upgrade-report-1.0.0.txt
 ```
 
 Each installer attempts a post-install `/health` check and records the result. If health validation fails, the report includes the backup path. Rollback app files are operator-controlled because database rollback must be paired with the correct SQL Server backup restore.
 
 ## Phase C.3 — native package path
 
-Phase C.3 starts the native packaging path without blocking tomorrow's Windows VM test.
+Phase C.3 remains a staging track; ZIP/TAR CLI and GUI installers are the supported deployment paths.
 
 Current release assets remain ZIP/TAR for immediate deployment packaging:
 
 ```text
-Arkanum-2026.1.2-full-windows-x64.zip
-Arkanum-2026.1.2-update-windows-x64.zip
-Arkanum-2026.1.2-full-linux-x64.tar.gz
-Arkanum-2026.1.2-update-linux-x64.tar.gz
+Arkanum-1.0.0-full-windows-x64.zip
+Arkanum-1.0.0-update-windows-x64.zip
+Arkanum-1.0.0-full-linux-x64.tar.gz
+Arkanum-1.0.0-update-linux-x64.tar.gz
 ```
 
 Native package staging scripts are included:
@@ -133,23 +133,23 @@ installers/linux/build-native-package.sh
 Expected future native assets:
 
 ```text
-Arkanum-2026.1.2-windows-x64.msi
-Arkanum-2026.1.2-linux-x64.deb
+Arkanum-1.0.0-windows-x64.msi
+Arkanum-1.0.0-linux-x64.deb
 ```
 
-The Windows MSI script uses WiX when available. If WiX is not installed, it writes staging instructions and leaves the ZIP package as the supported test package.
+The Windows MSI script writes staging instructions only, even if WiX is installed. Its old incomplete WiX template had no verified payload or calendar-to-SemVer native upgrade mapping; no MSI upgrade is claimed.
 
-The Linux DEB script uses `dpkg-deb` and expects a published Linux app directory.
+The Linux DEB script uses `dpkg-deb`, expects a published Linux app directory, and maps final product `1.0.0` to native version `1:1.0.0` using epoch 1. It stages app files under `/usr/lib/arkanum/app`, not the live `/opt/arkanum` path, with product-version metadata consumed by the CLI/GUI. Run the regular installer after staging. Prereleases/build metadata are rejected by this native builder; TAR supports SemVer prereleases. Legacy native DEB ownership migration is unsupported and rejected by preinst before unpack because dpkg could remove legacy-owned live `/opt/arkanum` files. Do not remove a legacy DEB while its files are the live app; use the TAR product-upgrade path and plan ownership migration separately.
 
 ## GitHub release organization
 
 Use one source tag and one GitHub release per product version:
 
 ```text
-source commit -> v2026.1.2 -> GitHub release -> platform assets
+source commit -> v1.0.0 -> GitHub release -> platform assets
 ```
 
-Attach Windows and Linux packages to the same release. During testing, mark `2026.0.x` as prerelease.
+Attach Windows and Linux packages to the same release. Mark suffixed SemVer test versions as prereleases; `1.0.0` is a final-version release. Preserve historical `2026.0.x` prerelease records unchanged.
 
 ## Windows x64 VMware test checklist
 
@@ -158,7 +158,7 @@ Attach Windows and Linux packages to the same release. During testing, mark `202
    - .NET 10 Hosting Bundle (included in Windows packages; installation requires consent);
    - SQL Server reachable from the VM;
    - 64-bit Windows PowerShell 5.1 (Desktop edition).
-2. Download `Arkanum-2026.1.2-full-windows-x64.zip` and matching `.sha256` when published.
+2. Download `Arkanum-1.0.0-full-windows-x64.zip` and matching `.sha256` when published.
 3. Verify checksum.
 4. Extract the ZIP.
 5. Run PowerShell as Administrator.
@@ -169,7 +169,7 @@ Set-ExecutionPolicy -Scope Process Bypass
 .\installers\windows\Install-ArkanumGui.ps1
 ```
 
-7. Choose `Auto detect` for first install or `Upgrade existing installation` if rerunning over `2026.0.2`.
+7. Choose `Auto detect` for first install or `Upgrade existing installation` for the authorized `2026.1.2` -> `1.0.0` transition. Other legacy source versions are not silently assumed compatible. `Repair` requires equal version precedence.
 8. Complete SQL/IIS settings.
 9. Confirm Recovery Key acknowledgment.
 10. After install, open:
@@ -184,5 +184,5 @@ https://localhost:443/setup
 
 ```text
 C:\ProgramData\Arkanum\config\install-state.json
-C:\ProgramData\Arkanum\logs\upgrade-report-2026.1.2.txt
+C:\ProgramData\Arkanum\logs\upgrade-report-1.0.0.txt
 ```

@@ -27,6 +27,11 @@ assert _spec is not None and _spec.loader is not None
 _prerequisites = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_prerequisites)
 
+_version_spec = importlib.util.spec_from_file_location("arkanum_version", Path(__file__).resolve().parents[1] / "installers/linux/arkanum_version.py")
+assert _version_spec is not None and _version_spec.loader is not None
+_versions = importlib.util.module_from_spec(_version_spec)
+_version_spec.loader.exec_module(_versions)
+
 ASSET_TEMPLATES = {
     ("full", "windows-x64"): "Arkanum-{version}-full-windows-x64.zip",
     ("update", "windows-x64"): "Arkanum-{version}-update-windows-x64.zip",
@@ -61,6 +66,11 @@ def copy_tree(src: Path, dst: Path) -> None:
 
 
 def write_manifest(stage: Path, version: str, package_kind: str, platform: str, minimum_installed_version: str | None) -> None:
+    _versions.validate_target(version)
+    if minimum_installed_version is not None:
+        _versions.parse(minimum_installed_version)
+        if _versions.compare(minimum_installed_version, version) > 0:
+            raise ValueError("minimumInstalledVersion exceeds package version")
     manifest = {
         "product": "Arkanum",
         "version": version,
@@ -103,6 +113,7 @@ def make_tar(stage: Path, out_path: Path) -> None:
 
 
 def build_assets(args: argparse.Namespace) -> list[Path]:
+    _versions.validate_target(args.version)
     root = Path(args.root).resolve()
     out_dir = Path(args.out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -132,7 +143,7 @@ def build_assets(args: argparse.Namespace) -> list[Path]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Create Arkanum full/update release assets with package manifests.")
-    parser.add_argument("--version", required=True)
+    parser.add_argument("--version", default="1.0.0")
     parser.add_argument("--minimum-installed-version", default=None)
     parser.add_argument("--root", default=Path(__file__).resolve().parents[1])
     parser.add_argument("--windows-publish", default="publish/arkanum-windows-x64")

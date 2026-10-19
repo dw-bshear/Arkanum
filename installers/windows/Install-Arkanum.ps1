@@ -9,7 +9,7 @@ param(
     [string]$HttpsCertificateThumbprint = '',
     [string]$SqlConnectionString = '',
     [string]$AppPoolName = 'ArkanumAppPool',
-    [string]$PackageVersion = '2026.1.2',
+    [string]$PackageVersion = '1.0.0',
     [ValidateSet('full','update','auto')][string]$PackageKind = 'auto',
     [switch]$PreflightOnly,
     [switch]$EnableIisFeatures,
@@ -35,6 +35,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Arkanum-Prerequisites.ps1')
+. (Join-Path $PSScriptRoot 'Arkanum-Version.ps1')
 Assert-ArkanumWindowsHost
 $packageRoot = $PackagePath
 if ((Split-Path $PackagePath -Leaf) -eq 'app') { $packageRoot = Split-Path $PackagePath -Parent }
@@ -158,7 +159,8 @@ if (Test-Path $manifestPath) {
     try {
         $packageManifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
         if ($PackageKind -eq 'auto' -and ![string]::IsNullOrWhiteSpace($packageManifest.packageKind)) { $PackageKind = $packageManifest.packageKind }
-        if (![string]::IsNullOrWhiteSpace($packageManifest.version)) { $PackageVersion = $packageManifest.version }
+        if ([string]::IsNullOrWhiteSpace($packageManifest.version)) { throw 'Package manifest version is required.' }
+        $PackageVersion = $packageManifest.version
     } catch { throw "Package manifest could not be read: $manifestPath" }
 }
 if ($PackageKind -eq 'auto') { $PackageKind = 'full' }
@@ -181,6 +183,7 @@ $reportPath = Join-Path $logDir "upgrade-report-$PackageVersion.txt"
 
 $existingInstall = (Test-Path $script:StatePath) -or (Test-Path (Join-Path $InstallPath 'Arkanum.Web.dll'))
 $existingSqlConnectionPath = Join-Path $secretDir 'sql-connection.txt'
+$preserveSqlConnectionFile = $existingInstall -and !$SqlConnectionString -and !$SqlServerHost -and (Test-Path $existingSqlConnectionPath)
 $existingMasterKeyPath = Join-Path $secretDir 'master-key.txt'
 $installedVersion = 'unknown'
 if (Test-Path $script:StatePath) {
@@ -198,6 +201,15 @@ if ($PackageKind -eq 'update') {
 }
 if ($Action -eq 'auto') {
     if ($existingInstall) { $Action = 'upgrade' } else { $Action = 'install' }
+}
+
+Assert-ArkanumPackageVersion $PackageVersion
+if ($existingInstall -and $Action -ne 'side-by-side') {
+    Assert-ArkanumVersionTransition -InstalledVersion $installedVersion -PackageVersion $PackageVersion -Action $Action -MinimumInstalledVersion $packageManifest.minimumInstalledVersion
+}
+if ($Action -in @('upgrade','repair') -and !$existingInstall) { throw 'Upgrade/repair requires an existing installation.' }
+if ($Action -in @('upgrade','repair') -and !$SqlConnectionString -and !$SqlServerHost -and (Test-Path $existingSqlConnectionPath)) {
+    $SqlConnectionString = Get-Content $existingSqlConnectionPath -Raw
 }
 
 if ($Action -eq 'restore') {
@@ -325,6 +337,12 @@ if (Test-Path "IIS:\AppPools\$AppPoolName") {
 }
 
 Copy-Item -Path (Join-Path $PackagePath '*') -Destination $InstallPath -Recurse -Force
+if ($Action -in @('upgrade','repair')) {
+    # Backup precedes replacement; restore operator configuration over defaults.
+    Get-ChildItem -Path (Join-Path $backupPath 'app') -Filter 'appsettings*.json' -File | Copy-Item -Destination $InstallPath -Force
+    $savedWebConfig = Join-Path $backupPath 'app\web.config'
+    if (Test-Path $savedWebConfig) { Copy-Item $savedWebConfig (Join-Path $InstallPath 'web.config') -Force }
+}
 
 $keyPath = Join-Path $secretDir 'master-key.txt'
 if ($Action -eq 'restore') {
@@ -348,7 +366,9 @@ if (!(Test-Path "IIS:\AppPools\$AppPoolName")) {
     New-WebAppPool -Name $AppPoolName | Out-Null
 }
 Set-ItemProperty "IIS:\AppPools\$AppPoolName" -Name managedRuntimeVersion -Value ''
-Set-ItemProperty "IIS:\AppPools\$AppPoolName" -Name processModel.identityType -Value ApplicationPoolIdentity
+if ($Action -notin @('upgrade','repair')) {
+    Set-ItemProperty "IIS:\AppPools\$AppPoolName" -Name processModel.identityType -Value ApplicationPoolIdentity
+}
 
 $aclTargets = @($ProgramDataPath, $secretDir, $configDir, $logDir)
 foreach ($target in $aclTargets) {
@@ -360,7 +380,9 @@ foreach ($target in $aclTargets) {
 }
 
 $connectionStringPath = Join-Path $secretDir 'sql-connection.txt'
-Set-Content -Path $connectionStringPath -Value $SqlConnectionString -NoNewline
+if (!$preserveSqlConnectionFile -or $Action -notin @('upgrade','repair')) {
+    Set-Content -Path $connectionStringPath -Value $SqlConnectionString -NoNewline
+}
 Protect-ArkanumSecretFile -Path $keyPath
 Protect-ArkanumSecretFile -Path $connectionStringPath
 
@@ -370,7 +392,9 @@ $runtimeJson = @{
     ARKANUM_MASTER_KEY_FILE = $keyPath
     ConnectionStrings__DefaultConnection_FILE = $connectionStringPath
 } | ConvertTo-Json
-Set-Content -Path $configPath -Value $runtimeJson
+if ($Action -notin @('upgrade','repair') -or !(Test-Path $configPath)) {
+    Set-Content -Path $configPath -Value $runtimeJson
+}
 
 $escapedKeyPath = [System.Security.SecurityElement]::Escape($keyPath)
 $escapedConnectionStringPath = [System.Security.SecurityElement]::Escape($connectionStringPath)
@@ -392,6 +416,9 @@ $webConfig = @"
   </system.webServer>
 </configuration>
 "@
+if ($Action -in @('upgrade','repair')) {
+    Write-Host 'Preserving existing IIS configuration and bindings.'
+} else {
 Set-Content -Path (Join-Path $InstallPath 'web.config') -Value $webConfig -Encoding UTF8
 
 $sslFlags = if ([string]::IsNullOrWhiteSpace($HttpsHostName)) { 0 } else { 1 }
@@ -416,6 +443,7 @@ if (Test-Path $bindingPath) {
 }
 $httpsCertificate | New-Item $bindingPath -SSLFlags $sslFlags | Out-Null
 Set-WebConfigurationProperty -Filter 'system.webServer/security/access' -Name sslFlags -Value 'Ssl' -PSPath "IIS:\Sites\$SiteName"
+}
 
 $state = [ordered]@{
     product = 'Arkanum'
