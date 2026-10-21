@@ -40,6 +40,7 @@
     <link rel="apple-touch-icon" href="~/images/apple-touch-icon.png" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/feedback.css" asp-append-version="true" />
 </head>
 <body class="@ViewData["BodyClass"]">
     <header class="app-header">
@@ -61,6 +62,7 @@
                     <div class="header-actions">
                         @if (User?.Identity?.IsAuthenticated == true)
                         {
+                            @await Component.InvokeAsync("Feedback")
                             <span class="identity-chip">@User.Identity.Name</span>
                             <form method="post" asp-page="/Logout"><button class="link-button" type="submit">Sign out</button></form>
                         }
@@ -90,6 +92,7 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/feedback.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

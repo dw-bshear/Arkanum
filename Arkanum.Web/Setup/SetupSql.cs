@@ -161,7 +161,7 @@ public static class SetupSql
         }
         foreach (Match index in Regex.Matches(schema, @"CREATE (UNIQUE )?INDEX \[(\w+)\] ON \[(\w+)\] \((.*?)\)"))
             indexes.Add(new(index.Groups[3].Value, index.Groups[2].Value, Names(index.Groups[4].Value), false, index.Groups[1].Success));
-        if (tables.Count != 12 || columns.Count == 0 || indexes.Count != 16 || tables.Distinct(StringComparer.Ordinal).Count() != tables.Count)
+        if (tables.Count != 13 || columns.Count == 0 || indexes.Count != 18 || tables.Distinct(StringComparer.Ordinal).Count() != tables.Count)
             throw new SetupFailure("schema");
         return new(tables, columns, indexes);
     }

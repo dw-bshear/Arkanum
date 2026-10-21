@@ -11,6 +11,28 @@ public sealed class ArkanumDbContext(DbContextOptions<ArkanumDbContext> options)
     public DbSet<VaultEntity> Vaults => Set<VaultEntity>();
     public DbSet<VaultFolderEntity> VaultFolders => Set<VaultFolderEntity>();
     public DbSet<VaultItemEntity> VaultItems => Set<VaultItemEntity>();
+    public DbSet<CredentialVersionEntity> CredentialVersions => Set<CredentialVersionEntity>();
+
+    // EnsureCreated does not upgrade existing SQLite files. Call after EnsureCreated at startup.
+    // SQL Server schema changes belong exclusively to the controlled installer/setup identity.
+    public async Task EnsureCredentialHistorySchemaAsync(CancellationToken cancellationToken = default)
+    {
+        if (!Database.IsSqlite()) return;
+        await Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "CredentialVersions" (
+                "Id" TEXT NOT NULL CONSTRAINT "PK_CredentialVersions" PRIMARY KEY,
+                "VaultId" TEXT NOT NULL,
+                "ItemId" TEXT NOT NULL,
+                "Revision" INTEGER NOT NULL,
+                "SavedAt" TEXT NOT NULL,
+                "EncryptedPayload" TEXT NOT NULL,
+                "EncryptionKeyId" TEXT NOT NULL,
+                "EncryptionAlgorithm" TEXT NOT NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_CredentialVersions_ItemId_Revision"
+                ON "CredentialVersions" ("ItemId", "Revision");
+            """, cancellationToken);
+    }
     public DbSet<VaultMemberEntity> VaultMembers => Set<VaultMemberEntity>();
     public DbSet<DashboardWidgetEntity> DashboardWidgets => Set<DashboardWidgetEntity>();
     public DbSet<PortalSettingEntity> PortalSettings => Set<PortalSettingEntity>();
@@ -42,6 +64,11 @@ public sealed class ArkanumDbContext(DbContextOptions<ArkanumDbContext> options)
         modelBuilder.Entity<VaultFolderEntity>().HasKey(f => f.Id);
         modelBuilder.Entity<VaultFolderEntity>().HasIndex(f => new { f.VaultId, f.Name });
         modelBuilder.Entity<VaultItemEntity>().HasKey(i => i.Id);
+        modelBuilder.Entity<VaultItemEntity>().Property(i => i.EncryptedSecret).IsConcurrencyToken();
+        modelBuilder.Entity<CredentialVersionEntity>().HasKey(v => v.Id);
+        modelBuilder.Entity<CredentialVersionEntity>().HasIndex(v => new { v.ItemId, v.Revision }).IsUnique();
+        modelBuilder.Entity<CredentialVersionEntity>().Property(v => v.EncryptionKeyId).HasMaxLength(128);
+        modelBuilder.Entity<CredentialVersionEntity>().Property(v => v.EncryptionAlgorithm).HasMaxLength(64);
         modelBuilder.Entity<VaultMemberEntity>().HasKey(m => new { m.VaultId, m.UserKey });
         modelBuilder.Entity<VaultMemberEntity>().HasIndex(m => m.UserKey);
         modelBuilder.Entity<DashboardWidgetEntity>().HasKey(w => w.WidgetKey);
@@ -151,6 +178,19 @@ public sealed class VaultItemEntity
     public DateTimeOffset EncryptedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateOnly? ResetNotificationDate { get; set; }
     public DateTimeOffset? ResetNotificationSentAt { get; set; }
+}
+
+public sealed class CredentialVersionEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid VaultId { get; set; }
+    public Guid ItemId { get; set; }
+    public long Revision { get; set; }
+    public DateTimeOffset SavedAt { get; set; }
+    // Title, username and password are a single authenticated encrypted JSON payload.
+    public string EncryptedPayload { get; set; } = string.Empty;
+    public string EncryptionKeyId { get; set; } = "env:v1";
+    public string EncryptionAlgorithm { get; set; } = "AES-256-GCM";
 }
 
 public sealed class VaultMemberEntity

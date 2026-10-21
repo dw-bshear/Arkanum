@@ -73,6 +73,7 @@
     <div class="notice success">@Model.FolderStatus</div>
 }
 
+<div asp-validation-summary="All" class="text-danger"></div>
 <div class="vault-workspace">
     <section id="vault-contents" class="feature-card credential-tree-card vault-section-card vault-section-contents">
         <div class="access-card-header">
@@ -97,7 +98,8 @@
         <div class="vault-tree" role="tree" aria-label="Vault folders and credential entries">
         @foreach (var folder in Model.Vault.Folders)
         {
-            var folderContainsRevealedItem = Model.RevealedItemId is Guid revealedFolderItemId && folder.Items.Any(item => item.Id == revealedFolderItemId);
+            var folderContainsRevealedItem = Model.RevealedItemId is Guid revealedFolderItemId && folder.Items.Any(item => item.Id == revealedFolderItemId)
+                || Model.HistoryItemId is Guid historyFolderItemId && folder.Items.Any(item => item.Id == historyFolderItemId);
             <details class="tree-folder" data-detail-key="folder-@folder.Id" open="@folderContainsRevealedItem">
                 <summary><span class="tree-twist">▾</span><strong>@folder.Name</strong><span>@folder.Items.Count item@(folder.Items.Count == 1 ? string.Empty : "s")</span></summary>
                 @if (folder.Items.Any())
@@ -106,7 +108,8 @@
                     var secureNoteItems = folder.Items.Where(item => item.Type == VaultItemType.SecureNote).OrderBy(item => item.Title).ToArray();
                     foreach (var group in new[] { (Name: "Credentials", Key: "credentials", Items: credentialItems), (Name: "Secure Notes", Key: "secure-notes", Items: secureNoteItems) })
                     {
-                        var groupContainsRevealedItem = Model.RevealedItemId is Guid revealedGroupItemId && group.Items.Any(item => item.Id == revealedGroupItemId);
+                        var groupContainsRevealedItem = Model.RevealedItemId is Guid revealedGroupItemId && group.Items.Any(item => item.Id == revealedGroupItemId)
+                            || Model.HistoryItemId is Guid historyGroupItemId && group.Items.Any(item => item.Id == historyGroupItemId);
                         <details class="tree-subfolder" data-detail-key="folder-@folder.Id-@group.Key" open="@groupContainsRevealedItem">
                             <summary><span class="tree-twist">▾</span><strong>@group.Name</strong><span>@group.Items.Length item@(group.Items.Length == 1 ? string.Empty : "s")</span></summary>
                             @if (group.Items.Any())
@@ -125,6 +128,65 @@
                                             else
                                             {
                                                 <span>@item.Type</span>
+                                            }
+                                            @if (item.Type == VaultItemType.LoginCredential && Model.CanAddOrChangeVaultContents && Model.CanRevealSecrets && !Model.Vault.IsRetired)
+                                            {
+                                                <details>
+                                                    <summary class="secondary-action small">Edit credential</summary>
+                                                    <form method="post" asp-page-handler="EditCredential" asp-route-id="@Model.Vault.Id" class="card-form" data-preserve-scroll>
+                                                        <input type="hidden" name="ItemId" value="@item.Id" />
+                                                        <label>Title <input name="Title" value="@item.Title" maxlength="256" required /></label>
+                                                        <label>Username <input name="Username" value="@item.Username" maxlength="256" autocomplete="off" /></label>
+                                                        <label>Folder
+                                                            <select name="FolderId">
+                                                            @foreach (var editFolder in Model.Vault.Folders)
+                                                            {
+                                                                <option value="@editFolder.Id" selected="@(editFolder.Id == folder.Id)">@editFolder.Name</option>
+                                                            }
+                                                            </select>
+                                                        </label>
+                                                        <label>New password <input name="SecretValue" type="password" autocomplete="new-password" /></label>
+                                                        <p class="form-help">Leave the password blank to keep it unchanged. Saving retains the five most recent versions, including the current version.</p>
+                                                        <button class="primary-action" type="submit">Save changes</button>
+                                                    </form>
+                                                </details>
+                                            }
+                                            @if (item.Type == VaultItemType.LoginCredential && Model.CanRevealSecrets && !Model.Vault.IsRetired)
+                                            {
+                                                <form method="post" asp-page-handler="History" asp-route-id="@Model.Vault.Id" data-preserve-scroll>
+                                                    <input type="hidden" name="ItemId" value="@item.Id" />
+                                                    <button class="secondary-action small" type="submit">Saved version history</button>
+                                                </form>
+                                                @if (Model.HistoryItemId == item.Id)
+                                                {
+                                                    <section aria-label="Saved credential versions">
+                                                        <p>Five most recent saved versions, newest first, including the current version. Protected values stay hidden until you reveal a version.</p>
+                                                        @if (Model.CredentialHistory.Count == 0)
+                                                        {
+                                                            <p>No history saved yet. The original credential will be preserved on its first edit.</p>
+                                                        }
+                                                        @foreach (var version in Model.CredentialHistory)
+                                                        {
+                                                            <div>
+                                                                <span>Version @version.Revision — @version.SavedAt.ToString("u") @(version == Model.CredentialHistory[0] ? "(current)" : "")</span>
+                                                                <form method="post" asp-page-handler="RevealHistory" asp-route-id="@Model.Vault.Id" data-preserve-scroll>
+                                                                    <input type="hidden" name="ItemId" value="@item.Id" />
+                                                                    <input type="hidden" name="VersionId" value="@version.Id" />
+                                                                    <button class="secondary-action small" type="submit">Reveal saved version</button>
+                                                                </form>
+                                                                @if (Model.VersionId == version.Id && Model.RevealedHistory is not null)
+                                                                {
+                                                                    <dl>
+                                                                        <dt>Saved title</dt><dd>@Model.RevealedHistory.Title</dd>
+                                                                        <dt>Saved username</dt><dd><code>@Model.RevealedHistory.Username</code></dd>
+                                                                        <dt>Saved password</dt><dd><code>@Model.RevealedHistory.Password</code></dd>
+                                                                    </dl>
+                                                                }
+                                                            </div>
+                                                        }
+                                                        <a class="secondary-action small" asp-page="/Vaults/Details" asp-route-id="@Model.Vault.Id">Hide history</a>
+                                                    </section>
+                                                }
                                             }
                                         </div>
                                         @if (Model.CanRevealSecrets)

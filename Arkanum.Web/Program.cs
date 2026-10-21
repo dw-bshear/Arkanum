@@ -43,6 +43,9 @@ builder.Services.AddScoped<VaultAuthorizationService>();
 builder.Services.AddScoped<AdminUserService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<PortalSettingsService>();
+builder.Services.AddScoped<FeedbackService>();
+builder.Services.AddSingleton<FeedbackRateLimiter>();
+builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 builder.Services.AddScoped<FederatedAuthenticationService>();
 builder.Services.AddScoped<DirectoryLdapImportService>();
 builder.Services.AddHostedService<DirectorySyncScheduler>();
@@ -109,6 +112,7 @@ using (var scope = app.Services.CreateScope())
     else if (!isSqlServer)
     {
         db.Database.EnsureCreated();
+        db.EnsureCredentialHistorySchemaAsync().GetAwaiter().GetResult();
     }
 
     scope.ServiceProvider.GetRequiredService<DashboardService>().EnsureDefaultWidgetsAsync(db).GetAwaiter().GetResult();

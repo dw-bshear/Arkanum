@@ -87,6 +87,7 @@ The intended feedback/deployment tracks are:
 
 See:
 
+- [`docs/1.1.0-release.md`](docs/1.1.0-release.md)
 - [`docs/windows-server-2022-setup.md`](docs/windows-server-2022-setup.md)
 - [`docs/1.0.0-release.md`](docs/1.0.0-release.md)
 - [`docs/2026.1.2-release.md`](docs/2026.1.2-release.md)
@@ -100,17 +101,17 @@ See:
 Release packages use a full/update model with matching Windows and Linux naming:
 
 ```text
-Arkanum-1.0.0-full-windows-x64.zip
-Arkanum-1.0.0-update-windows-x64.zip
-Arkanum-1.0.0-full-linux-x64.tar.gz
-Arkanum-1.0.0-update-linux-x64.tar.gz
+Arkanum-1.1.0-full-windows-x64.zip
+Arkanum-1.1.0-update-windows-x64.zip
+Arkanum-1.1.0-full-linux-x64.tar.gz
+Arkanum-1.1.0-update-linux-x64.tar.gz
 ```
 
 Use full packages for first install, side-by-side testing, and restore workflows. Use update packages only against an existing installation; update mode preserves configuration, Recovery Key/master-key material, database connectivity settings, and service binding settings while creating a pre-upgrade backup/report.
 
 ## Versioning
 
-The current release source is **1.0.0**, the authorized start of feature-based **MAJOR.MINOR.PATCH** with no annual increment. The installers explicitly recognize legacy **2026.1.2 -> 1.0.0** as an upgrade while rejecting real downgrades and unknown source families. Same-version repair preserves state. Older tags/releases/assets remain immutable, and their security evidence is not relabeled as 1.0.0 evidence. See [`docs/versioning.md`](docs/versioning.md) for supported paths, native package constraints, rollback and outstanding acceptance gates. Source preparation does not itself publish a release or establish native Windows acceptance.
+The current source version is **1.1.0**, adding encrypted credential history and configurable user feedback to the feature-based **MAJOR.MINOR.PATCH** family. There is no annual increment. The installers recognize legacy **2026.1.2 -> 1.0.0 or later** as an upgrade while rejecting real downgrades and unknown source families. Same-version repair preserves state. Older tags/releases/assets remain immutable, and their security evidence is not relabeled as evidence for this version. See [`docs/versioning.md`](docs/versioning.md) for supported paths, native package constraints, rollback and outstanding acceptance gates, and [`docs/1.1.0-release.md`](docs/1.1.0-release.md) for feature setup. Source preparation does not itself publish a release or establish native Windows acceptance.
 
 ## Local development
 

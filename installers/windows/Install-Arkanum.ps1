@@ -9,7 +9,7 @@ param(
     [string]$HttpsCertificateThumbprint = '',
     [string]$SqlConnectionString = '',
     [string]$AppPoolName = 'ArkanumAppPool',
-    [string]$PackageVersion = '1.0.0',
+    [string]$PackageVersion = '1.1.0',
     [ValidateSet('full','update','auto')][string]$PackageKind = 'auto',
     [switch]$PreflightOnly,
     [switch]$EnableIisFeatures,

@@ -6,6 +6,7 @@ using System.Security.Claims;
 
 namespace Arkanum.Web.Pages.Vaults;
 
+[ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
 public class DetailsModel(VaultRepository repository, VaultItemService itemService, VaultExportService exportService, Arkanum.Web.Data.ArkanumDbContext db) : PageModel
 {
     public VaultDetails? Vault { get; private set; }
@@ -20,6 +21,77 @@ public class DetailsModel(VaultRepository repository, VaultItemService itemServi
     public bool IsReadOnlyAuditorView { get; private set; }
     public string? InviteStatus { get; private set; }
     public string? FolderStatus { get; private set; }
+
+    public Guid? HistoryItemId { get; private set; }
+    public IReadOnlyList<CredentialVersionSummary> CredentialHistory { get; private set; } = [];
+    public CredentialVersionValues? RevealedHistory { get; private set; }
+    [BindProperty] public Guid VersionId { get; set; }
+
+    public async Task<IActionResult> OnPostEditCredentialAsync(Guid id)
+    {
+        NoStore();
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                // Validate role/vault/item boundaries even for malformed posts, without decrypting.
+                await itemService.ListCredentialHistoryAsync(db, id, ItemId, ActorKey(), CurrentRoles());
+                return await LoadPageAsync(id);
+            }
+            await itemService.EditLoginCredentialAsync(db, id, ItemId, FolderId, Title ?? string.Empty, Username ?? string.Empty,
+                SecretValue, ActorKey(), CurrentRoles(), DateTimeOffset.UtcNow);
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (ArgumentException)
+        {
+            ModelState.AddModelError(string.Empty, "A title is required; title and username must be at most 256 characters.");
+            return await LoadPageAsync(id);
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+        {
+            db.ChangeTracker.Clear();
+            ModelState.AddModelError(string.Empty, "The credential could not be saved. Reload the vault and try again; another save may have occurred.");
+            return await LoadPageAsync(id);
+        }
+        finally
+        {
+            SecretValue = null;
+            ModelState.Remove(nameof(SecretValue));
+        }
+        return RedirectToPage(new { id });
+    }
+
+    public async Task<IActionResult> OnPostHistoryAsync(Guid id)
+    {
+        NoStore();
+        try
+        {
+            CredentialHistory = await itemService.ListCredentialHistoryAsync(db, id, ItemId, ActorKey(), CurrentRoles());
+            HistoryItemId = ItemId;
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        return await LoadPageAsync(id);
+    }
+
+    public async Task<IActionResult> OnPostRevealHistoryAsync(Guid id)
+    {
+        NoStore();
+        try
+        {
+            CredentialHistory = await itemService.ListCredentialHistoryAsync(db, id, ItemId, ActorKey(), CurrentRoles());
+            RevealedHistory = await itemService.RevealCredentialVersionAsync(db, id, ItemId, VersionId, ActorKey(), CurrentRoles(), DateTimeOffset.UtcNow);
+            HistoryItemId = ItemId;
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        // Plaintext exists for this explicit POST response only, never a route/TempData value.
+        return await LoadPageAsync(id);
+    }
+
+    private void NoStore()
+    {
+        Response.Headers.CacheControl = "no-store, no-cache, max-age=0";
+        Response.Headers.Pragma = "no-cache";
+    }
 
     [BindProperty] public Guid FolderId { get; set; }
     [BindProperty] public string? Title { get; set; }
@@ -181,6 +253,7 @@ public class DetailsModel(VaultRepository repository, VaultItemService itemServi
 
     private async Task<IActionResult> LoadPageAsync(Guid id)
     {
+        NoStore();
         var roles = CurrentRoles();
         if (!await repository.CanAccessVaultAsync(db, id, ActorKey(), roles)) return Forbid();
         Vault = await repository.GetVaultDetailsAsync(db, id);

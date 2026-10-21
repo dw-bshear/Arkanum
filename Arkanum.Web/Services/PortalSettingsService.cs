@@ -8,6 +8,9 @@ namespace Arkanum.Web.Services;
 
 public static class PortalSettingKeys
 {
+    public const string FeedbackEnabled = "feedback.enabled";
+    public const string FeedbackRecipient = "feedback.recipient";
+    public const string FeedbackQuestions = "feedback.questions";
     public const string DashboardHeroTitle = "dashboard.hero.title";
     public const string DashboardHeroDescription = "dashboard.hero.description";
     public const string LdapHost = "ldap.host";
@@ -59,6 +62,7 @@ public static class PortalSettingKeys
     public const string RequireExternalMfa = "federation.requireExternalMfa";
 }
 
+public sealed record FeedbackPublicSettings(bool Enabled, IReadOnlyList<string> Questions);
 public sealed record DashboardTextSettings(string HeroTitle, string HeroDescription);
 public sealed record LdapSettings(string Host, string Port, string BaseDn, string BindDn, string BindPassword, string UserFilter, string LoginAttribute, string DisplayNameAttribute, string EmailAttribute, bool HasBindPassword = false, string SecurityMode = "LDAPS", bool VerifyServerCertificate = true, bool AllowInsecureForDevelopment = false);
 public sealed record LdapSyncSettings(string Interval);
@@ -92,6 +96,9 @@ public sealed class PortalSettingsService(SecretEncryptionService secretEncrypti
 
     private static readonly IReadOnlyDictionary<string, string> Defaults = new Dictionary<string, string>
     {
+        [PortalSettingKeys.FeedbackEnabled] = "false",
+        [PortalSettingKeys.FeedbackRecipient] = "",
+        [PortalSettingKeys.FeedbackQuestions] = "",
         [PortalSettingKeys.DashboardHeroTitle] = "Your starting point for vault work.",
         [PortalSettingKeys.DashboardHeroDescription] = "Open the vaults available to you and keep shared credentials organized without turning the landing page into an administration console.",
         [PortalSettingKeys.LdapHost] = string.Empty,
@@ -167,6 +174,35 @@ public sealed class PortalSettingsService(SecretEncryptionService secretEncrypti
     {
         var settings = await GetAllAsync(db);
         return new DashboardTextSettings(settings[PortalSettingKeys.DashboardHeroTitle], settings[PortalSettingKeys.DashboardHeroDescription]);
+    }
+
+    // Public projection deliberately has no recipient property, including during JSON serialization.
+    public async Task<FeedbackPublicSettings> GetFeedbackPublicAsync(ArkanumDbContext db)
+    {
+        var values = await db.PortalSettings.AsNoTracking()
+            .Where(s => s.SettingKey == PortalSettingKeys.FeedbackEnabled || s.SettingKey == PortalSettingKeys.FeedbackQuestions)
+            .ToDictionaryAsync(s => s.SettingKey, s => s.Value);
+        return new(values.GetValueOrDefault(PortalSettingKeys.FeedbackEnabled) == "true",
+            ParseFeedbackQuestions(values.GetValueOrDefault(PortalSettingKeys.FeedbackQuestions) ?? ""));
+    }
+
+    public static string[] ParseFeedbackQuestions(string questions) => questions.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+    public static bool IsSingleFeedbackRecipient(string recipient) => recipient.Length <= 254 && recipient.IndexOfAny(['\r', '\n', ',', ';']) < 0
+        && System.Net.Mail.MailAddress.TryCreate(recipient, out var parsed) && parsed.Address == recipient;
+
+    public async Task SaveFeedbackAsync(ArkanumDbContext db, bool enabled, string recipient, string questions, string actorUserKey)
+    {
+        recipient = recipient.Trim();
+        if ((enabled || recipient.Length > 0) && !IsSingleFeedbackRecipient(recipient)) throw new ArgumentException("Enter one valid recipient email address.");
+        var parsed = ParseFeedbackQuestions(questions);
+        if (questions.Length > 1254 || parsed.Length > 5 || parsed.Any(q => q.Length > 250)) throw new ArgumentException("Use at most five questions, each up to 250 characters.");
+        if (string.IsNullOrWhiteSpace(actorUserKey) || actorUserKey == "anonymous") throw new UnauthorizedAccessException();
+        await SetAsync(db, new Dictionary<string,string> {
+            [PortalSettingKeys.FeedbackEnabled] = enabled ? "true" : "false",
+            [PortalSettingKeys.FeedbackRecipient] = recipient,
+            [PortalSettingKeys.FeedbackQuestions] = string.Join("\n", parsed)
+        }, actorUserKey);
     }
 
     public async Task SaveDashboardTextAsync(ArkanumDbContext db, string title, string description, string actorUserKey)

@@ -88,6 +88,21 @@ CREATE TABLE [VaultItems] (
 );
 GO
 
+IF OBJECT_ID(N'CredentialVersions', N'U') IS NULL
+CREATE TABLE [CredentialVersions] (
+    [Id] uniqueidentifier NOT NULL CONSTRAINT [PK_CredentialVersions] PRIMARY KEY,
+    [VaultId] uniqueidentifier NOT NULL,
+    [ItemId] uniqueidentifier NOT NULL,
+    [Revision] bigint NOT NULL,
+    [SavedAt] datetimeoffset NOT NULL,
+    [EncryptedPayload] nvarchar(max) NOT NULL,
+    [EncryptionKeyId] nvarchar(128) NOT NULL,
+    [EncryptionAlgorithm] nvarchar(64) NOT NULL
+);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_CredentialVersions_ItemId_Revision' AND object_id = OBJECT_ID(N'CredentialVersions')) CREATE UNIQUE INDEX [IX_CredentialVersions_ItemId_Revision] ON [CredentialVersions] ([ItemId], [Revision]);
+GO
+
 IF OBJECT_ID(N'VaultMembers', N'U') IS NULL
 CREATE TABLE [VaultMembers] (
     [VaultId] uniqueidentifier NOT NULL,

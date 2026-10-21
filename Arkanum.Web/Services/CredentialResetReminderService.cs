@@ -6,7 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Arkanum.Web.Services;
 
-public sealed record EmailMessage(string To, string Subject, string Body);
+public sealed record EmailAttachment(string FileName, string ContentType, byte[] Content);
+public sealed record EmailMessage(string To, string Subject, string Body, IReadOnlyList<EmailAttachment>? Attachments = null, bool RequireDelivery = false);
 
 public interface IEmailSender
 {
@@ -27,7 +28,11 @@ public sealed class SmtpEmailSender(IServiceScopeFactory scopeFactory) : IEmailS
         var settingsService = scope.ServiceProvider.GetRequiredService<PortalSettingsService>();
         var settings = await settingsService.GetAllAsync(db);
         var mail = PortalSettingsService.ToMail(settings);
-        if (string.IsNullOrWhiteSpace(mail.SmtpHost) || string.IsNullOrWhiteSpace(mail.FromAddress)) return;
+        if (string.IsNullOrWhiteSpace(mail.SmtpHost) || string.IsNullOrWhiteSpace(mail.FromAddress))
+        {
+            if (message.RequireDelivery) throw new InvalidOperationException("Email delivery is unavailable.");
+            return;
+        }
 
         using var smtp = new SmtpClient(mail.SmtpHost, int.TryParse(mail.SmtpPort, out var port) ? port : 587)
         {
@@ -43,6 +48,11 @@ public sealed class SmtpEmailSender(IServiceScopeFactory scopeFactory) : IEmailS
             Subject = message.Subject,
             Body = message.Body
         };
+        foreach (var attachment in message.Attachments ?? [])
+        {
+            // MailMessage owns Attachment and its in-memory stream through send/failure/disposal.
+            mailMessage.Attachments.Add(new Attachment(new MemoryStream(attachment.Content, writable: false), attachment.FileName, attachment.ContentType));
+        }
         await smtp.SendMailAsync(mailMessage, cancellationToken);
     }
 }

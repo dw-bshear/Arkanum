@@ -1,0 +1,8 @@
+#feedback-dialog { width: min(38rem, calc(100vw - 2rem)); max-height: 90vh; padding: 1.5rem; border: 1px solid var(--accent); border-radius: 1rem; background: var(--panel); color: var(--text); overflow-y: auto; }
+#feedback-dialog::backdrop { background: rgb(0 0 0 / 55%); }
+#feedback-form { display: grid; gap: .65rem; }
+#feedback-form textarea, #feedback-form input { width: 100%; max-width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--accent); border-radius: .35rem; padding: .5rem; }
+.feedback-heading, .feedback-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.feedback-heading button { background: transparent; color: inherit; border: 0; font-size: 1.5rem; }
+#feedback-status:empty { display: none; }
+#feedback-form p { margin: 0; font-size: .9rem; }

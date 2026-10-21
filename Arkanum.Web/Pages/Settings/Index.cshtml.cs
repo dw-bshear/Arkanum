@@ -34,6 +34,29 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
     public int DirectoryUserCount { get; private set; }
     public int LocalUserCount { get; private set; }
 
+    [BindProperty] public bool FeedbackEnabled { get; set; }
+    [BindProperty] public string? FeedbackRecipient { get; set; }
+    [BindProperty] public string? FeedbackQuestions { get; set; }
+
+    public async Task<IActionResult> OnPostFeedbackAsync()
+    {
+        await LoadRolesAsync();
+        if (!CanManageFeatureVisibility) return Forbid();
+        if (!ModelState.IsValid) { await LoadAsync(); return Page(); }
+        try
+        {
+            await portalSettings.SaveFeedbackAsync(db, FeedbackEnabled, FeedbackRecipient ?? "", FeedbackQuestions ?? "", ActorKey());
+        }
+        catch (ArgumentException ex)
+        {
+            ModelState.AddModelError("", ex.Message);
+            await LoadAsync();
+            return Page();
+        }
+        TempData["Status"] = "Feedback settings saved.";
+        return RedirectToSettingsTab("notifications");
+    }
+
     [BindProperty] public string? WidgetKey { get; set; }
     [BindProperty] public bool Enabled { get; set; }
     [BindProperty] public string? Title { get; set; }
@@ -366,6 +389,12 @@ public class IndexModel(ArkanumDbContext db, DashboardService dashboardService, 
         var visibleWidgets = Widgets.Where(w => w.IsVisibleTo(CurrentRoles)).OrderBy(w => w.SortOrder).ToArray();
         AvailableFeatures = visibleWidgets.Select(SettingsFeatureLink.FromWidget).ToArray();
         var settings = await portalSettings.GetAllAsync(db);
+        if (CanManageFeatureVisibility)
+        {
+            FeedbackEnabled = settings[PortalSettingKeys.FeedbackEnabled] == "true";
+            FeedbackRecipient = settings[PortalSettingKeys.FeedbackRecipient];
+            FeedbackQuestions = settings[PortalSettingKeys.FeedbackQuestions];
+        }
         DashboardText = new DashboardTextSettings(settings[PortalSettingKeys.DashboardHeroTitle], settings[PortalSettingKeys.DashboardHeroDescription]);
         DashboardHeroTitle = DashboardText.HeroTitle;
         DashboardHeroDescription = DashboardText.HeroDescription;

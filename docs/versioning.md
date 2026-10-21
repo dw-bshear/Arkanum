@@ -1,8 +1,8 @@
 # Arkanum versioning policy
 
-## Authorized 1.0.0 source transition
+## Current 1.1.0 source and the 1.0.0 transition
 
-The current release source is **1.0.0**, using feature-based **MAJOR.MINOR.PATCH**. The user has authorized implementing this release after design review; this is no longer a policy-only proposal. Publication, tagging, final-commit packaging and deployment are separate steps owned by the release operator. Source preparation is not proof that a GitHub release has been published or that native Windows acceptance has passed.
+The current source version is **1.1.0**, using feature-based **MAJOR.MINOR.PATCH**. It is a minor feature increment for credential history and configurable feedback; **1.0.0** remains the start of the new version family. Publication, tagging, final-commit packaging and deployment are separate steps owned by the release operator. Source preparation is not proof that a GitHub release has been published or that native Windows acceptance has passed.
 
 Published calendar releases, including **2026.1.2**, remain the immutable legacy family. Do not rename, delete, overwrite, or relabel their tags, releases, assets, checksums, or provenance. The Security Evidence package and evidence tooling scoped to `2026.1.2` remain scoped to that exact release: they are **not 1.0.0 security evidence**.
 
@@ -18,10 +18,10 @@ A major increment resets minor and patch to zero; a minor increment resets patch
 
 ## Actual version decision paths
 
-- `Directory.Build.props` defines application/assembly metadata, initially `1.0.0` / `1.0.0.0`.
+- `Directory.Build.props` defines application/assembly metadata, currently `1.1.0` / `1.1.0.0`.
 - Windows CLI loads `Arkanum-Version.ps1`; the Windows GUI invokes that CLI. Linux CLI invokes `arkanum_version.py`; the Linux GUI invokes that CLI. No separate GUI comparator exists.
 - Both **full and update** archive installers validate target versions and existing-install transitions **before provisioning, prerequisite changes, backups, application replacement or service stops**. Read-only preflight uses the same decision. A full package cannot bypass validation by selecting install/restore over an existing instance.
-- `scripts/create-release-packages.py` defaults to `1.0.0`, validates target/minimum versions and emits all four full/update manifests. `minimumInstalledVersion`, when supplied, is enforced using the same family ordering, not lexical/numeric ordering. Omission is not a claim that arbitrary legacy releases are supported.
+- `scripts/create-release-packages.py` defaults to `1.1.0`, validates target/minimum versions and emits all four full/update manifests. `minimumInstalledVersion`, when supplied, is enforced using the same family ordering, not lexical/numeric ordering. Omission is not a claim that arbitrary legacy releases are supported.
 - The existing native DEB staging builder uses the same target validator and the explicit Debian epoch described below. MSI is not a supported installer/update path.
 
 ### Supported source and action rules

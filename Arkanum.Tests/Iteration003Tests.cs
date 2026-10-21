@@ -26,7 +26,7 @@ public class Iteration003Tests
     {
         await using var db = CreateDb();
         var vaultRepository = new VaultRepository();
-        var vault = await vaultRepository.CreateVaultAsync(db, "Operations", "", "admin-key", DateTimeOffset.Parse("2026-06-26T12:00:00Z"));
+        var vault = await vaultRepository.CreateVaultAsync(db, "Operations", "Operations credentials", "admin-key", DateTimeOffset.Parse("2026-06-26T12:00:00Z"));
         var folder = await db.VaultFolders.SingleAsync(f => f.VaultId == vault.Id);
         var service = new VaultItemService(new SecretEncryptionService(new StaticMasterKeyProvider("0123456789abcdef0123456789abcdef")));
 
@@ -44,7 +44,7 @@ public class Iteration003Tests
     {
         await using var db = CreateDb();
         var vaultRepository = new VaultRepository();
-        var vault = await vaultRepository.CreateVaultAsync(db, "Operations", "", "admin-key", DateTimeOffset.Parse("2026-06-26T12:00:00Z"));
+        var vault = await vaultRepository.CreateVaultAsync(db, "Operations", "Operations credentials", "admin-key", DateTimeOffset.Parse("2026-06-26T12:00:00Z"));
         var folder = await db.VaultFolders.SingleAsync(f => f.VaultId == vault.Id);
         var service = new VaultItemService(new SecretEncryptionService(new StaticMasterKeyProvider("0123456789abcdef0123456789abcdef")));
         var item = await service.CreateLoginCredentialAsync(db, vault.Id, folder.Id, "Firewall", "fw-admin", "SuperSecret!234", "admin-key", DateTimeOffset.Parse("2026-06-26T12:05:00Z"));

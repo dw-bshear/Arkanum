@@ -143,7 +143,7 @@ def build_assets(args: argparse.Namespace) -> list[Path]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Create Arkanum full/update release assets with package manifests.")
-    parser.add_argument("--version", default="1.0.0")
+    parser.add_argument("--version", default="1.1.0")
     parser.add_argument("--minimum-installed-version", default=None)
     parser.add_argument("--root", default=Path(__file__).resolve().parents[1])
     parser.add_argument("--windows-publish", default="publish/arkanum-windows-x64")

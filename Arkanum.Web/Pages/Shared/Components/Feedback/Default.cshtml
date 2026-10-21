@@ -1,0 +1,23 @@
+@model Arkanum.Web.Services.FeedbackPublicSettings
+<button class="secondary-action small" type="button" data-feedback-open aria-haspopup="dialog" aria-controls="feedback-dialog">Feedback</button>
+<dialog id="feedback-dialog" aria-labelledby="feedback-title" aria-describedby="feedback-guidance">
+    <form id="feedback-form" method="post" action="@Url.Page("/Feedback")">
+        @Html.AntiForgeryToken()
+        <div class="feedback-heading"><h2 id="feedback-title">Send feedback</h2><button type="button" data-feedback-close aria-label="Close feedback">×</button></div>
+        <p id="feedback-guidance">Do not include passwords, secrets, or sensitive vault content in feedback or screenshots.</p>
+        <label for="feedback-text">Your feedback (maximum 1000 characters)</label>
+        <textarea id="feedback-text" name="Text" required maxlength="1000" rows="5"></textarea>
+        <span id="feedback-count" aria-live="polite">0 / 1000</span>
+        @for (var i = 0; i < Model.Questions.Count; i++)
+        {
+            <label for="feedback-answer-@i">@Model.Questions[i] (optional)</label>
+            <textarea id="feedback-answer-@i" data-feedback-answer maxlength="500" rows="2"></textarea>
+        }
+        <label for="feedback-screenshots">Screenshots (optional)</label>
+        <input id="feedback-screenshots" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" multiple />
+        <p>PNG or JPEG only. Up to 2 screenshots, 2 MiB each, 4 MiB total. Screenshots must not contain passwords.</p>
+        <p id="feedback-status" role="status" aria-live="polite"></p>
+        <div class="feedback-actions"><button class="secondary-action" type="button" data-feedback-close>Cancel</button><button class="primary-action" type="submit">Send feedback</button></div>
+        <noscript>JavaScript is required to send feedback safely.</noscript>
+    </form>
+</dialog>

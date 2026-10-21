@@ -10,7 +10,7 @@ public class Iteration005MarkupTests
     {
         var markup = File.ReadAllText(Path.Combine(ProjectRoot(), "Arkanum.Web", "Pages", "Vaults", "Index.cshtml"));
 
-        Assert.Contains("<details class=\"create-vault-disclosure\">", markup);
+        Assert.Contains("<details class=\"create-vault-disclosure\"", markup);
         Assert.Contains("<summary class=\"secondary-action\">Create vault</summary>", markup);
         Assert.DoesNotContain("Password generator", markup);
         Assert.DoesNotContain("data-demo-password", markup);

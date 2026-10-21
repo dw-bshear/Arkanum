@@ -96,8 +96,8 @@ public class PhaseCInstallerTests
         var propsText = File.ReadAllText(props);
         var guideText = File.ReadAllText(releaseGuide);
 
-        Assert.Contains("<Version>1.0.0</Version>", propsText);
-        Assert.Contains("1.0.0", guideText);
+        Assert.Contains("<Version>1.1.0</Version>", propsText);
+        Assert.Contains("1.1.0", guideText);
     }
 
     private static string ProjectRoot()

@@ -11,6 +11,8 @@ public sealed class VaultRepository
         var trimmedName = name.Trim();
         if (string.IsNullOrWhiteSpace(trimmedName)) throw new ArgumentException("Vault name is required.", nameof(name));
 
+        if (string.IsNullOrWhiteSpace(description)) throw new ArgumentException("Vault description is required.", nameof(description));
+
         var vault = new VaultEntity
         {
             Name = trimmedName,
@@ -51,9 +53,21 @@ public sealed class VaultRepository
             .Where(m => m.UserKey == userKey && m.CanInvite)
             .Join(db.Vaults, m => m.VaultId, v => v.Id, (_, v) => v)
             .SingleOrDefaultAsync(v => !v.IsRetired && v.CreatedByUserKey == userKey && v.Name == PersonalVaultName(username));
-        if (existing is not null) return existing;
+        var displayName = await db.Users.Where(u => u.UserKey == userKey).Select(u => u.DisplayName).SingleOrDefaultAsync();
+        var name = string.IsNullOrWhiteSpace(displayName) ? username.Trim() : displayName.Trim();
+        var description = $"{name}'s personal vault. Invite other users if you want to share your entries.";
+        if (existing is not null)
+        {
+            // Upgrade only shipped defaults; never overwrite a user's custom description.
+            if (string.IsNullOrWhiteSpace(existing.Description) || existing.Description == "Your personal credential vault. Invite other users when you want to share access.")
+            {
+                existing.Description = description;
+                await db.SaveChangesAsync();
+            }
+            return existing;
+        }
 
-        return await CreateVaultAsync(db, PersonalVaultName(username), "Your personal credential vault. Invite other users when you want to share access.", userKey, now);
+        return await CreateVaultAsync(db, PersonalVaultName(username), description, userKey, now);
     }
 
     public async Task<IReadOnlyList<VaultSummary>> ListVaultsAsync(ArkanumDbContext db)

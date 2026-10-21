@@ -11,7 +11,7 @@
     </div>
     @if (Model.CanCreateVault)
     {
-    <details class="create-vault-disclosure">
+    <details class="create-vault-disclosure" open="@(!ViewData.ModelState.IsValid)">
         <summary class="secondary-action">Create vault</summary>
         <form method="post" asp-page-handler="Create" class="card-form compact-create-vault">
             <h2>New vault</h2>
@@ -19,7 +19,8 @@
             <input asp-for="Name" placeholder="Operations" />
             <span asp-validation-for="Name" class="text-danger"></span>
             <label asp-for="Description">Description</label>
-            <input asp-for="Description" placeholder="Shared operational credentials" />
+            <input asp-for="Description" required placeholder="Shared operational credentials" />
+            <span asp-validation-for="Description" class="text-danger"></span>
             <button class="primary-action" type="submit">Create vault</button>
         </form>
     </details>

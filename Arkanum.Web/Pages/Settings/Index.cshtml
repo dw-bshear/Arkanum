@@ -6,7 +6,6 @@
 <section class="section-heading">
     <p class="eyebrow">Administrator settings</p>
     <h1>Settings</h1>
-    <p>Administrator users can see all settings while we build the control surface. After the settings are in place, visibility can be tightened by role.</p>
 </section>
 
 @if (TempData["Status"] is string status)
@@ -190,6 +189,18 @@
             <label class="check-row"><input name="MailUseTls" type="checkbox" value="true" checked="@Model.Mail.UseTls" /> Use TLS</label>
             <input name="MailUseTls" type="hidden" value="false" />
             <button class="primary-action" type="submit">Save notification server</button>
+        </form>
+        <form method="post" asp-page-handler="Feedback" class="card-form settings-wide-form mt-3">
+            <h3>User feedback</h3>
+            <div asp-validation-summary="All" class="text-danger"></div>
+            <label class="check-row"><input asp-for="FeedbackEnabled" /> Show feedback button to signed-in users</label>
+            <p class="form-help">Off by default. Feedback is emailed using the notification server above. The recipient is private and never shown in the user feedback form.</p>
+            <label asp-for="FeedbackRecipient">Single recipient email</label>
+            <input asp-for="FeedbackRecipient" type="email" maxlength="254" autocomplete="off" />
+            <label asp-for="FeedbackQuestions">Optional questions (one per line)</label>
+            <textarea asp-for="FeedbackQuestions" rows="5" maxlength="1254"></textarea>
+            <p class="form-help">Up to 5 questions, 250 characters each. Answers are optional and limited to 500 characters each. Feedback is limited to 1000 characters and two PNG/JPEG screenshots (2 MiB each).</p>
+            <button class="primary-action" type="submit">Save feedback settings</button>
         </form>
         <form method="post" asp-page-handler="NotificationTemplates" class="card-form settings-wide-form mt-3">
             <h3>Email templates</h3>

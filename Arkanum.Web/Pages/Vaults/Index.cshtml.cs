@@ -28,6 +28,7 @@ public class IndexModel(VaultRepository repository, Arkanum.Web.Data.ArkanumDbCo
         var roles = CurrentRoles();
         if (!ArkanumRoleCapabilities.CanCreateVault(roles) && !ArkanumRoleCapabilities.CanManageAnyVault(roles)) return Forbid();
         if (string.IsNullOrWhiteSpace(Name)) ModelState.AddModelError(nameof(Name), "Vault name is required.");
+        if (string.IsNullOrWhiteSpace(Description)) ModelState.AddModelError(nameof(Description), "Vault description is required.");
         if (!ModelState.IsValid)
         {
             await EnsureStandardPersonalVaultAsync();

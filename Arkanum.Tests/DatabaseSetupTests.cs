@@ -119,7 +119,7 @@ public class DatabaseSetupTests
     {
         var schema = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "setup", "arkanum-schema.sql"));
         var contract = SetupSql.ReadSchemaContract(schema);
-        Assert.Equal(12, contract.Tables.Count);
+        Assert.Equal(13, contract.Tables.Count);
         Assert.Contains(contract.Columns, c => c.Table == "Users" && c.Name == "LockoutEndAt" && c.Nullable && c.Type == "datetimeoffset");
         Assert.Contains(contract.Columns, c => c.Table == "VaultItems" && c.Name == "ResetNotificationDate" && c.Type == "date");
         Assert.Contains(contract.Columns, c => c.Table == "AuditEvents" && c.Name == "IntegrityHash" && c.Length == -1);
