@@ -12,6 +12,12 @@ coverage/
 # Published/release artifacts generated locally
 publish/
 artifacts/
+*.msi
+*.deb
+*.rpm
+*.sarif
+cov-int/
+cov-out/
 *.zip
 *.tar
 *.tar.gz

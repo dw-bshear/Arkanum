@@ -183,6 +183,14 @@ The repository intentionally excludes runtime and local-only artifacts such as:
 
 Review `.gitignore` before adding new operational scripts or lab files.
 
+Browser dependencies are vendored for offline operation. Keep the Bootstrap,
+jQuery, and validation files used by the Razor pages, their matching development
+copies/source maps, and upstream licenses. Unused distribution variants (such as
+Bootstrap RTL/ES-module builds and jQuery Slim) are intentionally excluded.
+Generated installers and raw scanner output belong with release/evidence artifacts,
+not in the source tree. Tests, package lockfiles, installer sources, and historical
+release documentation remain part of the repository.
+
 ## Documentation map
 
 | Document | Purpose |
