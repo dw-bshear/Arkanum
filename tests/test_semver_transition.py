@@ -42,7 +42,7 @@ CASES = [
 class TransitionTests(unittest.TestCase):
     def test_linux_gui_emits_current_version(self):
         text = (ROOT / 'installers/linux/arkanum-gui-install.py').read_text()
-        self.assertIn('"ARKANUM_PACKAGE_VERSION": "1.1.0"', text)
+        self.assertIn('"ARKANUM_PACKAGE_VERSION": "1.1.1"', text)
         self.assertNotIn('"ARKANUM_PACKAGE_VERSION": "2026.1.2"', text)
 
     def test_linux_policy(self):
@@ -66,11 +66,11 @@ class TransitionTests(unittest.TestCase):
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
     def test_current_version_defaults(self):
-        self.assertEqual('1.1.0', ET.parse(ROOT / 'Directory.Build.props').findtext('.//Version'))
+        self.assertEqual('1.1.1', ET.parse(ROOT / 'Directory.Build.props').findtext('.//Version'))
         for path in ['installers/windows/Install-Arkanum.ps1', 'installers/windows/Install-ArkanumGui.ps1', 'installers/windows/Build-ArkanumMsi.ps1', 'installers/linux/install-arkanum.sh', 'installers/linux/build-native-package.sh']:
             with self.subTest(path=path):
                 text = (ROOT / path).read_text()
-                self.assertIn('1.1.0', text)
+                self.assertIn('1.1.1', text)
                 self.assertNotIn("'2026.1.2'", text)
 
     def test_installer_decisions_precede_mutation(self):

@@ -32,16 +32,29 @@
   toggle?.addEventListener('click', () => setTheme(root.dataset.activeTheme === 'dark' ? 'light' : 'dark'));
   apply();
 
+  function randomIndex(maxExclusive) {
+    // A power-of-two mask gives equally likely candidates. Reject the unused
+    // tail instead of folding it into the range with a biased modulo operation.
+    const mask = 2 ** Math.ceil(Math.log2(maxExclusive)) - 1;
+    const sample = new Uint32Array(1);
+    let index;
+    do {
+      crypto.getRandomValues(sample);
+      index = (sample[0] & mask) >>> 0;
+    } while (index >= maxExclusive);
+    return index;
+  }
+
   function generatePassword() {
     const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
     const lower = 'abcdefghijkmnopqrstuvwxyz';
     const numbers = '23456789';
     const symbols = '!@#$%^&*()-_=+[]{}:,.?';
     const all = upper + lower + numbers + symbols;
-    const chars = [upper, lower, numbers, symbols].map(set => set[crypto.getRandomValues(new Uint32Array(1))[0] % set.length]);
-    while (chars.length < 24) chars.push(all[crypto.getRandomValues(new Uint32Array(1))[0] % all.length]);
+    const chars = [upper, lower, numbers, symbols].map(set => set[randomIndex(set.length)]);
+    while (chars.length < 24) chars.push(all[randomIndex(all.length)]);
     for (let i = chars.length - 1; i > 0; i--) {
-      const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
+      const j = randomIndex(i + 1);
       [chars[i], chars[j]] = [chars[j], chars[i]];
     }
     return chars.join('');

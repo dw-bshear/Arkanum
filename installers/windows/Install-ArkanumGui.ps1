@@ -307,7 +307,7 @@ $run.Add_Click({
             HttpsCertificateThumbprint = $httpsCertificateThumbprint.Text
             SqlConnectionString = $conn
             AppPoolName = $appPool.Text
-            PackageVersion = '1.1.0'
+            PackageVersion = '1.1.1'
             PackageKind = $script:PackageKind
             EnableIisFeatures = $enableIis.Checked
             InstallHostingBundle = $installHosting.Checked

@@ -1,6 +1,6 @@
 #requires -Version 5.1
 param(
-    [string]$Version = '1.1.0',
+    [string]$Version = '1.1.1',
     [string]$AppDir = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path 'publish\arkanum-windows-x64'),
     [string]$OutDir = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path 'artifacts\native\windows')
 )

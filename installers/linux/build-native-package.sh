@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=${VERSION:-1.1.0}
+VERSION=${VERSION:-1.1.1}
 ARCH=${ARCH:-amd64}
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 APP_DIR=${APP_DIR:-${ROOT_DIR}/publish/arkanum-linux-x64}

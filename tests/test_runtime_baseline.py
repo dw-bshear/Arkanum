@@ -18,7 +18,7 @@ class RuntimeBaselineTests(unittest.TestCase):
 
     def test_next_source_version_and_linux_runtime_dependency(self):
         props = ET.parse(ROOT / 'Directory.Build.props')
-        self.assertEqual('1.1.0', props.findtext('.//Version'))
+        self.assertEqual('1.1.1', props.findtext('.//Version'))
         native = (ROOT / 'installers/linux/build-native-package.sh').read_text()
         self.assertIn('aspnetcore-runtime-10.0', native)
 
