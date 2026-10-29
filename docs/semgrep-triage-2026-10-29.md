@@ -29,6 +29,27 @@ sources and callers. They do **not** assert that each library API is safe for
 arbitrary future uses. No alert is dismissed merely because it is vendor code,
 minified, or inconvenient. No accepted-risk / "won't fix" disposition is used.
 
+## GitHub application and follow-up
+
+All **141 false-positive dispositions were applied** with individual GitHub
+dismissal comments referencing the corresponding JSON entry. Fresh read-backs
+verified each alert's state, reason and exact comment. All **14 retained alerts
+remain open** and are tracked in GitHub issue **#36**. No application repair or
+vendor update is claimed by these dismissals.
+
+The documentation-only rescan (run **40806776543**) completed successfully and
+reported 154 occurrences instead of the initial 155: alert **112** was omitted
+despite unchanged library bytes and no additional reported parse/timeout error.
+That disappearance is not evidence of a source fix. Alert 112 was explicitly
+classified and dismissed as a reviewed false positive rather than left with a
+misleading automatic "fixed" interpretation. Further scans can vary; consult
+both reports and the per-alert review, not just the aggregate finding count.
+
+When checking totals, deduplicate by alert number and use each returned alert's
+actual `state`: the API's `state=fixed` filter also returned alert 112 with actual
+state `dismissed` after its reclassification. Verified unique totals are 155:
+141 dismissed and 14 open. Current GitHub state can change after this snapshot.
+
 ## Findings retained open
 
 ### jQuery selector grammar — alerts 105–108 and 140–143
