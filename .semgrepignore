@@ -1,0 +1,14 @@
+# Explicit scope: retain application source, tests and vendored JavaScript.
+# Exclude only repository metadata, downloaded rules/reports and generated data.
+.git/
+.semgrep-rules/
+.semgrep-results/
+**/bin/
+**/obj/
+TestResults/
+coverage/
+publish/
+artifacts/
+data/
+logs/
+tmp/

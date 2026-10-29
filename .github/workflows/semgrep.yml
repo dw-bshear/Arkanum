@@ -1,0 +1,119 @@
+name: Semgrep CE
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '37 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: semgrep-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: Semgrep Community Edition
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Check out Arkanum
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Check out pinned community rules
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: semgrep/semgrep-rules
+          ref: 16b9e6d45f10649f6a531ec4838ed9924372c3bc
+          path: .semgrep-rules
+          sparse-checkout: |
+            csharp
+            javascript
+          persist-credentials: false
+
+      - name: Scan with the free OSS engine
+        # No --error: findings are report-only. Fatal scanner errors still fail.
+        # Partial parsing is reported explicitly in the summary and JSON artifact.
+        # Rules are local, source is read-only, and the scanner has no network.
+        run: |
+          mkdir -p .semgrep-results
+          docker run --rm --network none \
+            --volume "$GITHUB_WORKSPACE:/src:ro" \
+            --volume "$GITHUB_WORKSPACE/.semgrep-results:/results" \
+            --workdir /src \
+            semgrep/semgrep:1.182.0@sha256:4a34048c04fef049f71665047f074cffb00cc3d89482f965a5cd151d589237af \
+            semgrep scan --oss-only --metrics=off --disable-version-check \
+              --jobs=2 --timeout=15 \
+              --config .semgrep-rules/csharp/dotnet/security \
+              --config .semgrep-rules/csharp/lang/security \
+              --config .semgrep-rules/csharp/razor/security \
+              --config .semgrep-rules/javascript/browser/security \
+              --config .semgrep-rules/javascript/lang/security \
+              --config .semgrep-rules/javascript/jquery \
+              --json --output /results/semgrep.json \
+              --sarif-output /results/semgrep.sarif .
+
+      - name: Summarize findings and coverage diagnostics
+        if: ${{ !cancelled() && hashFiles('.semgrep-results/semgrep.json') != '' }}
+        run: |
+          python3 - <<'PY'
+          import collections
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads(Path('.semgrep-results/semgrep.json').read_text())
+          findings = report.get('results', [])
+          errors = report.get('errors', [])
+          severity = collections.Counter(item['extra']['severity'] for item in findings)
+          error_types = collections.Counter(
+              item['type'][0] if isinstance(item['type'], list) else item['type']
+              for item in errors
+          )
+          affected_paths = sorted({item['path'] for item in errors if item.get('path')})
+          scanned = len(report.get('paths', {}).get('scanned', []))
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('## Semgrep Community Edition\n\n')
+              summary.write(f'- Findings: **{len(findings)}** ({dict(severity)})\n')
+              summary.write(f'- Files scanned: **{scanned}**\n')
+              summary.write(f'- Coverage diagnostics: **{len(errors)}** ({dict(error_types)})\n')
+              summary.write('- Review alerts under **Security → Code scanning → Semgrep**.\n')
+              summary.write('- JSON and SARIF reports are retained as workflow artifacts for 30 days.\n')
+              summary.write('- Findings do not fail this job; scanner/configuration failures do.\n')
+              summary.write('- Zero findings are not proof that the application is vulnerability-free.\n')
+              if errors:
+                  summary.write('\n### Incomplete coverage\n\n')
+                  summary.write('Do not treat this run as complete analysis of these files:\n\n')
+                  for path in affected_paths:
+                      summary.write(f'- `{path}`\n')
+          if errors:
+              print('::warning::Semgrep reported coverage diagnostics; inspect the JSON artifact before treating the scan as complete.')
+          PY
+
+      - name: Upload alerts to GitHub code scanning
+        if: ${{ !cancelled() && hashFiles('.semgrep-results/semgrep.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          sarif_file: .semgrep-results/semgrep.sarif
+          category: semgrep-ce
+          wait-for-processing: true
+
+      - name: Retain raw reports
+        if: ${{ !cancelled() && hashFiles('.semgrep-results/*') != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: semgrep-ce-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .semgrep-results/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
