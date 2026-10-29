@@ -1,0 +1,612 @@
+{
+  "scope": "Synthetic isolated developer probes of exact source commit a74d69e; no live application exploit claimed. Negative controls intentionally exercise unsafe library configurations. Times are host/runtime dependent.",
+  "nodeVersion": "v22.23.2",
+  "jsdomVersion": "26.1.0",
+  "observations": {
+    "bootstrap-probe-results.json": {
+      "environment": "Node/jsdom 26.1.0; no browser rendering, no network, actual snapshotted source; IntersectionObserver no-op to permit ScrollSpy construction; no geometry override",
+      "results": [
+        {
+          "file": "bootstrap.bundle.js",
+          "passed": 39,
+          "tests": [
+            "navbar fixed data API uses DOM event target, not HTML string",
+            "navbar collapse completed show transition",
+            "Alert jQuery controlled method dispatch",
+            "Button jQuery controlled method dispatch",
+            "Carousel jQuery controlled method dispatch",
+            "Collapse jQuery controlled method dispatch",
+            "Dropdown jQuery controlled method dispatch",
+            "Modal jQuery controlled method dispatch",
+            "Offcanvas jQuery controlled method dispatch",
+            "Tooltip jQuery controlled method dispatch",
+            "Popover jQuery controlled method dispatch",
+            "ScrollSpy jQuery controlled method dispatch",
+            "Tab jQuery controlled method dispatch",
+            "Toast jQuery controlled method dispatch",
+            "Button dispatch rejects non-toggle without invoking it",
+            "Alert explicitly blocks constructor/private dispatch",
+            "Carousel explicitly blocks constructor/private dispatch",
+            "Offcanvas explicitly blocks constructor/private dispatch",
+            "ScrollSpy explicitly blocks constructor/private dispatch",
+            "Tab explicitly blocks constructor/private dispatch",
+            "Collapse undefined method rejects; no stronger guard claimed",
+            "Dropdown undefined method rejects; no stronger guard claimed",
+            "Modal undefined method rejects; no stronger guard claimed",
+            "Tooltip undefined method rejects; no stronger guard claimed",
+            "Popover undefined method rejects; no stronger guard claimed",
+            "Toast undefined method rejects; no stronger guard claimed",
+            "unanchored show|hide regex is not a method allow-list",
+            "Tooltip default untrusted string is text",
+            "Tooltip html true sanitizes content and template",
+            "Tooltip sanitizer regex anchors and URL decoding",
+            "Tooltip data attributes cannot disable sanitation",
+            "Tooltip explicit trusted-JS sanitize false is unsafe control (unused by application)",
+            "Tooltip DOM element content is not sanitized (unused by application)",
+            "Popover default untrusted string is text",
+            "Popover html true sanitizes content and template",
+            "Popover sanitizer regex anchors and URL decoding",
+            "Popover data attributes cannot disable sanitation",
+            "Popover explicit trusted-JS sanitize false is unsafe control (unused by application)",
+            "Popover DOM element content is not sanitized (unused by application)"
+          ]
+        },
+        {
+          "file": "bootstrap.bundle.min.js",
+          "passed": 39,
+          "tests": [
+            "navbar fixed data API uses DOM event target, not HTML string",
+            "navbar collapse completed show transition",
+            "Alert jQuery controlled method dispatch",
+            "Button jQuery controlled method dispatch",
+            "Carousel jQuery controlled method dispatch",
+            "Collapse jQuery controlled method dispatch",
+            "Dropdown jQuery controlled method dispatch",
+            "Modal jQuery controlled method dispatch",
+            "Offcanvas jQuery controlled method dispatch",
+            "Tooltip jQuery controlled method dispatch",
+            "Popover jQuery controlled method dispatch",
+            "ScrollSpy jQuery controlled method dispatch",
+            "Tab jQuery controlled method dispatch",
+            "Toast jQuery controlled method dispatch",
+            "Button dispatch rejects non-toggle without invoking it",
+            "Alert explicitly blocks constructor/private dispatch",
+            "Carousel explicitly blocks constructor/private dispatch",
+            "Offcanvas explicitly blocks constructor/private dispatch",
+            "ScrollSpy explicitly blocks constructor/private dispatch",
+            "Tab explicitly blocks constructor/private dispatch",
+            "Collapse undefined method rejects; no stronger guard claimed",
+            "Dropdown undefined method rejects; no stronger guard claimed",
+            "Modal undefined method rejects; no stronger guard claimed",
+            "Tooltip undefined method rejects; no stronger guard claimed",
+            "Popover undefined method rejects; no stronger guard claimed",
+            "Toast undefined method rejects; no stronger guard claimed",
+            "unanchored show|hide regex is not a method allow-list",
+            "Tooltip default untrusted string is text",
+            "Tooltip html true sanitizes content and template",
+            "Tooltip sanitizer regex anchors and URL decoding",
+            "Tooltip data attributes cannot disable sanitation",
+            "Tooltip explicit trusted-JS sanitize false is unsafe control (unused by application)",
+            "Tooltip DOM element content is not sanitized (unused by application)",
+            "Popover default untrusted string is text",
+            "Popover html true sanitizes content and template",
+            "Popover sanitizer regex anchors and URL decoding",
+            "Popover data attributes cannot disable sanitation",
+            "Popover explicit trusted-JS sanitize false is unsafe control (unused by application)",
+            "Popover DOM element content is not sanitized (unused by application)"
+          ]
+        }
+      ]
+    },
+    "jquery-probe-parent-output.json": [
+      {
+        "asset": "jquery.js",
+        "checks": [
+          "expando fixed prefix plus digits",
+          "__proto__ and constructor.prototype deep-merge probes do not modify Object.prototype",
+          "CHILD/combinator/sibling/parent traversals preserve Object.prototype",
+          "escaped class token matches literally; inherited toString not invoked as attribute handler",
+          "Deferred controlled-tuple dispatch resolves piped value",
+          "named easing and registered step hook dispatch",
+          "leverageNative click and event-trigger native default dispatch",
+          "positive sink controls: html and buildFragment retain executable event attributes",
+          "unobtrusive required fail/pass: field value not passed to html, no Ajax"
+        ],
+        "htmlArgs": [
+          {
+            "type": "string",
+            "value": "Username is required."
+          },
+          {
+            "type": "string",
+            "value": "Username is required."
+          },
+          {
+            "type": "string",
+            "value": ""
+          }
+        ],
+        "ajax": 0,
+        "patternParity": {
+          "rpseudo": true,
+          "ridentifier": true,
+          "ATTR": true,
+          "PSEUDO": true
+        },
+        "layoutOverride": "validator.settings.ignore=[]; not a rendered browser/app test"
+      },
+      {
+        "asset": "jquery.min.js",
+        "checks": [
+          "expando fixed prefix plus digits",
+          "__proto__ and constructor.prototype deep-merge probes do not modify Object.prototype",
+          "CHILD/combinator/sibling/parent traversals preserve Object.prototype",
+          "escaped class token matches literally; inherited toString not invoked as attribute handler",
+          "Deferred controlled-tuple dispatch resolves piped value",
+          "named easing and registered step hook dispatch",
+          "leverageNative click and event-trigger native default dispatch",
+          "positive sink controls: html and buildFragment retain executable event attributes",
+          "unobtrusive required fail/pass: field value not passed to html, no Ajax"
+        ],
+        "htmlArgs": [
+          {
+            "type": "string",
+            "value": "Username is required."
+          },
+          {
+            "type": "string",
+            "value": "Username is required."
+          },
+          {
+            "type": "string",
+            "value": ""
+          }
+        ],
+        "ajax": 0,
+        "patternParity": {
+          "rpseudo": true,
+          "ridentifier": true,
+          "ATTR": true,
+          "PSEUDO": true
+        },
+        "layoutOverride": "validator.settings.ignore=[]; not a rendered browser/app test"
+      }
+    ],
+    "validation-probe-parent-output.json": [
+      {
+        "bundle": "readable",
+        "jquery": "3.7.1",
+        "ordinaryValueIsData": {
+          "valid": true,
+          "images": 0
+        },
+        "requiredMessage": {
+          "text": "The Name field is required.",
+          "images": 0
+        },
+        "syntheticUntrustedShowErrors": {
+          "images": 1,
+          "handler": "window.__probe=1"
+        },
+        "syntheticUntrustedSummary": {
+          "images": 1
+        },
+        "syntheticRemoteResponse": {
+          "calls": 1,
+          "images": 1
+        },
+        "equalToTargetIsNode": true,
+        "depend": {
+          "bool": true,
+          "string": true,
+          "function": true
+        },
+        "format": "Value <img src=x onerror=\"window.__probe=1\">",
+        "escapedNames": [
+          {
+            "name": "a.b",
+            "found": true
+          },
+          {
+            "name": "a'b",
+            "found": true
+          },
+          {
+            "name": "<img src=x onerror=alert(1)>",
+            "found": true
+          },
+          {
+            "name": "a[0]",
+            "found": true
+          }
+        ],
+        "deepExtendPrototypePollution": false,
+        "inheritedObjectLength": 1,
+        "step": true,
+        "metacharIdRegex": [
+          {
+            "id": "a.b",
+            "escaped": "a\\.b-error",
+            "matches": true
+          },
+          {
+            "id": "a+b",
+            "escaped": "a\\+b-error",
+            "matches": true
+          },
+          {
+            "id": "a[0]",
+            "escaped": "a\\[0\\]-error",
+            "matches": true
+          },
+          {
+            "id": "a(b)",
+            "escaped": "a\\(b\\)-error",
+            "matches": true
+          },
+          {
+            "id": "a|b",
+            "escaped": "a\\|b-error",
+            "matches": true
+          }
+        ]
+      },
+      {
+        "bundle": "minified",
+        "jquery": "3.7.1",
+        "ordinaryValueIsData": {
+          "valid": true,
+          "images": 0
+        },
+        "requiredMessage": {
+          "text": "The Name field is required.",
+          "images": 0
+        },
+        "syntheticUntrustedShowErrors": {
+          "images": 1,
+          "handler": "window.__probe=1"
+        },
+        "syntheticUntrustedSummary": {
+          "images": 1
+        },
+        "syntheticRemoteResponse": {
+          "calls": 1,
+          "images": 1
+        },
+        "equalToTargetIsNode": true,
+        "depend": {
+          "bool": true,
+          "string": true,
+          "function": true
+        },
+        "format": "Value <img src=x onerror=\"window.__probe=1\">",
+        "escapedNames": [
+          {
+            "name": "a.b",
+            "found": true
+          },
+          {
+            "name": "a'b",
+            "found": true
+          },
+          {
+            "name": "<img src=x onerror=alert(1)>",
+            "found": true
+          },
+          {
+            "name": "a[0]",
+            "found": true
+          }
+        ],
+        "deepExtendPrototypePollution": false,
+        "inheritedObjectLength": 1,
+        "step": true,
+        "metacharIdRegex": [
+          {
+            "id": "a.b",
+            "escaped": "a\\.b-error",
+            "matches": true
+          },
+          {
+            "id": "a+b",
+            "escaped": "a\\+b-error",
+            "matches": true
+          },
+          {
+            "id": "a[0]",
+            "escaped": "a\\[0\\]-error",
+            "matches": true
+          },
+          {
+            "id": "a(b)",
+            "escaped": "a\\(b\\)-error",
+            "matches": true
+          },
+          {
+            "id": "a|b",
+            "escaped": "a\\|b-error",
+            "matches": true
+          }
+        ]
+      }
+    ],
+    "jquery-regex-results.json": [
+      {
+        "pattern": "rpseudo",
+        "repeat": 8,
+        "input_length": 20,
+        "returncode": 0,
+        "match": true,
+        "ms": 0.15176800000000057
+      },
+      {
+        "pattern": "rpseudo",
+        "repeat": 16,
+        "input_length": 36,
+        "returncode": 0,
+        "match": true,
+        "ms": 0.1507390000000015
+      },
+      {
+        "pattern": "rpseudo",
+        "repeat": 24,
+        "input_length": 52,
+        "returncode": 0,
+        "match": true,
+        "ms": 0.165735999999999
+      },
+      {
+        "pattern": "rpseudo",
+        "repeat": 32,
+        "input_length": 68,
+        "returncode": 0,
+        "match": true,
+        "ms": 0.19286100000000062
+      },
+      {
+        "pattern": "ridentifier",
+        "repeat": 8,
+        "input_length": 17,
+        "returncode": 0,
+        "match": false,
+        "ms": 0.06562100000000015
+      },
+      {
+        "pattern": "ridentifier",
+        "repeat": 16,
+        "input_length": 33,
+        "returncode": 0,
+        "match": false,
+        "ms": 4.392007000000001
+      },
+      {
+        "pattern": "ridentifier",
+        "repeat": 24,
+        "input_length": 49,
+        "returncode": 0,
+        "match": false,
+        "ms": 899.7363409999999
+      },
+      {
+        "pattern": "ridentifier",
+        "repeat": 32,
+        "input_length": 65,
+        "timeout_seconds": 2
+      },
+      {
+        "pattern": "ATTR",
+        "repeat": 8,
+        "input_length": 18,
+        "returncode": 0,
+        "match": false,
+        "ms": 0.12507799999999847
+      },
+      {
+        "pattern": "ATTR",
+        "repeat": 16,
+        "input_length": 34,
+        "returncode": 0,
+        "match": false,
+        "ms": 8.862905000000001
+      },
+      {
+        "pattern": "ATTR",
+        "repeat": 24,
+        "input_length": 50,
+        "returncode": 0,
+        "match": false,
+        "ms": 1936.5306659999999
+      },
+      {
+        "pattern": "ATTR",
+        "repeat": 32,
+        "input_length": 66,
+        "timeout_seconds": 2
+      },
+      {
+        "pattern": "PSEUDO",
+        "repeat": 8,
+        "input_length": 20,
+        "returncode": 0,
+        "match": true,
+        "ms": 0.14071299999999987
+      },
+      {
+        "pattern": "PSEUDO",
+        "repeat": 16,
+        "input_length": 36,
+        "returncode": 0,
+        "match": true,
+        "ms": 0.20500200000000035
+      },
+      {
+        "pattern": "PSEUDO",
+        "repeat": 24,
+        "input_length": 52,
+        "returncode": 0,
+        "match": true,
+        "ms": 0.15710900000000017
+      },
+      {
+        "pattern": "PSEUDO",
+        "repeat": 32,
+        "input_length": 68,
+        "returncode": 0,
+        "match": true,
+        "ms": 0.20519999999999783
+      }
+    ],
+    "validation-regex-results.json": [
+      {
+        "method": "url",
+        "n": 8,
+        "result": false,
+        "elapsed_ms": 0.6766240000000039,
+        "bundle": "readable",
+        "exit_code": 0
+      },
+      {
+        "method": "url",
+        "n": 16,
+        "result": false,
+        "elapsed_ms": 4.129877999999991,
+        "bundle": "readable",
+        "exit_code": 0
+      },
+      {
+        "method": "url",
+        "n": 24,
+        "result": false,
+        "elapsed_ms": 882.688785,
+        "bundle": "readable",
+        "exit_code": 0
+      },
+      {
+        "method": "email",
+        "n": 1000,
+        "result": false,
+        "elapsed_ms": 0.0458940000000041,
+        "bundle": "readable",
+        "exit_code": 0
+      },
+      {
+        "method": "email",
+        "n": 10000,
+        "result": false,
+        "elapsed_ms": 0.077021000000002,
+        "bundle": "readable",
+        "exit_code": 0
+      },
+      {
+        "method": "email",
+        "n": 100000,
+        "result": false,
+        "elapsed_ms": 0.7360689999999863,
+        "bundle": "readable",
+        "exit_code": 0
+      },
+      {
+        "method": "regex",
+        "n": 16,
+        "result": null,
+        "elapsed_ms": 1.5533430000000124,
+        "bundle": "readable",
+        "exit_code": 0
+      },
+      {
+        "method": "regex",
+        "n": 24,
+        "result": null,
+        "elapsed_ms": 389.796783,
+        "bundle": "readable",
+        "exit_code": 0
+      },
+      {
+        "method": "url",
+        "n": 8,
+        "result": false,
+        "elapsed_ms": 0.6697860000000162,
+        "bundle": "min",
+        "exit_code": 0
+      },
+      {
+        "method": "url",
+        "n": 16,
+        "result": false,
+        "elapsed_ms": 4.153556000000009,
+        "bundle": "min",
+        "exit_code": 0
+      },
+      {
+        "method": "url",
+        "n": 24,
+        "result": false,
+        "elapsed_ms": 882.5196800000001,
+        "bundle": "min",
+        "exit_code": 0
+      },
+      {
+        "method": "email",
+        "n": 1000,
+        "result": false,
+        "elapsed_ms": 0.0462710000000186,
+        "bundle": "min",
+        "exit_code": 0
+      },
+      {
+        "method": "email",
+        "n": 10000,
+        "result": false,
+        "elapsed_ms": 0.07901699999999323,
+        "bundle": "min",
+        "exit_code": 0
+      },
+      {
+        "method": "email",
+        "n": 100000,
+        "result": false,
+        "elapsed_ms": 0.7130130000000179,
+        "bundle": "min",
+        "exit_code": 0
+      },
+      {
+        "method": "regex",
+        "n": 16,
+        "result": null,
+        "elapsed_ms": 1.584953000000013,
+        "bundle": "min",
+        "exit_code": 0
+      },
+      {
+        "method": "regex",
+        "n": 24,
+        "result": null,
+        "elapsed_ms": 390.38974199999996,
+        "bundle": "min",
+        "exit_code": 0
+      },
+      {
+        "bundle": "readable",
+        "method": "url",
+        "n": 28,
+        "timeout_seconds": 4
+      },
+      {
+        "bundle": "min",
+        "method": "url",
+        "n": 28,
+        "timeout_seconds": 4
+      }
+    ],
+    "validation-regex-parent-results.json": [
+      {
+        "bundle": "readable",
+        "timeout_seconds": 4
+      },
+      {
+        "bundle": "min",
+        "timeout_seconds": 4
+      }
+    ]
+  }
+}
