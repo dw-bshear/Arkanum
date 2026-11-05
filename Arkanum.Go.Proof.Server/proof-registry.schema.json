@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Arkanum Go isolated proof registry",
+  "description": "Operator reference schema; runtime additionally checks identity/pin uniqueness, SID ownership, RSA key format and directory provenance. JSON names here use canonical casing; the runtime is case-insensitive. No operational identities or keys belong in source control.",
+  "type": "object",
+  "required": ["StateDirectory", "EnrollmentDirectory", "Users", "Devices", "Vaults"],
+  "properties": {
+    "ListenAddress": {"type": "string", "default": "127.0.0.1", "description": "IP literal; use a private approved bind address for remote devices."},
+    "Port": {"type": "integer", "minimum": 1, "maximum": 65535, "default": 7443},
+    "LeaseSeconds": {"type": "integer", "minimum": 1, "maximum": 172800, "default": 172800},
+    "EnrollmentDirectory": {"type": "string", "minLength": 1, "description": "Absolute independently protected write-once enrollment-marker directory; physically distinct from and not nested with StateDirectory. Preserve markers independently of sequence-state cleanup and restore."},
+    "StateDirectory": {"type": "string", "minLength": 1, "description": "Absolute protected writable directory; retain durable sequence, enrollment binding and authorization history."},
+    "Users": {"type": "array", "maxItems": 1000, "items": {"$ref": "#/$defs/user"}},
+    "Devices": {"type": "array", "maxItems": 1000, "items": {"$ref": "#/$defs/device"}},
+    "Vaults": {"type": "array", "maxItems": 1000, "items": {"$ref": "#/$defs/vault"}}
+  },
+  "$defs": {
+    "reference": {"type": "string", "minLength": 1},
+    "user": {
+      "type": "object",
+      "required": ["Id", "Sid", "DomainSid", "ObjectGuid", "Domain", "VerifiedBy", "VerifiedAt", "Enabled", "Roles"],
+      "properties": {
+        "Id": {"$ref": "#/$defs/reference"},
+        "Sid": {"type": "string", "description": "Independently verified AD user SID belonging to DomainSid."},
+        "DomainSid": {"type": "string", "description": "Independently verified AD domain SID."},
+        "ObjectGuid": {"type": "string", "format": "uuid"},
+        "Domain": {"type": "string", "minLength": 1},
+        "VerifiedBy": {"type": "string", "minLength": 1},
+        "VerifiedAt": {"type": "string", "format": "date-time"},
+        "Enabled": {"type": "boolean", "default": false},
+        "Roles": {"type": "array", "items": {"type": ["string", "integer"]}, "description": "Defined ArkanumRole names or numeric values; actual Web effective reveal policy is required."}
+      }
+    },
+    "device": {
+      "type": "object",
+      "required": ["Id", "Approved", "CertificateSha256", "UnwrapSpki", "IssuedAt", "VaultIds"],
+      "properties": {
+        "Id": {"$ref": "#/$defs/reference"},
+        "Approved": {"type": "boolean", "default": false},
+        "CertificateSha256": {"type": "string", "pattern": "^[0-9A-F]{64}$"},
+        "UnwrapSpki": {"type": "string", "minLength": 1, "description": "Canonical Base64 DER RSA SPKI, at least 2048 bits; unique and separate from authentication key."},
+        "IssuedAt": {"type": "string", "format": "date-time", "description": "Immutable enrollment issuance, NOT grant issuance or expiry; do not edit for refresh."},
+        "VaultIds": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/reference"}},
+        "UserIds": {"type": ["array", "null"], "items": {"type": "string"}, "deprecated": true, "description": "Optional legacy compatibility metadata only; ignored for all authorization. Omit from new registries."}
+      }
+    },
+    "vault": {
+      "type": "object",
+      "required": ["Id", "OfflineEnabled", "MemberUserIds"],
+      "properties": {
+        "Id": {"$ref": "#/$defs/reference"},
+        "OfflineEnabled": {"type": "boolean", "default": false},
+        "MemberUserIds": {"type": "array", "items": {"$ref": "#/$defs/reference"}, "description": "Existing user-vault membership is the sole user assignment source. Each referenced member must satisfy effective reveal policy or the proof conservatively denies the device."}
+      }
+    }
+  }
+}
