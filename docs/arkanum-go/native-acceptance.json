@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "observedDateUtc": "2026-11-05",
+  "issue": 38,
+  "status": "partial-native-acceptance-not-release",
+  "dataScope": "Synthetic credentials and secure note only; no production vault export",
+  "runtime": {
+    "virtualServiceAccount": true,
+    "distinctNonexportableMachineKeys": true,
+    "protectedKeyDacls": true,
+    "loggedOutDeviceAuthenticatedRefresh": true
+  },
+  "nativeCases": {
+    "authorizedDomainReadWithDomainAndProofPathsBlocked": true,
+    "firstEverGoLaunchIndependentlyEstablishedBySavedReports": false,
+    "exactSyntheticPayloadByteCount": 367,
+    "exactSyntheticPayloadSha256": "FA929A6BF7FFA25A613B3B0CD099BC28E568EBC1E3102100ED1CA3180E82EF38",
+    "offlineServiceRestartPreservedSequenceAndSignedExpiry": true,
+    "actualSignedExpiryDeniedUnlockedAuthorizedUser": true,
+    "onlyNewAuthenticatedRefreshRenewedAfterExpiry": true,
+    "unassignedDomainUser": {
+      "Read": "passed",
+      "Status": "passed",
+      "CacheBoundary": "passed",
+      "SpoofSid": "passed"
+    },
+    "sameNameLocalUser": {
+      "Read": "passed",
+      "Status": "passed",
+      "CacheBoundary": "passed",
+      "SpoofSid": "passed"
+    },
+    "impostorBrokerReceivedZeroRequestBytes": true,
+    "authenticatedRemoteSmbPipeOpenRejected": "NT_STATUS_ACCESS_DENIED"
+  },
+  "isolationScope": "Domain and proof endpoint paths blocked; management retained. Not a physical network disconnect or offline Windows sign-in.",
+  "ackCorrectionNativeRun": {
+    "brokerManagedAssemblySha256": "11db777539591bc7d0fbf8eac980deb110b1630d62463c9a8d0fa38e9a336f39",
+    "beforeCorrection": "Actual unlocked standard domain user returned exit 10 despite valid matching package",
+    "afterCorrection": "Actual same standard domain user returned exit 0",
+    "repeatReadPassed": 30,
+    "repeatStatusPassed": 30,
+    "allRepeatTokensNonElevatedAndNotAdministrator": true,
+    "lockDeniedThenUnlockedReadAllowed": true,
+    "disconnectedSessionDenied": true,
+    "offlineServiceRestartPreservedSequenceAndSignedExpiry": true,
+    "offlineAuthorizedReadAllowed": true,
+    "authorizedStandardUserCacheAndBothKeyOpensDenied": true,
+    "forgedSidNoResponse": true,
+    "serviceTokenQueryAllowedButAssignDuplicateImpersonateDenied": true,
+    "serviceProcessQueryAllowedButTerminateVmReadDuplicateHandleDenied": true,
+    "standardUserProvisionCommandRejected": true,
+    "nativePowerShell51WrapperStderrZeroNonzeroMissingExecutableCasesPassed": true,
+    "privateEvidence": [
+      "native-reader-resume-red.json", "native-reader-ack-green.json", "native-reader-ack-repeat.json",
+      "native-lock-denial.json", "native-unlock-read.json", "native-disconnect-denial.json",
+      "native-ack-offline-service-restart.json", "native-ack-offline-read.json",
+      "native-ack-authorized-boundaries.json", "native-standard-token-and-provision.json", "native-ps51-wrapper.json"
+    ]
+  },
+  "finalHardenedBuild": {
+    "brokerManagedAssemblySha256": "c9dc2f7ff40e9b04e49f4bd02432cd2397d45c9482bfe457577d923ecdc315f9",
+    "windowsContracts": { "passed": 36, "failed": 0, "skipped": 0 },
+    "standardDomainReadTrialsPassed": 30,
+    "standardDomainStatusTrialsPassed": 30,
+    "installedServiceAbruptPartialAndBusyRecoveryCasesPassed": 4,
+    "unassignedDomainBoundaryCasesPassed": 4,
+    "sameNameLocalBoundaryCasesPassed": 4,
+    "zeroInteractiveUserRefreshPassed": true,
+    "lockDisconnectDenialAndUnlockReconnectReadsPassed": true,
+    "offlineServiceRestartPreservedSequenceAndExpiry": true,
+    "offlineReadPassed": true,
+    "keyAndRootAclReadbackPassedWithUnchangedKeys": true,
+    "remoteSmbPipeRejected": true,
+    "installedHashReadBackAndMatched": true,
+    "temporaryAcceptanceTasksRemaining": 0,
+    "temporaryIsolationRulesRemaining": 0,
+    "timedRecoveryTasksRemaining": 0,
+    "independentWindowsSourceReview": "scoped-pass-28-files",
+    "independentPrimitiveAndSupportReview": "scoped-pass-6-files",
+    "privateEvidencePrefix": "native-final-"
+  },
+  "historicalCleanup": {
+    "temporaryIsolationRulesRemoved": true,
+    "timedNetworkRecoveryTaskRemoved": true,
+    "temporaryReaderTasksRemoved": true,
+    "legitimateServiceRestartedAfterImpostorTest": true
+  },
+  "latestPortableVerification": {
+    "corePassed": 131,
+    "httpsProofPassed": 51,
+    "webPassed": 266,
+    "windowsContractsPassed": 35,
+    "windowsContractsSkippedOnLinux": 1,
+    "windowsPortableSelfChecks": 22,
+    "pythonPassed": 95,
+    "pythonSkipped": 1,
+    "pythonSkipReason": "Windows-only wrapper skipped on Linux; separate native executions recorded above"
+  },
+  "pending": [
+    "cached Windows domain sign-in after ordinary offline reboot",
+    "repeated offline reboot preserving original expiry",
+    "shutdown/startup across expiration",
+    "native sleep/hibernate and lock/disconnect-during-response race cases",
+    "native auditor-only and signed-deny persistence",
+    "additional native state-corruption/replay/rollback and remaining effective isolation/key lifecycle gates",
+    "review and attach remaining native acceptance evidence"
+  ],
+  "limitations": [
+    "RTC progress is trusted for powered-off time",
+    "No protection against trusted administrator/SYSTEM/service compromise or coordinated full trusted-state snapshots",
+    "Process interruption is not storage power-loss durability qualification"
+  ]
+}

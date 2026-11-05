@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 2,
+  "observedDateUtc": "2026-11-05",
+  "status": "integrated-proof-with-open-native-gates",
+  "issue": 38,
+  "sourceBranch": "feature/arkanum-go-sprint-1",
+  "publication": {
+    "foundationCommit": "136e3de0eddcd12e4aeda8e8a8b84a353409801b",
+    "foundationPushedAndRemoteVerified": true,
+    "windowsSource": "reviewed-feature-branch-source-candidate; see Git history and issue 38 for publication commit",
+    "betaReleaseCreated": false
+  },
+  "coreRelease": { "passed": 131, "failed": 0, "skipped": 0 },
+  "httpsProofRelease": { "passed": 51, "failed": 0, "skipped": 0, "includesActual90SecondExpiry": true },
+  "webReleaseRegression": { "passed": 266, "failed": 0, "skipped": 0 },
+  "pythonRegression": {
+    "excludingWindowsProofFile": { "passed": 80, "skipped": 1, "failed": 0, "warnings": 12, "warningScope": "Existing tar extraction deprecation warnings" },
+    "windowsProofFileAfterAckCorrection": { "passed": 15, "failed": 0 },
+    "skipReason": "Windows-only primitive wrapper skipped on Linux; independent real Windows executions recorded separately"
+  },
+  "historicalNativePrimitiveRuns": [
+    { "context": "elevated WinRM", "elevated": true, "passed": 11, "failed": 0, "exitCode": 0 },
+    { "context": "non-elevated interactive token", "elevated": false, "administratorRoleEnabled": false, "passed": 11, "failed": 0, "taskExitCode": 0 }
+  ],
+  "historicalNativePrimitiveChecks": [
+    "windows_identity", "canonical_sid_round_trip", "cng_signature_valid", "cng_signature_tamper_rejected",
+    "aes_gcm_round_trip", "aes_gcm_tamper_rejected", "pipe_same_caller_allowed", "pipe_unassigned_denied",
+    "pipe_forged_sid_denied", "pipe_wrong_server_pid_rejected", "pipe_first_instance_collision_rejected"
+  ],
+  "nativeProbeZipSha256": "624169c82849c989dc375c9bd07571ad723e3a5443976d230889cd186d04348d",
+  "nativeProbeManagedAssemblySha256": "d8678cd6aa8d9b1831677d552f8829a5e2fac75b07162113dd201175896ebcaa",
+  "currentLabWindowsDomainJoined": true,
+  "integratedNativeEvidence": "native-acceptance.json",
+  "limitations": [
+    "Historical primitive runs self-spawn under the same user; those runs alone do not establish shared-service isolation.",
+    "Integrated synthetic HTTPS and real Windows SCM/CLI service checks are separate from a production WPF reader, Web sync API or beta installer.",
+    "Logged-out refresh and an authorized Go read with domain/proof paths blocked executed in an existing domain session. Saved reader reports alone do not independently establish first-launch provenance; offline Windows cached sign-in remains unverified.",
+    "The core implements conservative cross-boot policy, but actual offline reboot/repeated reboot and shutdown/startup across expiry require separate native acceptance.",
+    "RTC progress is trusted for powered-off time; privileged coordinated trusted-state/RTC snapshot rollback and power-loss-safe directory metadata are not defeated or qualified."
+  ],
+  "acceptanceIssueRemainsOpen": true
+}

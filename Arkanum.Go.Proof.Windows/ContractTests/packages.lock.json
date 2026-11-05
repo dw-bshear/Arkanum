@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "arkanum.go.core": {
+        "type": "Project"
+      },
+      "arkanum.go.proof.protocol": {
+        "type": "Project",
+        "dependencies": {
+          "Arkanum.Go.Core": "[1.0.0-beta.1, )"
+        }
+      },
+      "arkanum.go.proof.windows": {
+        "type": "Project",
+        "dependencies": {
+          "Arkanum.Go.Core": "[1.0.0-beta.1, )",
+          "Arkanum.Go.Proof.Protocol": "[1.1.1, )"
+        }
+      }
+    },
+    "net10.0/win-x64": {}
+  }
+}
